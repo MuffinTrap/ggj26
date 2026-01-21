@@ -110,9 +110,9 @@ void DrawFirstPerson(Player* player, DukeMap* map)
         Sector* sector = Map_GetSector(map, request.number);
         // Render all walls of the current sector
         // Discard those that do not face player
-        for (int s = 0; s < sector->wallAmount; s++)
+        for (int wi = 0; wi < sector->wallAmount; wi++)
         {
-            Wall* w = Sector_GetWall(s);
+            Wall* w = Sector_GetWall(sector, wi);
             vec2 start = w->start;
             vec2 end = w->end;
             // Rotate around player
