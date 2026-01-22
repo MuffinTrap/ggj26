@@ -1,8 +1,11 @@
 #include <mgdl.h>
 #include "example.h"
 #include "dukemapreader.h"
+#include "build-render.h"
 
 static Example example;
+static DukeMap* map;
+static Player player;
 
 void init()
 {
@@ -14,31 +17,34 @@ void init()
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
-    example.Init();
+    //example.Init();
+    map = ReadMapFromFile("assets/Maps/test_room.map");
+    Map_PrintInfo(map);
+    player.position = map->startPosition;
+    BuildRender_Init(map);
 }
 
 void frame()
 {
-    example.Update();
+    //example.Update();
 
     // NOTE Use the mgdl_glClear to assure depth buffer working correctly on Wii
     mgdl_glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-    example.Draw();
+    // example.Draw();
+    mgdl_InitOrthoProjection();
+    BuildRender_DrawFirstPerson(&player, map);
 }
 
 void quit()
 {
     // Called before program exits
     // Use this to free any resources and disconnect rocket
-    example.Quit();
+    //example.Quit();
 }
 
 int main()
 {
-    DukeMap* map = ReadMapFromFile("assets/Maps/test_room.map");
-    Map_PrintInfo(map);
-    /*
-    mgdl_InitSystem("mgdl example project",
+    mgdl_InitSystem("Duke Test",
         ScreenAspect::Screen4x3,
             init,
             frame,
@@ -46,9 +52,8 @@ int main()
         FlagNone
          //| FlagFullScreen
          | FlagSplashScreen
-         | FlagPauseUntilA
+         // | FlagPauseUntilA
     );
-    */
 
     return 0;
 }

@@ -1,14 +1,22 @@
 #include "dukemap.h"
 #include <mgdl.h>
+#include <mgdl/mgdl-vectorfunctions.h>
+#include <mgdl/ccVector/ccVector.h>
 Sector* Map_GetSector(DukeMap* map, int sectorNumber)
 {
     mgdl_assert_print((sectorNumber>= 0 && sectorNumber < map->sectorAmount),"Invalid sector for Map_GetSector");
     return &map->sectors[sectorNumber];
 }
-Wall* Sector_GetWall(Sector* sector, int wi)
+Wall* Map_GetWallInSector(DukeMap* map, s16 sector, s16 wi)
 {
-    mgdl_assert_print((wi>= 0 && wi < sector->wallAmount),"Invalid wall index for Sector_GetWall");
-    return &sector->walls[wi];
+    Sector* s = &map->sectors[sector];
+    wi += s->wallptr;
+    mgdl_assert_print((wi>= 0 && wi < map->wallAmount),"Invalid wall index for Sector_GetWall");
+    Wall* w = &map->walls[wi];
+    w->start = vec2New(w->x, w->y);
+    Wall* w2 = &map->walls[w->point2];
+    w->end = vec2New(w2->x, w2->y);
+    return w;
 }
 
 void Map_PrintInfo(DukeMap* map)
@@ -24,7 +32,7 @@ void Map_PrintInfo(DukeMap* map)
     for (int i = 0; i < map->sectorAmount; i++)
     {
         Sector* s = &map->sectors[i];
-        Log_InfoF("Sector n: %d FloorZ %d CeilingZ %d\n", i, s->floorz, s->ceilingz);
+        Log_InfoF("Sector n: %d Walls: %d first wall %d FloorZ %d CeilingZ %d\n", i, s->wallnum, s->wallptr, s->floorz, s->ceilingz);
     }
 
     for (int s = 0; s < map->wallAmount; s++)

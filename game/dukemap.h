@@ -22,7 +22,6 @@ struct Wall
 {
     vec2 start;
     vec2 end;
-    int neighborSector;
 
     // From file
     s32 x, y; ///< Coordinates of the left side. Right side is left side of next wall.
@@ -41,12 +40,6 @@ typedef struct Wall Wall;
 
 struct Sector
 {
-    int pointAmount;
-    int wallAmount;
-    Wall* walls;
-    int ceilingZ;
-    int floorZ;
-
     // From file
     s16 wallptr, wallnum; ///< Index of first wall and amount of walls in this sector
     s32 ceilingz, floorz; ///< Z of ceiling and floor of first point
@@ -93,7 +86,7 @@ extern "C" {
      */
 void Map_ConvertToGameUnits(DukeMap* map);
 Sector* Map_GetSector(DukeMap* map, int sectorNumber);
-Wall* Sector_GetWall(Sector* sector, int wi);
+Wall* Map_GetWallInSector(DukeMap* map, s16 sector, s16 wi);
 void Map_PrintInfo(DukeMap* map);
 
 #ifdef __cplusplus

@@ -1,4 +1,5 @@
 #pragma once
+#include "dukemap.h"
 
 struct SectorRender
 {
@@ -17,3 +18,7 @@ struct Player
     float Pitch;
 };
 typedef struct Player Player;
+
+
+void BuildRender_Init(DukeMap* map);
+void BuildRender_DrawFirstPerson(Player* player, DukeMap* map);

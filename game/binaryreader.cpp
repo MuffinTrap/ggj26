@@ -23,30 +23,20 @@ bool CloseBinary()
 
 s16 ReadInt16()
 {
-    s16 out;
-    if (fread(&out, sizeof(s16), 1, openFile) == 1)
-    {
-        return out;
-    }
-    else
-    {
-        Log_Error("Failed to read Int16\n");
-        return 0;
-    }
+    fread(buffer, sizeof(s16), 1, openFile);
 #   ifdef GEKKO
     RevBytes(buffer, sizeof(s16));
 #   endif
-    //s16 out = *(s16*)(buffer);
-    //return out;
+    s16 out = *(s16*)(buffer);
+    return out;
 }
 u16 ReadUInt16()
 {
-    u16 out;
-    fread(&out, sizeof(u16), 1, openFile);
+    fread(buffer, sizeof(u16), 1, openFile);
 #   ifdef GEKKO
     RevBytes(buffer, sizeof(u16));
 #   endif
-    //u16 out = *(u16*)(buffer);
+    u16 out = *(u16*)(buffer);
     return out;
 }
 s32 ReadInt32()

@@ -2,6 +2,7 @@
 #include "binaryreader.h"
 #include <mgdl.h>
 #include <stdio.h>
+#include <mgdl/ccVector/ccVector.h>
 
 DukeMap* ReadMapFromFile(const char* mapfilename)
 {
@@ -18,7 +19,7 @@ DukeMap* ReadMapFromFile(const char* mapfilename)
     s32 x = ReadInt32();
     s32 y = ReadInt32();
     s32 z = ReadInt32();
-    m.startPosition = (vec3){{(float)x, (float)y, (float)z}};
+    m.startPosition = vec3New((float)x, (float)y, (float)z);
     m.startAngle = ReadInt16();
     m.startingSector = ReadInt16();
 
