@@ -1,11 +1,15 @@
 #include "dukemapreader.h"
 #include "binaryreader.h"
+#include <mgdl.h>
 #include <stdio.h>
 
 DukeMap* ReadMapFromFile(const char* mapfilename)
 {
+    Log_InfoF("Reading map file %s\n", mapfilename);
     if (!OpenBinary(mapfilename))
     {
+        Log_ErrorF("No map file %s\n", mapfilename);
+
         return nullptr;
     }
     DukeMap* mapPtr = (DukeMap*)malloc(sizeof(DukeMap));
@@ -15,10 +19,10 @@ DukeMap* ReadMapFromFile(const char* mapfilename)
     s32 y = ReadInt32();
     s32 z = ReadInt32();
     m.startPosition = (vec3){{(float)x, (float)y, (float)z}};
-    m.startAngle = ReadInt32();
+    m.startAngle = ReadInt16();
     m.startingSector = ReadInt16();
 
-    m.sectorAmount = ReadInt16();
+    m.sectorAmount = ReadUInt16();
     m.sectors = (Sector*)malloc(sizeof(Sector)*m.sectorAmount);
     for (int i = 0; i < m.sectorAmount; i++)
     {
@@ -27,8 +31,8 @@ DukeMap* ReadMapFromFile(const char* mapfilename)
         s->wallnum = ReadInt16();
         s->ceilingz = ReadInt32();
         s->floorz = ReadInt32();
-        s->ceilingstat = ReadUInt16();
-        s->floorstat = ReadUInt16();
+        s->ceilingstat = ReadInt16();
+        s->floorstat = ReadInt16();
         s->ceilingpicnum = ReadInt16();
         s->ceilingheinum = ReadInt16();
         s->ceilingshade = ReadSByte();
@@ -43,11 +47,11 @@ DukeMap* ReadMapFromFile(const char* mapfilename)
         s->floorypanning = ReadByte();
         s->visibility = ReadByte();
         s->filler = ReadByte();
-        s->lotag = ReadUInt16();
-        s->hitag = ReadUInt16();
+        s->lotag = ReadInt16();
+        s->hitag = ReadInt16();
         s->extra = ReadInt16();
     }
-    m.wallAmount = ReadInt16();
+    m.wallAmount = ReadUInt16();
     m.walls = (Wall*)malloc(sizeof(Wall) * m.wallAmount);
     for (int s = 0; s < m.wallAmount; s++)
     {
@@ -57,7 +61,7 @@ DukeMap* ReadMapFromFile(const char* mapfilename)
         w->point2 = ReadInt16();
         w->nextwall = ReadInt16();
         w->nextsector = ReadInt16();
-        w->cstat = ReadUInt16();
+        w->cstat = ReadInt16();
         w->picnum = ReadInt16();
         w->overpicnum = ReadInt16();
         w->shade = ReadSByte();
@@ -66,11 +70,11 @@ DukeMap* ReadMapFromFile(const char* mapfilename)
         w->yrepeat = ReadByte();
         w->xpanning = ReadByte();
         w->ypanning = ReadByte();
-        w->lotag = ReadUInt16();
-        w->hitag = ReadUInt16();
+        w->lotag = ReadInt16();
+        w->hitag = ReadInt16();
         w->extra = ReadInt16();
     }
-    m.spriteAmount = ReadInt16();
+    m.spriteAmount = ReadUInt16();
     m.sprites = (DSprite*)malloc(sizeof(DSprite) * m.spriteAmount);
     for (int i = 0; i < m.spriteAmount; i++)
     {
@@ -78,7 +82,7 @@ DukeMap* ReadMapFromFile(const char* mapfilename)
         s->x = ReadInt32();
         s->y = ReadInt32();
         s->z = ReadInt32();
-        s->cstat = ReadUInt16();
+        s->cstat = ReadInt16();
         s->picnum = ReadInt16();
         s->shade = ReadSByte();
         s->pal = ReadByte();
@@ -95,8 +99,8 @@ DukeMap* ReadMapFromFile(const char* mapfilename)
         s->xvel = ReadInt16();
         s->yvel = ReadInt16();
         s->zvel = ReadInt16();
-        s->lotag = ReadUInt16();
-        s->hitag = ReadUInt16();
+        s->lotag = ReadInt16();
+        s->hitag = ReadInt16();
         s->extra = ReadInt16();
     }
 

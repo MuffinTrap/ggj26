@@ -5,7 +5,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-    DukeMap* ReadFromFile(const char* mapfilename);
+    DukeMap* ReadMapFromFile(const char* mapfilename);
 #ifdef __cplusplus
 }
 #endif

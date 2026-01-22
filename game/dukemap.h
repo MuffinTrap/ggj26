@@ -1,5 +1,5 @@
 #pragma once
-		#include <mgdl/ccVector/ccVector.h>
+		#include <mgdl/mgdl-vectorfunctions.h>
 		#include <mgdl/mgdl-types.h>
 struct DSprite
 {
@@ -94,6 +94,7 @@ extern "C" {
 void Map_ConvertToGameUnits(DukeMap* map);
 Sector* Map_GetSector(DukeMap* map, int sectorNumber);
 Wall* Sector_GetWall(Sector* sector, int wi);
+void Map_PrintInfo(DukeMap* map);
 
 #ifdef __cplusplus
 }

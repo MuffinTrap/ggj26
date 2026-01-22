@@ -1,5 +1,6 @@
 #include <mgdl.h>
 #include "example.h"
+#include "dukemapreader.h"
 
 static Example example;
 
@@ -34,6 +35,9 @@ void quit()
 
 int main()
 {
+    DukeMap* map = ReadMapFromFile("assets/Maps/test_room.map");
+    Map_PrintInfo(map);
+    /*
     mgdl_InitSystem("mgdl example project",
         ScreenAspect::Screen4x3,
             init,
@@ -44,6 +48,7 @@ int main()
          | FlagSplashScreen
          | FlagPauseUntilA
     );
+    */
 
     return 0;
 }
