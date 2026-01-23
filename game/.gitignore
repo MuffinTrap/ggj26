@@ -50,3 +50,9 @@ build/
 
 # Kate meta files
 *.kate-swp
+
+# Mapster 
+mapster32
+*.log
+*.RTS
+*.GRP

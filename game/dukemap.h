@@ -1,6 +1,11 @@
 #pragma once
 		#include <mgdl/mgdl-vectorfunctions.h>
 		#include <mgdl/mgdl-types.h>
+// Forward def
+struct Player;
+
+
+
 struct DSprite
 {
     // Game info
@@ -41,7 +46,8 @@ typedef struct Wall Wall;
 struct Sector
 {
     // From file
-    s16 wallptr, wallnum; ///< Index of first wall and amount of walls in this sector
+    s16 wallptr; /**< Index of first wall */
+    s16 wallnum; /**< and amount of walls in this sector */
     s32 ceilingz, floorz; ///< Z of ceiling and floor of first point
     u16 ceilingstat, floorstat; ///< Stats about ceiling and floor
     s16 ceilingpicnum; ///< Texture of ceiling
@@ -63,7 +69,8 @@ struct DukeMap
 {
     s32 version;
     vec3 startPosition;
-    s16 startAngle;
+    s16 startAngle; /**< 0 - 2047. 0 : (0,1) 512 = (1,0) 1024: (0, -1) */
+
     s16 startingSector;
 
     s16 sectorAmount;
@@ -88,6 +95,9 @@ void Map_ConvertToGameUnits(DukeMap* map);
 Sector* Map_GetSector(DukeMap* map, int sectorNumber);
 Wall* Map_GetWallInSector(DukeMap* map, s16 sector, s16 wi);
 void Map_PrintInfo(DukeMap* map);
+void Map_InitPlayer(DukeMap* map, Player* player);
+
+float Map_AngleToRad(s16 angleInt);
 
 #ifdef __cplusplus
 }

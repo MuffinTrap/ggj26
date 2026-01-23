@@ -19,6 +19,12 @@ Wall* Map_GetWallInSector(DukeMap* map, s16 sector, s16 wi)
     return w;
 }
 
+void Map_InitPlayer(DukeMap* map, Player* player)
+{
+    player->position = map->startPosition;
+    player->angleRad = Map_AngleToRad(map->startAngle);
+}
+
 void Map_PrintInfo(DukeMap* map)
 {
     Log_InfoF("Duke Map Version:%d Start pos:(%.2f,%.2f,%.2f), Start angle:%d Start Sector:%d\n",
@@ -38,7 +44,9 @@ void Map_PrintInfo(DukeMap* map)
     for (int s = 0; s < map->wallAmount; s++)
     {
         Wall* w = &map->walls[s];
-        Log_InfoF("Wall n: %d (%d,%d)\n", s, w->x, w->y);
+        Wall* w2 = &map->walls[w->point2];
+
+        Log_InfoF("Wall n: %d (%d,%d) - (%d,%d)\n", s, w->x, w->y, w2->x, w2->y);
     }
 
 
@@ -46,4 +54,10 @@ void Map_PrintInfo(DukeMap* map)
     {
 
     }
+}
+
+float Map_AngleToRad(s16 angleInt)
+{
+    float ratio = (float)angleInt / (float)2048;
+    return ratio * M_PI * 2.0f;
 }
