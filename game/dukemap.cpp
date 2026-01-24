@@ -2,6 +2,7 @@
 #include <mgdl.h>
 #include <mgdl/mgdl-vectorfunctions.h>
 #include <mgdl/ccVector/ccVector.h>
+#include "player.h"
 Sector* Map_GetSector(DukeMap* map, int sectorNumber)
 {
     mgdl_assert_print((sectorNumber>= 0 && sectorNumber < map->sectorAmount),"Invalid sector for Map_GetSector");
@@ -21,8 +22,8 @@ Wall* Map_GetWallInSector(DukeMap* map, s16 sector, s16 wi)
 
 void Map_InitPlayer(DukeMap* map, Player* player)
 {
-    player->position = map->startPosition;
-    player->angleRad = Map_AngleToRad(map->startAngle);
+    player->positionOpenGL = map->startPosition;
+    player->angleRad = Map_AngleToRad(map->startAngle - 512);
 }
 
 void Map_PrintInfo(DukeMap* map)

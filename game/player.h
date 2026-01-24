@@ -12,11 +12,13 @@ struct RenderSettingsOpenGL;
 struct Player
 {
     int sectorNumber;
-    vec3 position2D; //NOTE Z is up
     vec3 positionOpenGL; //NOTE Z is up
+    vec3 direction;
     float angleRad;
     float Pitch;
 
+    float turnSpeedDegrees;
+    // These are in dukes
     float moveSpeed;
     float verticalSpeed;
     float standingHeight; ///< How much above ground when standing

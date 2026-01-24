@@ -1,0 +1,36 @@
+Kartan mitat on dukeissa
+
+
+Säädin  kuinka monta dukea on yksi metri  leveys ja korkeus erikseen ok!
+Laske kerroin ja käytä sitä koko piirtämiseen  Y skaala negatiivinen ok!
+
+Säädin FOV varten
+
+Käytä 2D piirtämistä laskemaan mitkä sektorit pitää piirtää
+
+glutess piirtää lattiat ja seinät
+
+Pelaajan nopeudet ja koko metreissä
+
+Funktiot: Onko piste sektorin sisällä?
+		 Menikö pelaajan liike seinän läpi? : Intersection
+		 Ohjaa pelaajan liike seinää pitkin: vector reflection
+
+
+OpenGL piirtäminen
+	Laske tiling offsetit ja muut kun laitetaan tekstuurikoordinaatti
+	Laske seinien normaalit
+	Tallenna koko sektori verteksibufferiin
+
+	Jos kenttä muuttuu pitää bufferi päivittää
+
+Pelaaja
+	Pelaajan tila, crouch, swim, fall, walk
+	Strafe nopeus ja kontrollit
+
+
+3D Arvot:
+	GL Width Scaling 7.3
+	GL Height Scaling 109.6
+	FOV 77.7
+	Rotation Speed 150 astetta

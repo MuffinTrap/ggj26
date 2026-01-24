@@ -46,11 +46,6 @@ static vec2 RotateZ(vec2 p, float angle)
     return vec2New(xt, yt);
 }
 
-// Array the size of screen Width to
-// store the up and bottom borders
-// of draw area
-int* ytop;
-int* ybottom;
 
 // How many portals can be waiting for drawing
 #define MAX_PORTAL_QUEUE 32
@@ -76,11 +71,6 @@ static const int playerSize = 256;
 
 // OpenGL
 Texture* checkers;
-
-
-// DANGER debugging
-int wallXPoints[20];
-int wallYPoints[20];
 
 static void SetColor(int color)
 {
@@ -126,14 +116,6 @@ static void Line2(int x1, int z1, int x2, int z2)
     glVertex2i(x2, z2);
 }
 
-static void Line(int x, int y1, int y2)
-{
-    y1 = clampInt(y1, 0, H-1);
-    y2 = clampInt(y2, 0, H-1);
-    glVertex2i(x, y1);
-    glVertex2i(x, y2);
-}
-
 void BuildRender_Init(DukeMap* map)
 {
     H = mgdl_GetScreenHeight();
@@ -144,21 +126,12 @@ void BuildRender_Init(DukeMap* map)
     renderedSectorNames = (int*)malloc(sizeof(int) * map->sectorAmount);
     lastSectorAmount = map->sectorAmount;
 
-    ytop = (int*)malloc(sizeof(int) * W);
-    ybottom = (int*)malloc(sizeof(int) * W);
-
     checkers = Texture_GenerateCheckerBoard();
 }
 
 void InitArrays()
 {
-    int bottomY = H-1;
     memset(renderedSectorNames, 0, lastSectorAmount);
-    memset(ytop, 0, W);
-    for(int b = 0; b < W; b++) // Cannot memset anything but 0
-    {
-        ybottom[b] = bottomY;
-    }
 
     // No items in buffer
     head = renderQueue;
@@ -171,69 +144,14 @@ static vec2 Intersect(vec3 A, vec3 B, float nearSide, float nearZ, float farSide
 
 }
 */
-int ConvertCeilingHeightOpenGL(int dukeheight, RenderSettingsOpenGL* settings)
-{
-    // Duke Floors and ceilings
-    // default floor 8192
-    // default ceiling -8192
-    // Changes in 1024 increments
-
-    // Convert 8192 to baseFloorLevel
-
-    dukeheight *= -1; // Flip
-    int converted  = settings->floor0Level + settings->heightPerDukeK * dukeheight/1024;
-    return converted;
-}
-int ConvertFloorHeightOpenGL(int dukeheight, RenderSettingsOpenGL* settings)
-{
-    dukeheight *= -1; // Flip
-    dukeheight += 8192; // Bring default floor to 0
-    int converted  = settings->floor0Level + settings->heightPerDukeK * dukeheight/1024;
-    return converted;
-}
-vec2 ConvertXYOpenGL(vec2 p, RenderSettingsOpenGL* settings)
-{
-    p.x = (float)p.x/1024.0f * settings->widthPerDukeK;
-    p.y = (float)p.y/1024.0f * settings->widthPerDukeK;
-    return p;
-}
-
-int ConvertCeilingHeight(int dukeheight, RenderSettings2D* settings)
-{
-    // Duke Floors and ceilings
-    // default floor 8192
-    // default ceiling -8192
-    // Changes in 1024 increments
-
-    // Convert 8192 to baseFloorLevel
-
-    dukeheight *= -1; // Flip
-    int converted  = settings->floor0Level + settings->heightPerDukeK * dukeheight/1024;
-    return converted;
-}
-
-int ConvertFloorHeight(int dukeheight, RenderSettings2D* settings)
-{
-    dukeheight *= -1; // Flip
-    dukeheight += 8192; // Bring default floor to 0
-    int converted  = settings->floor0Level + settings->heightPerDukeK * dukeheight/1024;
-    return converted;
-}
-
-vec2 ConvertXY(vec2 p, RenderSettings2D* settings)
-{
-    p.x = (float)p.x/1024.0f * settings->widthPerDukeK;
-    p.y = (float)p.y/1024.0f * settings->widthPerDukeK;
-    return p;
-}
-
 void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* settings)
 {
     InitArrays();
 
     vec2 playerPos2 = vec2New(player->positionOpenGL.x, player->positionOpenGL.y);
-    playerPos2 = ConvertXYOpenGL(playerPos2, settings);
-    // Put the player's sector to head of buffer
+    //playerPos2.x *= settings->scaleXZ;
+    //playerPos2.y *= settings->scaleXZ;
+    // Put the pla
     // Draw whole screen: ytop and ybottom are at initial values
     *head = {player->sectorNumber, 0, W-1};
     // Circular buffer pointer arithmetics
@@ -244,6 +162,7 @@ void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* 
     }
 
     glPushMatrix();
+    glScalef(settings->scaleXZ, -settings->scaleY, settings->scaleXZ);
 
     // Start drawing OpenGL lines
 
@@ -268,8 +187,8 @@ void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* 
         // Get the sector info from map
         Sector* sector = Map_GetSector(map, request.number);
 
-        float ceilingY = ConvertCeilingHeightOpenGL(sector->ceilingz, settings);
-        float floorY = ConvertFloorHeightOpenGL(sector->floorz, settings);
+        float ceilingY = sector->ceilingz;
+        float floorY = sector->floorz;
 
         // TODO Use gluTesselateion to draw floor and ceiling
         // Render all walls of the current sector
@@ -277,8 +196,8 @@ void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* 
         for (s16 wi = 0; wi < sector->wallnum; wi++)
         {
             Wall* w = Map_GetWallInSector(map, request.number, wi);
-            vec2 start = ConvertXYOpenGL(w->start, settings);
-            vec2 end = ConvertXYOpenGL( w->end, settings);
+            vec2 start = w->start;
+            vec2 end =  w->end;
             /*
 
             start = vec2Subtract(start, playerPos2);
@@ -309,8 +228,8 @@ void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* 
             {
                 // Create wall that goes down or up to adjacent sector: Note! both sectors dont need to do this. Only lower one
                 Sector* neighbor = Map_GetSector(map, w->nextsector);
-                int n_floorY = ConvertFloorHeightOpenGL(neighbor->floorz, settings);
-                int n_ceilingY = ConvertCeilingHeightOpenGL(neighbor->ceilingz, settings);
+                int n_floorY = neighbor->floorz;
+                int n_ceilingY = neighbor->ceilingz;
 
                 // if this floor height is less than adjacent: Greate wall in between: goes up
                 if (floorY < n_floorY)
@@ -383,7 +302,7 @@ void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* 
                 glDisable(GL_TEXTURE_2D);
 
                 glBegin(GL_LINE_LOOP);
-                    SetColor(MAP_COLOR);
+                    SetColor(FLOOR_COLOR);
                     // Draw outline
                     glVertex3f(start.x, floorY, start.y); // 0
                     glVertex3f(end.x, floorY, end.y);   // 1
@@ -402,7 +321,160 @@ void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* 
 
 }
 
+void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL* settings3D, RenderSettings2D* settings2D)
+{
+    Font* df = DefaultFont_GetDefaultFont();
+    vec2 playerPos2 = vec2New(player->positionOpenGL.x, player->positionOpenGL.y);
 
+    // WALL NUMBERS
+    ////////////////////
+
+    Color4f* c = Color_GetDefaultColor(Color_Red);
+
+    // The whole map zoom
+    glPushMatrix();
+        glTranslatef(W/2 + settings2D->mapOffset.x, H/2 + settings2D->mapOffset.y, 0.0f);
+        //glRotatef(180, 0.0f, 0.0f, 1.0f); // Mapster32 Y is down. OpenGL Y is up
+        glScalef(settings2D->mapZoom, settings2D->mapZoom, 1);
+
+
+            // Draw origo
+            SetColor(MAP_COLOR);
+            Line2(0, -10, 0 ,10);
+            Line2(-10, 0, 10, 0);
+        // The walls zoom
+        glPushMatrix();
+            glScalef(settings3D->scaleXZ, settings3D->scaleXZ, 1);
+
+            // DRAW WALLS
+            ////////////////////////////
+            glBegin(GL_LINES);
+            SetColor(FLOOR_COLOR);
+            // Keep player at center
+
+            for(int si = 0; si < map->sectorAmount; si++)
+            {
+                // Get the sector info from map
+                Sector* sector = Map_GetSector(map, si);
+                // Render all walls of the current sector
+                // Discard those that do not face player
+                for (s16 wi = 0; wi < sector->wallnum; wi++)
+                {
+                    Wall* w = Map_GetWallInSector(map, si, wi);
+                    vec2 start = w->start;
+                    vec2 end =  w->end;
+                    //start = vec2Multiply(start, settings2D->scaleXZ);
+                    //end = vec2Multiply(end, settings2D->scaleXZ);
+                    // Rotate around player
+                    //start = vec2Subtract(start, playerPos2);
+                    //end = vec2Subtract(end, playerPos2);
+
+                    Line2(start.x, start.y, end.x, end.y);
+                }
+            }
+            glEnd(); // end walls
+
+            // DRAW WALL NUMBERS
+            for(int si = 0; si < map->sectorAmount; si++)
+            {
+                // Get the sector info from map
+                Sector* sector = Map_GetSector(map, si);
+                // Render all walls of the current sector
+                // Discard those that do not face player
+                for (s16 wi = 0; wi < sector->wallnum; wi++)
+                {
+                    Wall* w = Map_GetWallInSector(map, si, wi);
+                    vec2 start = w->start;
+
+                    Font_Printf(df, c, start.x-8, start.y-8, 32, "%d", sector->wallptr+wi);
+                }
+            }
+        glPopMatrix(); // WALLS
+
+        // DRAW PLAYER
+        // ////////////
+
+    glPushMatrix();
+
+        glScalef(settings3D->scaleXZ, settings3D->scaleXZ, 1);
+        glBegin(GL_LINES);
+            if (mgdl_GetElapsedFrames() % 30 == 0)
+            {
+                SetColor(MAP_COLOR);
+            }
+            else
+            {
+                SetColor(PLAYER_COLOR);
+            }
+            float dotSize = playerSize/3;
+            glVertex2i(playerPos2.x,playerPos2.y - dotSize);
+            glVertex2i(playerPos2.x + dotSize,playerPos2.y);
+
+            glVertex2i(playerPos2.x + dotSize,playerPos2.y);
+            glVertex2i(playerPos2.x ,playerPos2.y + dotSize);
+
+            glVertex2i(playerPos2.x ,playerPos2.y + dotSize);
+            glVertex2i(playerPos2.x - dotSize,playerPos2.y);
+
+            glVertex2i(playerPos2.x - dotSize,playerPos2.y);
+            glVertex2i(playerPos2.x,playerPos2.y - dotSize);
+
+            // PLAYER ARROW
+            // //////////////////
+            SetColor(FLOOR_COLOR);
+            vec2 forward = vec2New(player->direction.x, player->direction.y);
+            forward = vec2Multiply(forward, playerSize);
+
+            if (settings2D->mapYDown)
+            {
+//               forward = vec2Negate(forward);
+            }
+            vec2 end = forward;
+
+            end = vec2Add(playerPos2, end);
+
+            glVertex2i(playerPos2.x,playerPos2.y);
+            glVertex2f(end.x, end.y);
+
+            vec2 sideLeft = RotateZ(forward,  M_PI * 3.0f/4.0f);
+            vec2 sideRight = RotateZ(forward, -M_PI * 3.0f/4.0f);
+            sideLeft = vec2Add(sideLeft, end);
+            sideRight = vec2Add(sideRight, end);
+
+            glVertex2f(end.x, end.y);
+            glVertex2f(sideLeft.x, sideLeft.y);
+
+            glVertex2f(end.x, end.y);
+            glVertex2f(sideRight.x, sideRight.y);
+
+        glEnd();
+        glPopMatrix(); // Player
+
+    glPopMatrix(); // Whole map view
+        /*
+    for(int si = 0; si < map->sectorAmount; si++)
+    {
+        // Get the sector info from map
+        Sector* sector = Map_GetSector(map, si);
+        // Render all walls of the current sector
+        // Discard those that do not face player
+        for (s16 wi = 0; wi < sector->wallnum; wi++)
+        {
+            Wall* w = Map_GetWallInSector(map, si, wi);
+            vec2 start = w->start;
+            vec2 end =  w->end;
+            // Rotate around player
+            start = vec2Subtract(start, playerPos2);
+            end = vec2Subtract(end, playerPos2);
+
+            Font_Printf(df, c, start.x-8, start.y-8, 16, "%d", sector->wallptr+wi);
+        }
+    }
+    */
+}
+
+
+/** OLD LINE BASED 3D RENDERING
 void BuildRender_DrawFirstPerson(Player* player, DukeMap* map, RenderSettings2D* settings)
 {
     W = mgdl_GetScreenWidth();
@@ -674,133 +746,5 @@ void BuildRender_DrawFirstPerson(Player* player, DukeMap* map, RenderSettings2D*
     } while(head != tail); // Render until buffer is empty: if nothing was added, they are the same
     glEnd();
 }
+*/
 
-void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettings2D* settings)
-{
-    Font* df = DefaultFont_GetDefaultFont();
-    vec2 playerPos2 = vec2New(player->position2D.x, player->position2D.y);
-    playerPos2 = ConvertXY(playerPos2, settings);
-
-    // Draw wall numbers
-    Color4f* c = Color_GetDefaultColor(Color_White);
-    glPushMatrix();
-        glTranslatef(W/2 + settings->mapOffset.x, H/2 + settings->mapOffset.y, 0.0f);
-        //glRotatef(180, 0.0f, 0.0f, 1.0f); // Mapster32 Y is down. OpenGL Y is up
-        //glScalef(zoom, zoom, zoom);
-    SetColor(MAP_COLOR);
-    // Keep player at center
-
-    for(int si = 0; si < map->sectorAmount; si++)
-    {
-        // Get the sector info from map
-        Sector* sector = Map_GetSector(map, si);
-        // Render all walls of the current sector
-        // Discard those that do not face player
-        for (s16 wi = 0; wi < sector->wallnum; wi++)
-        {
-            Wall* w = Map_GetWallInSector(map, si, wi);
-            vec2 start = ConvertXY(w->start, settings);
-            vec2 end = ConvertXY( w->end, settings);
-            // Rotate around player
-            start = vec2Subtract(start, playerPos2);
-            end = vec2Subtract(end, playerPos2);
-
-            // The Z is how far ahead of player the point is
-
-            vec2 startZ;
-            vec2 endZ;
-            // NOTE negative because around player
-            startZ = RotateZ(start, -player->angleRad);
-            endZ = RotateZ(end, -player->angleRad);
-
-            startZ = vec2Add(startZ, playerPos2);
-            endZ = vec2Add(endZ, playerPos2);
-
-            Font_Printf(df, c, start.x * settings->mapZoom -8, start.y * settings->mapZoom -8, 16, "%d", sector->wallptr+wi);
-            //Line2(start.x, start.y, end.x, end.y);
-            //Line2(start3.x, start3.z, end3.x, end3.z);
-
-        }
-    }
-    glPopMatrix();
-
-    glPushMatrix();
-        glTranslatef(W/2 + settings->mapOffset.x, H/2 + settings->mapOffset.y, 0.0f);
-        //glRotatef(180, 0.0f, 0.0f, 1.0f); // Mapster32 Y is down. OpenGL Y is up
-        glScalef(settings->mapZoom, settings->mapZoom, 1);
-    glBegin(GL_LINES);
-    SetColor(MAP_COLOR);
-    // Keep player at center
-
-    for(int si = 0; si < map->sectorAmount; si++)
-    {
-        // Get the sector info from map
-        Sector* sector = Map_GetSector(map, si);
-        // Render all walls of the current sector
-        // Discard those that do not face player
-        for (s16 wi = 0; wi < sector->wallnum; wi++)
-        {
-            Wall* w = Map_GetWallInSector(map, si, wi);
-            vec2 start = ConvertXY(w->start, settings);
-            vec2 end = ConvertXY( w->end, settings);
-            // Rotate around player
-            start = vec2Subtract(start, playerPos2);
-            end = vec2Subtract(end, playerPos2);
-
-            vec2 startZ;
-            vec2 endZ;
-            // NOTE NEgative around player
-            startZ = RotateZ(start, -player->angleRad);
-            endZ = RotateZ(end, -player->angleRad);
-
-            startZ = vec2Add(startZ, playerPos2);
-            endZ = vec2Add(endZ, playerPos2);
-
-
-            Line2(start.x, start.y, end.x, end.y);
-        }
-    }
-    glPopMatrix();
-
-
-
-    //Draw player as a flickering point
-    glPushMatrix();
-        glTranslatef(W/2 + settings->mapOffset.x, H/2 + settings->mapOffset.y, 0.0f);
-        glScalef(settings->mapZoom, settings->mapZoom, 1);
-        glPointSize(4.0f);
-        glBegin(GL_POINTS);
-            if (mgdl_GetElapsedFrames() % 30 == 0)
-            {
-                SetColor(MAP_COLOR);
-            }
-            else
-            {
-                SetColor(PLAYER_COLOR);
-            }
-            glVertex2i(0,0);
-        glEnd();
-
-        glBegin(GL_LINES);
-
-        vec2 forward = vec2New(0.0f, playerSize /2);
-        forward = ConvertXY(forward, settings);
-        vec2 end = RotateZ(forward, player->angleRad);
-
-        glVertex2i(0,0);
-        glVertex2f(end.x, end.y);
-
-        vec2 side = RotateZ(forward, player->angleRad + M_PI_2f);
-
-        glVertex2f(end.x, end.y);
-        glVertex2f(side.x, side.y);
-
-        glVertex2f(end.x, end.y);
-        glVertex2f(-side.x, -side.y);
-
-        glVertex2i(0,0);
-        glVertex2f(-end.x, -end.y);
-        glEnd();
-        glPointSize(1.0f);
-    glPopMatrix();
-}

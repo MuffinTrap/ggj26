@@ -11,19 +11,17 @@ typedef struct SectorRender SectorRender;
 
 struct RenderSettings2D
 {
-    float floor0Level;
-    float heightPerDukeK; /**< How much height is 1024 duke units */
-    float widthPerDukeK; /**< How much width is 1024 duke units */
+    float scaleXZ;
     float mapZoom;
+    bool mapYDown;
     vec2 mapOffset;
 };
 typedef struct RenderSettings2D RenderSettings2D;
 
 struct RenderSettingsOpenGL
 {
-    float floor0Level;
-    float heightPerDukeK; /**< How much height is 1024 duke units */
-    float widthPerDukeK; /**< How much width is 1024 duke units */
+    float scaleXZ;
+    float scaleY;
 };
 typedef struct RenderSettingsOpenGL RenderSettingsOpenGL;
 
@@ -37,7 +35,7 @@ void BuildRender_Init(DukeMap* map);
 void BuildRender_DrawFirstPerson(Player* player, DukeMap* map, RenderSettings2D* settings);
 /** @brief Draws the map wireframe and player
  */
-void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettings2D* settings);
+void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL* settings3D, RenderSettings2D* settings2D);
 
 /** @brief Draws the map in 3D using OpenGL
  */
