@@ -2,6 +2,7 @@
 #include <mgdl.h>
 #include <mgdl/ccVector/ccVector.h>
 
+struct DukeMap;
 struct RenderSettings2D;
 struct RenderSettingsOpenGL;
 /**
@@ -13,6 +14,7 @@ struct Player
 {
     int sectorNumber;
     vec3 positionOpenGL; //NOTE Z is up
+    vec3 prevPositionOpenGL;
     vec3 direction;
     float angleRad;
     float Pitch;
@@ -23,7 +25,12 @@ struct Player
     float verticalSpeed;
     float standingHeight; ///< How much above ground when standing
     float kneelingHeight; ///< How much above ground when kneeling/crouching
+
+    float radius;
+
+    // Collision info
+    bool insideSector;
 };
 typedef struct Player Player;
 
-void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings2D* settings2D, RenderSettingsOpenGL* settingsGL);
+void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings2D* settings2D, RenderSettingsOpenGL* settingsGL, DukeMap* map);

@@ -43,6 +43,7 @@ void init()
     player.kneelingHeight = 4000.0f;
     player.turnSpeedDegrees = 150; // NOTE set
     player.positionOpenGL.z += player.standingHeight;
+    player.radius = 128;
 
     mapMenu = Menu_CreateWindowed(DefaultFont_GetDefaultFont(), 1.0f, 1.5f, 256, 128, "Map menu");
     drawTopdown = true;
@@ -72,7 +73,9 @@ void init()
 void frame()
 {
     //example.Update();
-    Player_UpdateMove(&player, mgdl_GetController(0), &render2D, &renderGL);
+    Player_UpdateMove(&player, mgdl_GetController(0), &render2D, &renderGL, map);
+    // Check if player went outside perimeter wall and put them back
+
 
     // Move camera
     //NOTE Z is up
@@ -140,6 +143,7 @@ void frame()
 
     Menu_Start(mapMenu, 8, mgdl_GetScreenHeight()-8, 256);
     Menu_TextF(mapMenu, "Player3D: (%.1f %.1f %.1f) Dir: %.0f", player.positionOpenGL.x, player.positionOpenGL.y, player.positionOpenGL.z, Rad2Deg(player.angleRad));
+    Menu_TextF(mapMenu, "Player Sector: %s %d", player.insideSector ? "Inside" : "Outside", player.sectorNumber);
     Menu_Slider(mapMenu, "Speed", 1, 2048.0f, &player.moveSpeed);
     Menu_Slider(mapMenu, "V Speed", 1, 512.0f, &player.verticalSpeed);
     Menu_Slider(mapMenu, "R Speed", 45, 720.0f, &player.turnSpeedDegrees);
@@ -176,7 +180,7 @@ void frame()
     Menu_Slider(mapMenu, "Far Z ", 100, 1000, &glCamera->farZ);
     if (Menu_Button(mapMenu, "ResetPlayer"))
     {
-        player.positionOpenGL = map->startPosition;
+        Map_InitPlayer(map, &player);
         player.positionOpenGL.z += player.standingHeight;
     }
     /*

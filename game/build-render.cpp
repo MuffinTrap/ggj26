@@ -60,54 +60,14 @@ static int lastSectorAmount = 0;
 static int W;
 static int H;
 
-static const int FLOOR_COLOR = 99;
-static const int CEIL_COLOR = 100;
-static const int PORTAL_COLOR = 101;
-static const int MAP_COLOR = 102;
-static const int PLAYER_COLOR = 103;
-static const int WALL_COLOR = 104;
-
-static const int playerSize = 256;
 
 // OpenGL
 Texture* checkers;
 
-static void SetColor(int color)
+static void SetColor(DefaultColor oc)
 {
-    if (color == WALL_COLOR)
-    {
-        Palette* p = Palette_GetDefault();
-        color = 4;
-        Color4f c = Palette_GetColor4f(p, color);
-        glColor3f(c.red, c.green, c.blue);
-    }
-    else
-    {
-        Color4f* c;
-        switch(color)
-        {
-            case FLOOR_COLOR:
-                c = Color_GetDefaultColor(Color_Red);
-                glColor4fv(&c->red);
-                break;
-            case CEIL_COLOR:
-                c = Color_GetDefaultColor(Color_Blue);
-                glColor4fv(&c->red);
-                break;
-            case PORTAL_COLOR:
-                c = Color_GetDefaultColor(Color_Green);
-                glColor4fv(&c->red);
-                break;
-            case MAP_COLOR:
-                c = Color_GetDefaultColor(Color_White);
-                glColor4fv(&c->red);
-                break;
-            case PLAYER_COLOR:
-                c = Color_GetDefaultColor(Color_Black);
-                glColor4fv(&c->red);
-                break;
-        }
-    }
+    Color4f* c = Color_GetDefaultColor(oc);
+    glColor4fv(&c->red);
 }
 
 static void Line2(int x1, int z1, int x2, int z2)
@@ -198,17 +158,14 @@ void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* 
             Wall* w = Map_GetWallInSector(map, request.number, wi);
             vec2 start = w->start;
             vec2 end =  w->end;
-            /*
 
-            start = vec2Subtract(start, playerPos2);
-            end = vec2Subtract(end, playerPos2);
+            vec2 startZ = vec2Subtract(start, playerPos2);
+            vec2 endZ = vec2Subtract(end, playerPos2);
 
             // The Y is how far ahead of player the point is
-            vec2 startZ;
-            vec2 endZ;
             // NOTE negative around player
-            startZ = RotateZ(start, -player->angleRad);
-            endZ = RotateZ(end, -player->angleRad);
+            startZ = RotateZ(startZ, -player->angleRad);
+            endZ = RotateZ(endZ, -player->angleRad);
             //startZ.x = start.x * player_sin - start.y * player_cos;
             //startZ.z = start.x * player_cos + start.y * player_sin;
             // endZ.x = end.x * player_sin - end.y * player_cos;
@@ -217,9 +174,8 @@ void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* 
             if(startZ.y <= 0 && endZ.y <= 0)
             {
                 // Draw next wall
-                //continue;
+                continue;
             }
-            */
 
             // Wall is drawn
             // if it was a portal Add neighbor to queue
@@ -235,15 +191,15 @@ void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* 
                 if (floorY < n_floorY)
                 {
                     // Build Triangles for stair
-                glBegin(GL_TRIANGLES);
-                SetColor(WALL_COLOR);
-                    glVertex3f(start.x, floorY, start.y);
-                    glVertex3f(end.x, floorY, end.y);
-                    glVertex3f(end.x, n_floorY, end.y);
+                    glBegin(GL_TRIANGLES);
+                    SetColor(Color_Blue);
+                        glVertex3f(start.x, floorY, start.y);
+                        glVertex3f(end.x, floorY, end.y);
+                        glVertex3f(end.x, n_floorY, end.y);
 
-                    glVertex3f(end.x, n_floorY, end.y);
-                    glVertex3f(start.x, n_floorY, start.y);
-                    glVertex3f(start.x, floorY, start.y);
+                        glVertex3f(end.x, n_floorY, end.y);
+                        glVertex3f(start.x, n_floorY, start.y);
+                        glVertex3f(start.x, floorY, start.y);
                     glEnd();
 
                 }
@@ -253,7 +209,7 @@ void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* 
                 if (ceilingY > n_ceilingY)
                 {
                 glBegin(GL_TRIANGLES);
-                SetColor(WALL_COLOR);
+                SetColor(Color_Green);
                     // Build Triangles for arc
                     glVertex3f(start.x, n_ceilingY, start.y);
                     glVertex3f(end.x, n_ceilingY, end.y);
@@ -277,7 +233,7 @@ void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* 
                 glEnable(GL_TEXTURE_2D);
                 glBindTexture(GL_TEXTURE_2D, checkers->textureId);
                 glBegin(GL_TRIANGLES);
-                SetColor(MAP_COLOR);
+                SetColor(Color_White);
                     // Build Triangles for wall
                     glTexCoord2f(0.0f, 0.0f); // 0
                     glVertex3f(start.x, floorY, start.y); // 0
@@ -302,7 +258,7 @@ void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* 
                 glDisable(GL_TEXTURE_2D);
 
                 glBegin(GL_LINE_LOOP);
-                    SetColor(FLOOR_COLOR);
+                    SetColor(Color_Red);
                     // Draw outline
                     glVertex3f(start.x, floorY, start.y); // 0
                     glVertex3f(end.x, floorY, end.y);   // 1
@@ -331,6 +287,7 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
 
     Color4f* c = Color_GetDefaultColor(Color_Red);
 
+    glLineWidth(4.0f);
     // The whole map zoom
     glPushMatrix();
         glTranslatef(W/2 + settings2D->mapOffset.x, H/2 + settings2D->mapOffset.y, 0.0f);
@@ -339,7 +296,7 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
 
 
             // Draw origo
-            SetColor(MAP_COLOR);
+            SetColor(Color_White);
             Line2(0, -10, 0 ,10);
             Line2(-10, 0, 10, 0);
         // The walls zoom
@@ -349,7 +306,6 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
             // DRAW WALLS
             ////////////////////////////
             glBegin(GL_LINES);
-            SetColor(FLOOR_COLOR);
             // Keep player at center
 
             for(int si = 0; si < map->sectorAmount; si++)
@@ -369,11 +325,30 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
                     //start = vec2Subtract(start, playerPos2);
                     //end = vec2Subtract(end, playerPos2);
 
+                    // TODO Show collision detection info here
+                    if (w->nextsector < 0)
+                    {
+                        bool insideWall = Map_IsPointInsideWall(playerPos2, w);
+                        if (insideWall)
+                        {
+                            SetColor(Color_Red);
+                        }
+                        else
+                        {
+                            SetColor(Color_Blue);
+                        }
+                    }
+                    else
+                    {
+                            SetColor(Color_Green);
+                    }
+
                     Line2(start.x, start.y, end.x, end.y);
                 }
             }
             glEnd(); // end walls
 
+            SetColor(Color_Red);
             // DRAW WALL NUMBERS
             for(int si = 0; si < map->sectorAmount; si++)
             {
@@ -400,13 +375,13 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
         glBegin(GL_LINES);
             if (mgdl_GetElapsedFrames() % 30 == 0)
             {
-                SetColor(MAP_COLOR);
+                SetColor(Color_White);
             }
             else
             {
-                SetColor(PLAYER_COLOR);
+                SetColor(Color_Black);
             }
-            float dotSize = playerSize/3;
+            float dotSize = player->radius/2;
             glVertex2i(playerPos2.x,playerPos2.y - dotSize);
             glVertex2i(playerPos2.x + dotSize,playerPos2.y);
 
@@ -421,17 +396,16 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
 
             // PLAYER ARROW
             // //////////////////
-            SetColor(FLOOR_COLOR);
+            SetColor(Color_Red);
             vec2 forward = vec2New(player->direction.x, player->direction.y);
-            forward = vec2Multiply(forward, playerSize);
+            forward = vec2Multiply(forward, player->radius * 2);
 
             if (settings2D->mapYDown)
             {
 //               forward = vec2Negate(forward);
             }
-            vec2 end = forward;
 
-            end = vec2Add(playerPos2, end);
+            vec2 end = vec2Add(playerPos2, forward);
 
             glVertex2i(playerPos2.x,playerPos2.y);
             glVertex2f(end.x, end.y);
@@ -451,6 +425,8 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
         glPopMatrix(); // Player
 
     glPopMatrix(); // Whole map view
+
+    glLineWidth(1.0f);
         /*
     for(int si = 0; si < map->sectorAmount; si++)
     {

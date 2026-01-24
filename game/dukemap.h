@@ -97,6 +97,11 @@ Wall* Map_GetWallInSector(DukeMap* map, s16 sector, s16 wi);
 void Map_PrintInfo(DukeMap* map);
 void Map_InitPlayer(DukeMap* map, Player* player);
 
+bool Map_IsPointInsideSectorOG(DukeMap* map, vec2 point, int sectorNumber);
+bool Map_IsPointInsideSectorRay(DukeMap* map, vec2 point, int sectorNumber);
+bool Map_IsPointInsideWall(vec2 point, Wall* wall);
+bool Map_FindIntersectionWithWall(vec2 moveStart, vec2 moveEnd, Wall* wall, vec2* pointOUT);
+
 float Map_AngleToRad(s16 angleInt);
 
 #ifdef __cplusplus

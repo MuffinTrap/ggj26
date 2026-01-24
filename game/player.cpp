@@ -1,7 +1,10 @@
 #include "player.h"
 #include "build-render.h"
 
-void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings2D* settings2D, RenderSettingsOpenGL* settingsGL)
+#include "dukemap.h"
+#include "dukemath.h"
+
+void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings2D* settings2D, RenderSettingsOpenGL* settingsGL, DukeMap* map)
 {
 	float turnSpeed = Deg2Rad(player->turnSpeedDegrees);
 	float moveSpeed = player->moveSpeed;
@@ -20,7 +23,7 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 	vec3 forward = vec3New(0.0f, 1.0f,0.0f);
 	player->direction = mat3x3MultiplyVector(rotation, forward);
 
-	// player->position2D =  vec3Add(player->position2D, vec3Multiply(dir, -jdir.y * moveSpeed2D * dt));
+	player->prevPositionOpenGL = player->positionOpenGL; // Store old
 	player->positionOpenGL =  vec3Add(player->positionOpenGL, vec3Multiply(player->direction, -jdir.y * moveSpeed3D* dt));
 
 	if (WiiController_ButtonHeld(controller, Button1))
@@ -33,4 +36,53 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 		//player->position2D.z -= verticalSpeed2D* dt;
 		player->positionOpenGL.z -= verticalSpeed3D* dt;
 	}
+
+	// Test if collides with a wall of this sector that is not a portal
+        // Get the sector info from map
+
+        // Keep doing this check until player is inside
+
+		vec2 point = player->prevPositionOpenGL.xy;
+		vec2 endpoint = player->positionOpenGL.xy;
+		vec2 cross;
+		player->insideSector =  Map_IsPointInsideSectorOG(map, endpoint, player->sectorNumber);
+		if (player->insideSector == false)
+		{
+			bool foundPortal = false;
+			bool foundWall = false;
+			Sector* sector = Map_GetSector(map, player->sectorNumber);
+			for (s16 wi = 0; wi < sector->wallnum; wi++)
+			{
+				Wall* w = Map_GetWallInSector(map, player->sectorNumber, wi);
+				// Did player cross this wall
+				if (Map_FindIntersectionWithWall(point, endpoint, w, &cross))
+				{
+					// Yes
+					// Is it a portal?
+					if (w->nextsector >= 0)
+					{
+						player->sectorNumber = w->nextsector;
+						foundPortal = true;
+					}
+					else
+					{
+						foundWall = true;
+						vec2 wallVector = vec2Subtract(w->end, w->start);
+						vec2 normal = vec2Normalize(Vec2CrossWithZ(wallVector));
+						// Push player back
+						player->positionOpenGL.x = cross.x + normal.x * player->radius;//* moveSpeed3D *dt;
+						player->positionOpenGL.y = cross.y + normal.y * player->radius;// * moveSpeed3D *dt;
+					}
+					break;
+				}
+			}
+			if (foundPortal == false && foundWall == false)
+			{
+				// DANGER Player has escaped: return to original position
+				player->positionOpenGL = player->prevPositionOpenGL;
+			}
+			// TODO does player hit head
+			float ceilingY = sector->ceilingz;
+			float floorY = sector->floorz;
+		}
 }
