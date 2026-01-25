@@ -464,6 +464,7 @@ void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* 
                 glColor3f(0.5f, 0.5f, 0.5f);
                 DrawQuad(start, end, floorY, ceilingY, settings);
 
+                /*
                 glBegin(GL_LINE_LOOP);
                     SetColor(Color_Red);
                     // Draw outline
@@ -471,8 +472,8 @@ void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* 
                     glVertex3f(end.x, floorY, end.y);   // 1
                     glVertex3f(end.x, ceilingY, end.y); // 2
                     glVertex3f(start.x, ceilingY, start.y); // 3
-
                 glEnd();
+                */
             }
         } // All walls of the sector have been drawn; head has moved forward
 
@@ -505,50 +506,55 @@ void DrawDot(vec2 point, float size, DefaultColor color)
 void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL* settings3D, RenderSettings2D* settings2D)
 {
     Font* df = DefaultFont_GetDefaultFont();
-        vec2 playerPos2;
-        if (settings2D->movePlayer)
-        {
-            playerPos2 = vec2New(player->positionOpenGL.x, player->positionOpenGL.y);
-        }
-        else
-        {
-            playerPos2 = settings2D->collisionPoint;
-        }
 
-        vec2 collision_forward = vec2New(0.0, settings2D->collisionLength);
+    vec2 playerPos2;
+    if (settings2D->movePlayer)
+    {
+        playerPos2 = vec2New(player->positionOpenGL.x, player->positionOpenGL.y);
+    }
+    else
+    {
+        playerPos2 = settings2D->collisionPoint;
+    }
 
-        collision_forward  = RotateZ(collision_forward,  Deg2Rad(settings2D->collisionAngleDeg));
-        vec2 collisionEnd = vec2Add(playerPos2, collision_forward);
+    vec2 collision_forward = vec2New(0.0, settings2D->collisionLength);
 
-        bool collisionMiss = true;
-        vec2 collisionOut;
+    collision_forward  = RotateZ(collision_forward,  Deg2Rad(settings2D->collisionAngleDeg));
+    vec2 collisionEnd = vec2Add(playerPos2, collision_forward);
+
+    bool collisionMiss = true;
+    vec2 collisionOut;
 
 
 
     // WALL NUMBERS
     ////////////////////
-
-
     glLineWidth(4.0f);
     // The whole map zoom
+    // Put the origo on the center of the screen
     glPushMatrix();
-        glTranslatef(W/2 + settings2D->mapOffset.x, H/2 + settings2D->mapOffset.y, 0.0f);
-        //glRotatef(180, 0.0f, 0.0f, 1.0f); // Mapster32 Y is down. OpenGL Y is up
+
+        glTranslatef(
+            W/2 + settings2D->mapOffset.x,
+            H/2 + settings2D->mapOffset.y,
+            0.0f);
         glScalef(settings2D->mapZoom, settings2D->mapZoom, 1);
 
-
-            // Draw origo
-            SetColor(Color_White);
-            Line2(0, -10, 0 ,10);
-            Line2(-10, 0, 10, 0);
         // The walls zoom
         glPushMatrix();
+            // Keep player at center of screen
+            glRotatef(Rad2Deg(-player->angleRad) + 180, 0, 0, 1);
             glScalef(settings3D->scaleXZ, settings3D->scaleXZ, 1);
+            glTranslatef(-playerPos2.x, -playerPos2.y, 0);
+
 
             // DRAW WALLS
             ////////////////////////////
             glBegin(GL_LINES);
-            // Keep player at center
+            // Draw origo
+            SetColor(Color_White);
+            Line2(0, -10, 0 ,10);
+            Line2(-10, 0, 10, 0);
 
             for(int si = 0; si < map->sectorAmount; si++)
             {
@@ -676,14 +682,15 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
                 pc = Color_White;
             }
             float dotSize = player->radius/2;
-            DrawDot(playerPos2, dotSize,pc );
 
             // PLAYER ARROW
             // //////////////////
             if (settings2D->movePlayer)
             {
+                playerPos2 = vec2Zero();
+                DrawDot(playerPos2, dotSize,pc );
                 SetColor(Color_Red);
-                vec2 forward = vec2New(player->direction.x, player->direction.y);
+                vec2 forward = vec2New(0, -1);//vec2New(player->direction.x, player->direction.y);
                 forward = vec2Multiply(forward, player->radius * 2);
                 vec2 end = vec2Add(playerPos2, forward);
 
@@ -703,6 +710,7 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
             }
             else
             {
+                DrawDot(playerPos2, dotSize,pc );
                 SetColor(Color_Black);
                 vec2 forward = vec2New(0.0, settings2D->collisionLength);
 
@@ -711,309 +719,13 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
 
                 glVertex2i(playerPos2.x,playerPos2.y);
                 glVertex2f(end.x, end.y);
-
             }
 
         glEnd();
         glPopMatrix(); // Player
-
     glPopMatrix(); // Whole map view
-
     glLineWidth(1.0f);
-        /*
-    for(int si = 0; si < map->sectorAmount; si++)
-    {
-        // Get the sector info from map
-        Sector* sector = Map_GetSector(map, si);
-        // Render all walls of the current sector
-        // Discard those that do not face player
-        for (s16 wi = 0; wi < sector->wallnum; wi++)
-        {
-            Wall* w = Map_GetWallInSector(map, si, wi);
-            vec2 start = w->start;
-            vec2 end =  w->end;
-            // Rotate around player
-            start = vec2Subtract(start, playerPos2);
-            end = vec2Subtract(end, playerPos2);
-
-            Font_Printf(df, c, start.x-8, start.y-8, 16, "%d", sector->wallptr+wi);
-        }
-    }
-    */
 }
 
 
-/** OLD LINE BASED 3D RENDERING
-void BuildRender_DrawFirstPerson(Player* player, DukeMap* map, RenderSettings2D* settings)
-{
-    W = mgdl_GetScreenWidth();
-    H = mgdl_GetScreenHeight();
-
-    // TODO Calculate these to match window size and OpenGL
-    const float FovH = 0.75f * H; // Horizontal
-    const float FovV = 0.2f * H; // Vertical
-    const float nearZ = 1e-4f;
-    const float farZ = 5.0f;
-    const float nearSide = 1e-4f;
-    const float farSide = 20.0f; // From screen widh and FOV
-
-    vec2 playerPos2 = vec2New(player->position2D.x, player->position2D.y);
-    playerPos2 = ConvertXY(playerPos2, settings);
-    InitArrays();
-
-    // Put the player's sector to head of buffer
-    // Draw whole screen: ytop and ybottom are at initial values
-    *head = {player->sectorNumber, 0, W-1};
-    // Circular buffer pointer arithmetics
-    // Next request is put towards the tail
-    if ( ( head += 1) == renderQueue + MAX_PORTAL_QUEUE)
-    {
-        head = renderQueue;
-    }
-
-    // Start drawing OpenGL lines
-    glBegin(GL_LINES);
-
-    // Draw a sector and put more sectors to queue for drawing
-    do {
-        // Take last request from buffer: the first one is the head
-        SectorRender request = (*tail);
-        // Move tail to next one
-        if ( ( tail += 1) == renderQueue + MAX_PORTAL_QUEUE)
-        {
-            tail = renderQueue;
-        }
-        // If the number is odd, keep rendering. If number is 32 give up
-        // This tests that the same sector is not drawn too many times?
-        if (renderedSectorNames[request.number] & 0x21) // 0x21 is 32 + 1
-        {
-            continue;
-        }
-        // Add one to this sector: it is now being rendered
-        renderedSectorNames[request.number] += 1;
-
-        // Get the sector info from map
-        Sector* sector = Map_GetSector(map, request.number);
-        // Render all walls of the current sector
-        // Discard those that do not face player
-        for (s16 wi = 0; wi < sector->wallnum; wi++)
-        {
-            Wall* w = Map_GetWallInSector(map, request.number, wi);
-            vec2 start = ConvertXY(w->start, settings);
-            vec2 end = ConvertXY( w->end, settings);
-            // Rotate around player
-            start = vec2Subtract(start, playerPos2);
-            end = vec2Subtract(end, playerPos2);
-
-            // The Y is how far ahead of player the point is
-            vec2 startZ;
-            vec2 endZ;
-            // NOTE NEGATIVE AROUND PLAYER
-            startZ = RotateZ(start, -player->angleRad);
-            endZ = RotateZ(end, -player->angleRad);
-            //startZ.x = start.x * player_sin - start.y * player_cos;
-            //startZ.z = start.x * player_cos + start.y * player_sin;
-            // endZ.x = end.x * player_sin - end.y * player_cos;
-            // endZ.z = end.x * player_cos + end.y * player_sin;
-            // Is the wall behind player?
-            if(startZ.y <= 0 && endZ.y <= 0)
-            {
-                // Draw next wall
-                continue;
-            }
-
-            // Partially behind ?
-            if (startZ.y <= 0 || endZ.y <= 0)
-            {
-                // Clip to view  left
-                vec2 leftClip = Intersect(startZ.x, startZ.y, endZ.x, endZ.y, -nearSide, nearZ, -farSide, farZ);
-                vec2 rightClip = Intersect(startZ.x, startZ.y, endZ.x, endZ.y, -nearSide, nearZ, farSide, farZ);
-                if (startZ.y < nearZ)
-                {
-                    // Start was behind and was clipped to left
-                    if (leftClip.y > 0)
-                    {
-                       startZ.x = leftClip.x;
-                       startZ.y = leftClip.y;
-                    }
-                    else // was clipped to right
-                    {
-
-                       startZ.x = rightClip.x;
-                       startZ.y = rightClip.y;
-                    }
-                }
-                if (endZ.y < nearZ)
-                {
-                    if (leftClip.y > 0)
-                    {
-                       endZ.x = leftClip.x;
-                       endZ.y = leftClip.y;
-                    }
-                    else
-                    {
-                       endZ.x = rightClip.x;
-                       endZ.y = rightClip.y;
-                    }
-                }
-            } // Clipping done
-
-            // persective transformation
-            float xScaleStart = FovH / startZ.y;
-            float yScaleStart = FovV / startZ.y;
-            float xScaleEnd = FovH / endZ.y;
-            float yScaleEnd = FovV / endZ.y;
-
-            // These are in 3D
-            vec3 start3D;
-            vec3 end3D;
-            start3D.x  = (W/2)- (int)(startZ.x * xScaleStart);
-            end3D.x = (W/2)- (int)(endZ.x * xScaleEnd);
-            start3D.z = startZ.y;
-            end3D.z = endZ.y;
-
-            // Render if visible
-            // Back side || left scissors || right scissors
-            if (start3D.x >= end3D.x || end3D.x < request.leftX || start3D.x > request.rightX)
-            {
-                continue;
-            }
-            // Floor and ceiling heights relative to player Z coordinate
-            // NOTE In Duke the negative is up. But we have positive up
-            // Bisqwit numbers start floor from 0 and go to 36
-            // so need to scale
-            float ceilingY = ConvertCeilingHeight(sector->ceilingz, settings);
-            float floorY = ConvertFloorHeight(sector->floorz, settings);
-
-            float playerZ = ConvertFloorHeight(player->position2D.z, settings);
-
-            ceilingY -= playerZ;
-            floorY -= playerZ;
-
-            // Check if this wall is a portal
-            float n_ceilingY = 0;
-            float n_floorY = 0;
-            if (w->nextsector >= 0)
-            {
-                n_ceilingY = ConvertCeilingHeight(Map_GetSector(map, w->nextsector)->ceilingz, settings) - playerZ;
-                n_floorY = ConvertFloorHeight(Map_GetSector(map, w->nextsector)->floorz, settings) - playerZ;
-            }
-            // Project ceiling and floor heights to screen coordinates
-#           define Pitch(y,z) (y + z*player->Pitch)
-            int startCeilingY = (H/2) - (int)Pitch(ceilingY, start3D.z) * yScaleStart; // y1a
-            int startFloorY = (H/2) - (int)Pitch(floorY, start3D.z) * yScaleStart;     // y1b
-            int endCeilingY = (H/2) - (int)Pitch(ceilingY, end3D.z) * yScaleEnd;       // y2a
-            int endFloorY = (H/2) - (int)Pitch(floorY, end3D.z) * yScaleEnd;           // y2b
-
-            // Project neighbor ceiling and floor
-            int n_startCeilingY = (H/2) - (int)Pitch(n_ceilingY, start3D.z) * yScaleStart;
-            int n_startFloorY = (H/2) - (int)Pitch(n_floorY, start3D.z) * yScaleStart;
-            int n_endCeilingY = (H/2) - (int)Pitch(n_ceilingY, end3D.z) * yScaleEnd;
-            int n_endFloorY = (H/2) - (int)Pitch(n_floorY, end3D.z) * yScaleEnd;
-
-            // Finally render the wall
-            // Keep inside scissors area
-            int beginX = max(start3D.x, request.leftX);
-            int endX = min(end3D.x, request.rightX);
-            int xDiff = (end3D.x - start3D.x);
-            if (xDiff == 0)
-            {
-                xDiff = 1;
-            }
-
-            int ceilDiff =  (endCeilingY-startCeilingY);
-            int floorDiff = (endFloorY-startFloorY);
-
-            int n_ceilDiff =  (n_endCeilingY-n_startCeilingY);
-            int n_floorDiff = (n_endFloorY-n_startFloorY);
-
-            // TODO get the rendering rectangle
-            // for debug drawing from beginX and endX
-
-            wallXPoints[wi*2] = beginX;
-            wallXPoints[wi*2+1] = endX;
-
-            for (int x = beginX; x < endX; x++)
-            {
-                // Calculate ceiling and floor heights at this point
-                // FIXME This needs to use floating point, otherwise the step becomes 0
-                int ceil_y = (x-start3D.x) * ceilDiff / xDiff + startCeilingY; // ya
-                int floor_y = (x-start3D.x) * floorDiff / xDiff + startFloorY; // yb
-
-                // Clamp inside scissors
-                // FIXME This had some bug that corrupted the values
-                int clampCeilY = ceil_y; //clampInt(ceil_y, ytop[x], ybottom[x]);  // cya
-                int clampFloorY = floor_y;//clampInt(floor_y, ytop[x], ybottom[x]); // cyb
-
-                // Render visible ceiling
-                SetColor(CEIL_COLOR);
-                //Line (x, ytop[x], clampCeilY-1);
-                // Render visible floor
-                SetColor(FLOOR_COLOR);
-                //Line (x, clampFloorY+1, ybottom[x] );
-
-                // Is this a portal?
-                if (w->nextsector >= 0)
-                {
-                    int n_ceil_y = (x-start3D.x) * n_ceilDiff / xDiff + n_ceilingY;
-                    int n_floor_y = (x-start3D.x) * n_floorDiff / xDiff + n_floorY;
-
-                    // Clamp inside scissors
-                    int n_clampCeilY = clampInt(n_ceil_y, ytop[x], ybottom[x]);
-                    int n_clampFloorY = clampInt(n_floor_y, ytop[x], ybottom[x]);
-
-                    // If our ceiling is higher than their ceiling, draw upper wall
-                    SetColor(CEIL_COLOR);
-                    Line (x, clampCeilY, n_clampCeilY-1);
-                    // Shrink scissorClamp
-                    ytop[x] = clampInt( max(clampCeilY, n_clampCeilY), ytop[x], H-1);
-                    // If our floor is lower, draw bottom wall
-                    SetColor(FLOOR_COLOR);
-                    Line( x, clampFloorY, n_clampFloorY+1);
-
-                    ybottom[x] = clampInt( min(clampFloorY, n_clampFloorY), 0, ybottom[x]);
-                }
-                else
-                {
-                    // No neighbor: draw wall
-                    SetColor(WALL_COLOR);
-                    Line (x, clampCeilY, clampFloorY);
-                }
-            } // Top down lines drawn
-
-            // DEBUG Draw RECTANGLE
-                // Calculate ceiling and floor heights at this point
-                int begin_ceil_y = startCeilingY; // ya
-                int begin_floor_y = startFloorY; // yb
-
-                // Calculate ceiling and floor heights at this point
-                int end_ceil_y = endCeilingY;
-                int end_floor_y = endFloorY;
-                SetColor(MAP_COLOR);
-            Line2(beginX, begin_ceil_y, endX, end_ceil_y);
-            Line2(endX, end_ceil_y, endX, end_floor_y);
-            Line2(endX, end_floor_y, beginX, begin_floor_y);
-            Line2(beginX, begin_floor_y, beginX, begin_ceil_y);
-
-            // Wall is drawn
-            // Add neighbor to queue
-            // if there is neighbor AND scissors window has width left AND there is room in QUEUE
-            if (w->nextsector >= 0 && endX >= beginX && (head + MAX_PORTAL_QUEUE+1-tail)%MAX_PORTAL_QUEUE)
-            {
-                (*head) = {w->nextsector, beginX, endX};
-                // Move head and loop around buffer
-                if ( (head++) == renderQueue + MAX_PORTAL_QUEUE)
-                {
-                    head = renderQueue;
-                }
-            }
-        } // All walls of the sector have been drawn; head has moved forward
-
-        // Make the count even??
-        renderedSectorNames[request.number] += 1;
-
-    } while(head != tail); // Render until buffer is empty: if nothing was added, they are the same
-    glEnd();
-}
-*/
 

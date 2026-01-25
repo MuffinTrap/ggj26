@@ -65,7 +65,7 @@ void init()
     render2D.movePlayer = true;
     render2D.drawOneWall = -1;
     render2D.drawOneSector = -1;
-    mapZoom = 2.5f;
+    mapZoom = 0.9f;
     ZoomOut = false;
 
 

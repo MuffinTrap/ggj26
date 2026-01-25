@@ -45,56 +45,64 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 		vec2 point = player->prevPositionOpenGL.xy;
 		vec2 endpoint = player->positionOpenGL.xy;
 		vec2 cross;
-		player->insideSector =  Map_IsPointInsideSectorOG(map, endpoint, player->sectorNumber);
 		Sector* sector = Map_GetSector(map, player->sectorNumber);
 
-		if (player->insideSector == true)
-		{
-			// TODO does player hit head
-			float ceilingY = sector->ceilingz * -1;
-			float floorY = sector->floorz * -1;
-			player->positionOpenGL.z = floorY + player->standingHeight;
-			if (player->positionOpenGL.z  > ceilingY)
+		// Keep testing until player is back inside again
+		// TODO Ring buffer of previous positions
+			player->insideSector =  Map_IsPointInsideSectorOG(map, endpoint, player->sectorNumber);
+			if (player->insideSector == true)
 			{
-				player->positionOpenGL.z = ceilingY - player->standingHeight - 1;
-			}
-		}
-		else
-		{
-			bool foundPortal = false;
-			bool foundWall = false;
-			for (s16 wi = 0; wi < sector->wallnum; wi++)
-			{
-				Wall* w = Map_GetWallInSector(map, player->sectorNumber, wi);
-				// Did player cross this wall
-				if (Map_FindIntersectionWithWall(point, endpoint, w, &cross))
+				// TODO does player hit head
+				float ceilingY = sector->ceilingz * -1;
+				float floorY = sector->floorz * -1;
+				player->positionOpenGL.z = floorY + player->standingHeight;
+				if (player->positionOpenGL.z  > ceilingY)
 				{
-					// Yes
-					// Is it a portal?
-					if (w->nextsector >= 0)
-					{
-						player->sectorNumber = w->nextsector;
-						foundPortal = true;
-						player->positionOpenGL.x = endpoint.x;
-						player->positionOpenGL.y = endpoint.y;
-						break;
-					}
-					else
-					{
-						foundWall = true;
-						vec2 normal = Wall_GetNormal(w);
-						// Push player back
-						player->positionOpenGL.x = cross.x + normal.x;
-						player->positionOpenGL.y = cross.y + normal.y;
-						// TODO Slide along the wall
-						break;
-					}
+					player->positionOpenGL.z = ceilingY - player->standingHeight - 1;
 				}
 			}
-			if (foundPortal == false && foundWall == false)
+			else
 			{
-				// DANGER Player has escaped: return to original position
-				//player->positionOpenGL = player->prevPositionOpenGL;
+				bool foundPortal = false;
+				bool foundWall = false;
+				for (s16 wi = 0; wi < sector->wallnum; wi++)
+				{
+					Wall* w = Map_GetWallInSector(map, player->sectorNumber, wi);
+					// Did player cross this wall
+					if (Map_FindIntersectionWithWall(point, endpoint, w, &cross))
+					{
+						// Yes
+						// Is it a portal?
+						if (w->nextsector >= 0)
+						{
+							player->sectorNumber = w->nextsector;
+							foundPortal = true;
+							player->positionOpenGL.x = endpoint.x;
+							player->positionOpenGL.y = endpoint.y;
+							break;
+						}
+						else
+						{
+							foundWall = true;
+							vec2 normal = Wall_GetNormal(w);
+							// Push player back
+							player->positionOpenGL.x = cross.x + normal.x;
+							player->positionOpenGL.y = cross.y + normal.y;
+							// TODO Slide along the wall
+							vec2 move = Vec2Project( vec2Subtract(endpoint, point), vec2Subtract(w->end, w->start));
+							player->positionOpenGL.x += move.x;
+							player->positionOpenGL.y += move.y;
+							break;
+						}
+					}
+				}
+				if (foundPortal == false && foundWall == false)
+				{
+					// DANGER Player has escaped: return to original position and reverse
+					player->positionOpenGL = player->prevPositionOpenGL;
+					vec2 reversed = vec2Add(player->positionOpenGL.xy, vec2Multiply(player->direction.xy, -moveSpeed3D * dt));
+					player->positionOpenGL.x = reversed.x;
+					player->positionOpenGL.y = reversed.y;
+				}
 			}
-		}
 }

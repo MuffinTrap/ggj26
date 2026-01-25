@@ -11,3 +11,9 @@ vec2 Vec2CrossWithZ(vec2 a)
 {
 	return vec2New( -a.y, a.x);
 }
+
+
+vec2 Vec2Project(vec2 move, vec2 wall)
+{
+	return vec2Multiply(wall, vec2DotProduct(move, wall)/vec2DotProduct(wall, wall));
+}

@@ -8,11 +8,11 @@ Kartan mitat on dukeissa
 
 Käytä 2D piirtämistä laskemaan mitkä sektorit pitää piirtää [testaa]
 
-glutess piirtää lattiat ja seinät
+# glutess piirtää lattiat ja seinät
 
-Pelaajan nopeudet ja koko metreissä
+# Pelaajan nopeudet ja koko metreissä
 
-Funktiot: Onko piste sektorin sisällä?
+# Funktiot: Onko piste sektorin sisällä?
 		 Menikö pelaajan liike seinän läpi? : Intersection
 		 Ohjaa pelaajan liike seinää pitkin: vector reflection
 
@@ -31,14 +31,15 @@ OpenGL piirtäminen
 # Piirrä portaat ja holvikaaret
 	Laske tiling offsetit ja muut kun laitetaan tekstuurikoordinaatti
 #	Laske seinien normaalit
-	Tallenna koko sektori verteksibufferiin
-
+#	Piirrä katon ja lattian tekstuurit
+	Tallenna koko sektori verteksibufferiin **ei ehkä tarvi**
 	Jos kenttä muuttuu pitää bufferi päivittää
 
 Pelaaja
 	Pelaajan tila, crouch, swim, fall, walk
-	Pidä pelaaja lattian korkeudelle + pelaajan korkeus
+# 	Pidä pelaaja lattian korkeudelle + pelaajan korkeus
 	Strafe nopeus ja kontrollit
+#	Pelaaja liukuu pitkin seinää
 
 
 3D Arvot:
