@@ -49,13 +49,13 @@ static vec2 RotateZ(vec2 p, float angle)
 
 // How many portals can be waiting for drawing
 #define MAX_PORTAL_QUEUE 32
-SectorRender* renderQueue; // Circular buffer of render requests
+SectorRender* renderQueue = nullptr; // Circular buffer of render requests
 s16 renderQueueInserts = 0;
 // These point to renderQueue
 SectorRender* head;
 SectorRender* tail;
 
-int* renderedSectorNames; // NOTE this is related to all sectors in map
+int* renderedSectorNames = nullptr; // NOTE this is related to all sectors in map
 
 static int lastSectorAmount = 0;
 static int W;
@@ -76,7 +76,7 @@ bool BuildRender_WasSectorDrawn(s16 sectornumber)
 
 // OpenGL
 Texture* checkers;
-GLUtesselator* tesselator;
+GLUtesselator* tesselator = nullptr;
 bool tesselationActive = true;
 
 static void SetColor(DefaultColor oc)
@@ -95,7 +95,7 @@ static void Line2(int x1, int z1, int x2, int z2)
 // /////////////////////
 
 // Ring buffer for combine to use
-static GLdouble* combineBuffer;
+static GLdouble* combineBuffer = nullptr;
 #define COMBINE_BUFFER_SIZE (64*6)
 int combineBufferIndex = 0;
 
@@ -106,15 +106,28 @@ int combineBufferIndex = 0;
 void CALLBACK tessBegin(GLenum which)
 {
     //Log_InfoF("Tesselation start mode: %s \n", which == GL_TRIANGLES ? "Triangles" : "Not triangles");
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, checkers->textureId);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glBegin(which);
 }
-void CALLBACK tessVertex(GLvoid* vertex)
+void CALLBACK tessVertex(GLvoid* vertex, void* SectorPtr)
 {
+    const Sector* s = (Sector*)SectorPtr;
     const GLdouble* pointer;
     pointer = (GLdouble*)vertex;
-    // TODO texture coordinates and colors
-    glVertex3dv(pointer);
     //Log_InfoF("Tesselation vertex %.2f, %.2f\n", pointer[0], pointer[2]);
+    // TODO texture coordinates and colors
+    float xrange = s->sizeXY.x;
+    float yrange = s->sizeXY.y;
+    float xdiff = pointer[0] - s->minXYPoint.x;
+    float ydiff = pointer[2] - s->minXYPoint.y;
+    float tx = xdiff/xrange * s->maxTexCoord.x;
+    float ty = ydiff/yrange * s->maxTexCoord.y;
+    //Log_InfoF("Tesselation tex coord %.2f, %.2f\n", tx, ty);
+    glTexCoord2f(tx,ty);
+    glVertex3dv(pointer);
 
 }
 void CALLBACK tessCombine(GLdouble coords[3], GLdouble* vertex_data[4], GLfloat weight[4], GLdouble **dataOut)
@@ -149,6 +162,8 @@ void CALLBACK tessEnd(void)
 {
     //Log_Info("Tesselation end\n");
     glEnd();
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glDisable(GL_TEXTURE_2D);
 }
 void CALLBACK tessError(GLenum errorCode)
 {
@@ -165,33 +180,56 @@ void CALLBACK tessEdgeFlag(GLboolean flag)
 
 
 
-void BuildRender_Init(DukeMap* map)
+void BuildRender_Init(DukeMap* map, RenderSettingsOpenGL* settings3D)
 {
     H = mgdl_GetScreenHeight();
     W = mgdl_GetScreenWidth();
-    renderQueue = (SectorRender*)malloc(sizeof(SectorRender) * MAX_PORTAL_QUEUE);
+    if (renderQueue == nullptr)
+    {
+        renderQueue = (SectorRender*)malloc(sizeof(SectorRender) * MAX_PORTAL_QUEUE);
+    }
 
     // init again if more is needed
-    renderedSectorNames = (int*)malloc(sizeof(int) * map->sectorAmount);
+    if (renderedSectorNames != nullptr)
+    {
+        if (lastSectorAmount < map->sectorAmount)
+        {
+           free(renderedSectorNames);
+           renderedSectorNames= nullptr;
+        }
+    }
+    if (renderedSectorNames == nullptr)
+    {
+        renderedSectorNames = (int*)malloc(sizeof(int) * map->sectorAmount);
+    }
+
     lastSectorAmount = map->sectorAmount;
     renderQueueInserts = 0;
 
     checkers = Texture_GenerateCheckerBoard();
-    tesselator = gluNewTess();
-    mgdl_assert_print(tesselator != nullptr, "No Glut tesselator!");
+    if (tesselator == nullptr)
+    {
+        tesselator = gluNewTess();
+        mgdl_assert_print(tesselator != nullptr, "No Glut tesselator!");
 
-    gluTessCallback(tesselator, GLU_TESS_BEGIN, (void(*)())tessBegin);
-    gluTessCallback(tesselator, GLU_TESS_VERTEX, (_GLUfuncptr)tessVertex);
-    gluTessCallback(tesselator, GLU_TESS_END, (_GLUfuncptr)tessEnd);
-    gluTessCallback(tesselator, GLU_TESS_ERROR, (_GLUfuncptr)tessError);
-    gluTessCallback(tesselator, GLU_TESS_COMBINE, (_GLUfuncptr)tessCombine);
-    gluTessCallback(tesselator, GLU_TESS_EDGE_FLAG, (_GLUfuncptr)tessEdgeFlag); // this makes tess only submit triangles
+        gluTessCallback(tesselator, GLU_TESS_BEGIN, (void(*)())tessBegin);
+        gluTessCallback(tesselator, GLU_TESS_VERTEX_DATA, (_GLUfuncptr)tessVertex);
+        gluTessCallback(tesselator, GLU_TESS_END, (_GLUfuncptr)tessEnd);
+        gluTessCallback(tesselator, GLU_TESS_ERROR, (_GLUfuncptr)tessError);
+        gluTessCallback(tesselator, GLU_TESS_COMBINE, (_GLUfuncptr)tessCombine);
+        gluTessCallback(tesselator, GLU_TESS_EDGE_FLAG, (_GLUfuncptr)tessEdgeFlag); // this makes tess only submit triangles
+    }
 
-    combineBuffer = (GLdouble*)malloc(sizeof(GLdouble)*COMBINE_BUFFER_SIZE);
+    if (combineBuffer == nullptr)
+    {
+        combineBuffer = (GLdouble*)malloc(sizeof(GLdouble)*COMBINE_BUFFER_SIZE);
+    }
 
     // Build other data needed by game
     for (int si = 0; si < map->sectorAmount; si++)
     {
+        vec2 minp = vec2New(32000, 32000);
+        vec2 maxp = vec2New(-32000, -32000);
         Sector* sector = &map->sectors[si];
         for (s16 wi = 0; wi < sector->wallnum; wi++)
         {
@@ -200,13 +238,24 @@ void BuildRender_Init(DukeMap* map)
             w->glutVertices[0] = w->x;
             w->glutVertices[1] = 0; // Left to zero, glTranslate handles height
             w->glutVertices[2] = w->y;
+            minp.x = min(w->start.x, minp.x);
+            minp.y = min(w->start.y, minp.y);
+            maxp.x = max(w->start.x, maxp.x);
+            maxp.y = max(w->start.y, maxp.y);
         }
+        // Found points : calculate tex coords
+        float width = (maxp.x - minp.x) * settings3D->scaleXZ;
+        float height = (maxp.y - minp.y) * settings3D->scaleXZ;
+        float aspect = width/height;
+        sector->minXYPoint = minp;
+        sector->sizeXY = vec2Subtract(maxp, minp);
+        sector->maxTexCoord.x = aspect * height * settings3D->textureScale;
+        sector->maxTexCoord.y = 1.0 * height * settings3D->textureScale;
     }
 }
 
 void DrawQuad(vec2 start, vec2 end, float floorY, float ceilingY, RenderSettingsOpenGL* settings3D)
 {
-
     // Keep texture aspect 1:1 unless told otherwise
     float width = vec2Length( vec2Subtract(end, start)) * settings3D->scaleXZ;
     float height = (ceilingY - floorY) * settings3D->scaleY * -1.0f;
@@ -327,8 +376,9 @@ void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* 
                     }
                     // TODO If there are sectors inside sectors we need a much more complex
                     // tesselation
-                    gluTessBeginPolygon(tesselator, NULL);
+                    gluTessBeginPolygon(tesselator, sector);
                     gluTessBeginContour(tesselator);
+                    //Log_InfoF("Tesselating sector %d\n", request.number);
                     for (s16 wi = sector->wallnum-1; wi >= 0; wi--)
                     {
                         Wall* w = Map_GetWallInSector(map, request.number, wi);

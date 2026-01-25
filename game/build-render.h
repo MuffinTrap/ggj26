@@ -37,7 +37,7 @@ extern int wallXPoints[20];
 extern int wallYPoints[20];
 
 
-void BuildRender_Init(DukeMap* map);
+void BuildRender_Init(DukeMap* map, RenderSettingsOpenGL* settings3D);
 /** @brief Draws the map using lines
  */
 void BuildRender_DrawFirstPerson(Player* player, DukeMap* map, RenderSettings2D* settings);

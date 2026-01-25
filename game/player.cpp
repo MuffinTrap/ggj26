@@ -46,11 +46,23 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 		vec2 endpoint = player->positionOpenGL.xy;
 		vec2 cross;
 		player->insideSector =  Map_IsPointInsideSectorOG(map, endpoint, player->sectorNumber);
-		if (player->insideSector == false)
+		Sector* sector = Map_GetSector(map, player->sectorNumber);
+
+		if (player->insideSector == true)
+		{
+			// TODO does player hit head
+			float ceilingY = sector->ceilingz * -1;
+			float floorY = sector->floorz * -1;
+			player->positionOpenGL.z = floorY + player->standingHeight;
+			if (player->positionOpenGL.z  > ceilingY)
+			{
+				player->positionOpenGL.z = ceilingY - player->standingHeight - 1;
+			}
+		}
+		else
 		{
 			bool foundPortal = false;
 			bool foundWall = false;
-			Sector* sector = Map_GetSector(map, player->sectorNumber);
 			for (s16 wi = 0; wi < sector->wallnum; wi++)
 			{
 				Wall* w = Map_GetWallInSector(map, player->sectorNumber, wi);
@@ -72,8 +84,8 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 						foundWall = true;
 						vec2 normal = Wall_GetNormal(w);
 						// Push player back
-						player->positionOpenGL.x = cross.x + normal.x * player->radius;//* moveSpeed3D *dt;
-						player->positionOpenGL.y = cross.y + normal.y * player->radius;// * moveSpeed3D *dt;
+						player->positionOpenGL.x = cross.x + normal.x;
+						player->positionOpenGL.y = cross.y + normal.y;
 						// TODO Slide along the wall
 						break;
 					}
@@ -84,8 +96,5 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 				// DANGER Player has escaped: return to original position
 				//player->positionOpenGL = player->prevPositionOpenGL;
 			}
-			// TODO does player hit head
-			float ceilingY = sector->ceilingz;
-			float floorY = sector->floorz;
 		}
 }

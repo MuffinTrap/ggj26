@@ -63,6 +63,11 @@ struct Sector
     u8 filler; ///< Padding byte
     u16 lotag, hitag; ///< Game specific info
     s16 extra;
+
+    // For texture coordinates
+    vec2 minXYPoint;
+    vec2 sizeXY;
+    vec2 maxTexCoord;
 };
 typedef struct Sector Sector;
 

@@ -23,6 +23,13 @@ static float dukeUnitsPerMetreY;
 static float texCoordPerMetre;
 static Camera* glCamera;
 
+void LoadMap()
+{
+    map = ReadMapFromFile("assets/Maps/tonnitesti.map");
+    Map_PrintInfo(map);
+    Map_InitPlayer(map, &player);
+    BuildRender_Init(map, &renderGL);
+}
 
 void init()
 {
@@ -35,14 +42,10 @@ void init()
     glLoadIdentity();
 
     //example.Init();
-    map = ReadMapFromFile("assets/Maps/tonnitesti.map");
-    Map_PrintInfo(map);
-    Map_InitPlayer(map, &player);
-    BuildRender_Init(map);
 
     player.moveSpeed = 2048.0f; // NOTE Set
     player.verticalSpeed = 1400.0f;
-    player.standingHeight = 2048.0f; // NOTE Set
+    player.standingHeight = 10 * 1024.0f; // NOTE Set
     player.kneelingHeight = 4000.0f;
     player.turnSpeedDegrees = 150; // NOTE set
     player.positionOpenGL.z += player.standingHeight;
@@ -59,7 +62,9 @@ void init()
     render2D.collisionPoint = player.positionOpenGL.xy;
     render2D.collisionLength = 100.0f;
     render2D.collisionAngleDeg = 180.0f;
-    render2D.movePlayer = false;
+    render2D.movePlayer = true;
+    render2D.drawOneWall = -1;
+    render2D.drawOneSector = -1;
     mapZoom = 2.5f;
     ZoomOut = false;
 
@@ -78,6 +83,8 @@ void init()
     glCamera->nearZ = 0.0001f;
     glCamera->fovY = 77.7f;
     Camera_SetMode(glCamera, CameraDirection);
+
+    LoadMap();
 }
 
 void frame()
@@ -89,10 +96,8 @@ void frame()
     }
     else
     {
-
         vec2 jdir = WiiController_GetNunchukJoystickDirection(mgdl_GetController(0));
         render2D.collisionPoint =  vec2Add(render2D.collisionPoint, vec2Multiply(jdir, 128 * mgdl_GetDeltaTime()));
-
     }
     // Check if player went outside perimeter wall and put them back
 
@@ -209,9 +214,11 @@ void frame()
 
     Menu_Toggle(mapMenu, "OpenGL", &drawOpenGL);
 
+    Menu_Slider(mapMenu, "Player Height", 1024, 16 * 1024, &player.standingHeight);
+
     //Menu_Slider(mapMenu, "GL Width scaling", 1, 16, &dukeUnitsPerMetreXZ);
     //Menu_Slider(mapMenu, "GL Height scaling", 16, 128, &dukeUnitsPerMetreY);
-    Menu_Slider(mapMenu, "GL Texture scale", 16, 128, &texCoordPerMetre);
+    // Menu_Slider(mapMenu, "GL Texture scale", 16, 128, &texCoordPerMetre);
     //Menu_TextF(mapMenu, "Scale XZ: %.2f Y: %.2f", renderGL.scaleXZ, renderGL.scaleY);
     renderGL.scaleXZ = 1.0f/dukeUnitsPerMetreXZ;
     renderGL.scaleY = 1.0f/dukeUnitsPerMetreY;
@@ -223,6 +230,11 @@ void frame()
     if (Menu_Button(mapMenu, "ResetPlayer"))
     {
         Map_InitPlayer(map, &player);
+        player.positionOpenGL.z += player.standingHeight;
+    }
+    if (Menu_Button(mapMenu, "Reload map"))
+    {
+        LoadMap();
         player.positionOpenGL.z += player.standingHeight;
     }
     /*
