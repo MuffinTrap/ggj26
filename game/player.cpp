@@ -63,23 +63,26 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 					{
 						player->sectorNumber = w->nextsector;
 						foundPortal = true;
+						player->positionOpenGL.x = endpoint.x;
+						player->positionOpenGL.y = endpoint.y;
+						break;
 					}
 					else
 					{
 						foundWall = true;
-						vec2 wallVector = vec2Subtract(w->end, w->start);
-						vec2 normal = vec2Normalize(Vec2CrossWithZ(wallVector));
+						vec2 normal = Wall_GetNormal(w);
 						// Push player back
 						player->positionOpenGL.x = cross.x + normal.x * player->radius;//* moveSpeed3D *dt;
 						player->positionOpenGL.y = cross.y + normal.y * player->radius;// * moveSpeed3D *dt;
+						// TODO Slide along the wall
+						break;
 					}
-					break;
 				}
 			}
 			if (foundPortal == false && foundWall == false)
 			{
 				// DANGER Player has escaped: return to original position
-				player->positionOpenGL = player->prevPositionOpenGL;
+				//player->positionOpenGL = player->prevPositionOpenGL;
 			}
 			// TODO does player hit head
 			float ceilingY = sector->ceilingz;

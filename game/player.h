@@ -12,7 +12,7 @@ struct RenderSettingsOpenGL;
  */
 struct Player
 {
-    int sectorNumber;
+    s16 sectorNumber;
     vec3 positionOpenGL; //NOTE Z is up
     vec3 prevPositionOpenGL;
     vec3 direction;

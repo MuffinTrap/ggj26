@@ -15,7 +15,6 @@ Wall* Map_GetWallInSector(DukeMap* map, s16 sector, s16 wi)
     wi += s->wallptr;
     mgdl_assert_print((wi>= 0 && wi < map->wallAmount),"Invalid wall index for Sector_GetWall");
     Wall* w = &map->walls[wi];
-    w->start = vec2New(w->x, w->y);
     Wall* w2 = &map->walls[w->point2];
     w->end = vec2New(w2->x, w2->y);
     return w;
@@ -154,37 +153,108 @@ bool Map_IsPointInsideSectorRay(DukeMap* map, vec2 point, int sectorNumber)
 }
 
 
-bool Map_FindIntersectionWithWall(vec2 moveStart, vec2 moveEnd, Wall* wall, vec2* pointOUT)
+
+// This is from https://gist.github.com/TimSC/47203a0f5f15293d2099507ba5da44e6
+// But it finds collisions with every wall
+double Det(double a, double b, double c, double d)
 {
-    float x1 = moveStart.x;
-    float y1 = moveStart.y;
-    float x2 = moveEnd.x;
-    float y2 = moveEnd.y;
+    return (a)*(d)-(b)*(c);
+}
+bool Map_FindIntersectionWithWallGithub(
+    float x1,
+    float y1,
+    float x2,
+    float y2,
+    float x3,
+    float y3,
+    float x4,
+    float y4,
+    vec2* pointOUT
+     )
+{
+    double detL1 = Det(x1, y1, x2, y2);
+	double detL2 = Det(x3, y3, x4, y4);
+	double x1mx2 = x1 - x2;
+	double x3mx4 = x3 - x4;
+	double y1my2 = y1 - y2;
+	double y3my4 = y3 - y4;
 
-    float x3 = wall->start.x;
-    float y3 = wall->start.y;
-    float x4 = wall->end.x;
-    float y4 = wall->end.y;
+	double xnom = Det(detL1, x1mx2, detL2, x3mx4);
+	double ynom = Det(detL1, y1my2, detL2, y3my4);
+	double denom = Det(x1mx2, y1my2, x3mx4, y3my4);
+	if(denom == 0.0)//Lines don't seem to cross
+	{
+		return false;
+	}
 
+	pointOUT->x = xnom / denom;
+	pointOUT->y = ynom / denom;
+	if(!isfinite(pointOUT->x) || !isfinite(pointOUT->y)) //Probably a numerical issue
+		return false;
+
+	return true; //All OK
+}
+
+// This is from Wikipedia and works half right
+// it finds intersections on line extensions too
+// which is bad :()
+
+bool Map_FindIntersectionWithWallUT(
+    float x1,
+    float y1,
+    float x2,
+    float y2,
+    float x3,
+    float y3,
+    float x4,
+    float y4,
+    vec2* pointOUT
+     )
+{
     float t = ((x1-x3)*(y3-y4) - (y1-y3)*(x3-x4)) / ((x1-x2)*(y3-y4) - (y1-y2)*(x3-x4));
-    if ( 0 <= t && t <= 1.0f )
+    float u = ((x1-x2)*(y1-y3) - (y1-y2)*(x1-x3)) / ((x1-x2)*(y3-y4) - (y1-y2)*(x3-x4));
+    if (( 0 <= t && t <= 1.0f ) && (-1.0f <= u && u <= 0.0f))
     {
         *pointOUT = vec2New(x1 + t*(x2-x1), y1 + t*(y2-y1));
         return true;
     }
-    else
+    /*
     {
-        float u = ((x1-x2)*(y1-y3) - (y1-y2)*(x1-x3)) / ((x1-x2)*(y3-y4) - (y1-y2)*(x3-x4));
-
-        if (0 <= u && u <= 1.0f)
-        {
             *pointOUT = vec2New(x3 + t*(x4-x3), y3 + t*(y4-y3));
             return true;
-        }
     }
+    */
+    // DEBUG write t and u instead
+    *pointOUT = vec2New(t, u);
     return false;
 }
-/*
+// This is from bisqwit
+// IntersectBox: Determine whether two 2D-boxes intersect.
+// Overlap:  Determine whether the two number ranges overlap.
+#define Overlap(a0,a1,b0,b1) (min(a0,a1) <= max(b0,b1) && min(b0,b1) <= max(a0,a1))
+#define IntersectBox(x0,y0, x1,y1, x2,y2, x3,y3) (Overlap(x0,x1,x2,x3) && Overlap(y0,y1,y2,y3))
+#define vxs(x0,y0, x1,y1)    ((x0)*(y1) - (x1)*(y0))   // vxs: Vector cross product
+#define Intersect(x1,y1, x2,y2, x3,y3, x4,y4) ((vec2New ( \
+    vxs(vxs(x1,y1, x2,y2), (x1)-(x2), vxs(x3,y3, x4,y4), (x3)-(x4)) / vxs((x1)-(x2), (y1)-(y2), (x3)-(x4), (y3)-(y4)), \
+    vxs(vxs(x1,y1, x2,y2), (y1)-(y2), vxs(x3,y3, x4,y4), (y3)-(y4)) / vxs((x1)-(x2), (y1)-(y2), (x3)-(x4), (y3)-(y4)) )))
+
+bool Map_FindIntersectionWithWallBisqwit(
+    float x1,
+    float y1,
+    float x2,
+    float y2,
+    float x3,
+    float y3,
+    float x4,
+    float y4,
+    vec2* pointOut
+     )
+{
+    *pointOut = Intersect(x1, y1, x2, y2, x3, y3, x4, y4);
+    return (isfinite(pointOut->x) && isfinite(pointOut->y));
+}
+
+
 bool Map_FindIntersectionWithWall(vec2 moveStart, vec2 moveEnd, Wall* wall, vec2* pointOUT)
 {
     float x1 = moveStart.x;
@@ -196,17 +266,18 @@ bool Map_FindIntersectionWithWall(vec2 moveStart, vec2 moveEnd, Wall* wall, vec2
     float y3 = wall->start.y;
     float x4 = wall->end.x;
     float y4 = wall->end.y;
-
-    float d = (x1 - x2)*(y3 - y4) - (y1 - y2)*(x3 - x4);
-    if (fabsf(d) < 0.00001f)
-    {
-        return false;
-    }
-    pointOUT->x = (x1*y2 - y1*x2)*(x3-x4) - (x1 - x2)*(x3*y4 - y3*x4) / d;
-    pointOUT->y = (x1*y2 - y1*x2)*(y3-y4) - (y1 - y2)*(x3*y4 - y3*x4) / d;
-    return true;
+    return Map_FindIntersectionWithWallUT(x1, y1, x2, y2, x3, y3, x4, y4, pointOUT);
 }
-*/
+
+vec2 Wall_GetMiddle(Wall* w)
+{
+    return vec2Add(w->start, vec2Multiply( vec2Subtract(w->end, w->start), 0.5f));
+}
+vec2 Wall_GetNormal(Wall* w)
+{
+    vec2 wallVector = vec2Subtract(w->end, w->start);
+    return vec2Normalize(Vec2CrossWithZ(wallVector));
+}
 
 bool Map_IsPointInsideWall(vec2 point, Wall* wall)
 {
@@ -214,6 +285,7 @@ bool Map_IsPointInsideWall(vec2 point, Wall* wall)
     // walls go clockwise
 
     vec2 wallVector = vec2Subtract(wall->end, wall->start);
-    float crossZ = Vec2CrossToZ(wallVector, point);
-    return crossZ < 0.0f;
+    float crossZ = Vec2CrossToZ(wallVector, vec2Subtract(point, wall->start));
+    // DANGER Again, this code works differently TM
+    return crossZ > 0.0f;
 }

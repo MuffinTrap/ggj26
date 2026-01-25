@@ -16,10 +16,11 @@ DukeMap* ReadMapFromFile(const char* mapfilename)
     DukeMap* mapPtr = (DukeMap*)malloc(sizeof(DukeMap));
     DukeMap m = {0};
     m.version = ReadInt32();
-    s32 x = ReadInt32();
-    s32 y = ReadInt32();
-    s32 z = ReadInt32();
-    m.startPosition = vec3New((float)x, (float)y, (float)z);
+    m.startPosition = vec3New(
+        ReadInt32(),
+        ReadInt32(),
+        ReadInt32());
+
     m.startAngle = ReadInt16();
     m.startingSector = ReadInt16();
 
@@ -74,6 +75,7 @@ DukeMap* ReadMapFromFile(const char* mapfilename)
         w->lotag = ReadInt16();
         w->hitag = ReadInt16();
         w->extra = ReadInt16();
+
     }
     m.spriteAmount = ReadUInt16();
     m.sprites = (DSprite*)malloc(sizeof(DSprite) * m.spriteAmount);
@@ -106,6 +108,7 @@ DukeMap* ReadMapFromFile(const char* mapfilename)
     }
 
     CloseBinary();
+
     (*mapPtr) = m;
     return mapPtr;
 }

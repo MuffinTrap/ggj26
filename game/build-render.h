@@ -3,9 +3,7 @@
 
 struct SectorRender
 {
-    int number;
-    int leftX;
-    int rightX;
+    s16 number;
 };
 typedef struct SectorRender SectorRender;
 
@@ -13,8 +11,17 @@ struct RenderSettings2D
 {
     float scaleXZ;
     float mapZoom;
-    bool mapYDown;
     vec2 mapOffset;
+
+    // Wall drawing debugging
+    int drawOneWall; ///< if -1 no walls, if zero or positive that wall
+    int drawOneSector; ///< if -1 no sectors, if zero or positive that sector
+
+    // Collision test debugging
+    vec2 collisionPoint;
+    float collisionLength;
+    float collisionAngleDeg;
+    bool movePlayer;
 };
 typedef struct RenderSettings2D RenderSettings2D;
 
@@ -22,6 +29,7 @@ struct RenderSettingsOpenGL
 {
     float scaleXZ;
     float scaleY;
+    float textureScale;
 };
 typedef struct RenderSettingsOpenGL RenderSettingsOpenGL;
 
@@ -40,3 +48,9 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
 /** @brief Draws the map in 3D using OpenGL
  */
 void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* settings);
+
+void BuildRender_TesselationTest();
+
+SectorRender* BuildRender_GetDrawnSectorNumbers();
+s16 BuildRender_GetDrawnSectorAmount();
+bool BuildRender_WasSectorDrawn(s16 sectornumber);

@@ -28,6 +28,8 @@ struct Wall
     vec2 start;
     vec2 end;
 
+    GLdouble glutVertices[3]; ///< GLUT tesselation needs this
+
     // From file
     s32 x, y; ///< Coordinates of the left side. Right side is left side of next wall.
     s16 point2; ///< Index of next wall in sector's walls.
@@ -96,6 +98,8 @@ Sector* Map_GetSector(DukeMap* map, int sectorNumber);
 Wall* Map_GetWallInSector(DukeMap* map, s16 sector, s16 wi);
 void Map_PrintInfo(DukeMap* map);
 void Map_InitPlayer(DukeMap* map, Player* player);
+vec2 Wall_GetMiddle(Wall* w);
+vec2 Wall_GetNormal(Wall* w);
 
 bool Map_IsPointInsideSectorOG(DukeMap* map, vec2 point, int sectorNumber);
 bool Map_IsPointInsideSectorRay(DukeMap* map, vec2 point, int sectorNumber);
