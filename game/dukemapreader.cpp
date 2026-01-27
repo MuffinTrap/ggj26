@@ -16,10 +16,10 @@ DukeMap* ReadMapFromFile(const char* mapfilename)
     DukeMap* mapPtr = (DukeMap*)malloc(sizeof(DukeMap));
     DukeMap m = {0};
     m.version = ReadInt32();
-    m.startPosition = vec3New(
-        ReadInt32(),
-        ReadInt32(),
-        ReadInt32());
+    s32 start_x = ReadInt32();
+    s32 start_y = ReadInt32();
+    s32 start_z = ReadInt32();
+    m.startPosition = vec3New(start_x, start_z, start_y);
 
     m.startAngle = ReadInt16();
     m.startingSector = ReadInt16();
@@ -31,8 +31,8 @@ DukeMap* ReadMapFromFile(const char* mapfilename)
         Sector* s = &m.sectors[i];
         s->wallptr = ReadInt16();
         s->wallnum = ReadInt16();
-        s->ceilingz = ReadInt32();
-        s->floorz = ReadInt32();
+        s->ceilingy = ReadInt32() * -1; // NOTE Y is up, originally was -Z
+        s->floory = ReadInt32() * -1; // NOTE Y is up, originally was -Z
         s->ceilingstat = ReadInt16();
         s->floorstat = ReadInt16();
         s->ceilingpicnum = ReadInt16();
@@ -59,7 +59,7 @@ DukeMap* ReadMapFromFile(const char* mapfilename)
     {
         Wall* w = &m.walls[s];
         w->x = ReadInt32();
-        w->y = ReadInt32();
+        w->z = ReadInt32();
         w->point2 = ReadInt16();
         w->nextwall = ReadInt16();
         w->nextsector = ReadInt16();

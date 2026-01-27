@@ -13,23 +13,25 @@ struct RenderSettingsOpenGL;
 struct Player
 {
     s16 sectorNumber;
-    vec3 positionOpenGL; //NOTE Z is up
-    vec3 prevPositionOpenGL;
-    vec3 direction;
+
+    // Position in duke units
+    vec3 position;
+    vec3 prevPosition;
+    // Direction as a normal vector
+    vec2 direction;
+
     float angleRad;
-    float Pitch;
+    float pitchRad; // looking up and down
 
     float turnSpeedDegrees;
     // These are in dukes
     float moveSpeed;
     float verticalSpeed;
+    float fallingSpeed;
     float standingHeight; ///< How much above ground when standing
     float kneelingHeight; ///< How much above ground when kneeling/crouching
 
     float radius;
-
-    // Collision info
-    bool insideSector;
 };
 typedef struct Player Player;
 

@@ -8,6 +8,7 @@
 
 #include "build-render.h"
 #include "dukemap.h"
+#include "dukemath.h"
 #include "player.h"
 
 
@@ -19,12 +20,6 @@
 #define Overlap(a0,a1,b0,b1) (min(a0,a1) <= max(b0,b1) && min(b0,b1) <= max(a0,a1))
 // IntersectBox: Determine whether two 2D-boxes intersect.
 #define IntersectBox(x0,y0, x1,y1, x2,y2, x3,y3) (Overlap(x0,x1,x2,x3) && Overlap(y0,y1,y2,y3))
-// PointSide: Determine which side of a line the point is on. Return value: <0, =0 or >0.
-#define PointSide(px,py, x0,y0, x1,y1) vxs((x1)-(x0), (y1)-(y0), (px)-(x0), (py)-(y0))
-// Intersect: Calculate the point of intersection between two lines.
-#define Intersect(x1,y1, x2,y2, x3,y3, x4,y4) (vec2New( \
-    vxs(vxs(x1,y1, x2,y2), (x1)-(x2), vxs(x3,y3, x4,y4), (x3)-(x4)) / vxs((x1)-(x2), (y1)-(y2), (x3)-(x4), (y3)-(y4)), \
-    vxs(vxs(x1,y1, x2,y2), (y1)-(y2), vxs(x3,y3, x4,y4), (y3)-(y4)) / vxs((x1)-(x2), (y1)-(y2), (x3)-(x4), (y3)-(y4)) ))
 
 // TODO move to util
 static int clampInt(int v, int min, int max)
@@ -39,12 +34,7 @@ static int clampInt(int v, int min, int max)
     }
     return v;
 }
-static vec2 RotateZ(vec2 p, float angle)
-{
-	float xt = p.x*cos(angle) - p.y*sin(angle);
-	float yt = p.x*sin(angle) + p.y*cos(angle);
-    return vec2New(xt, yt);
-}
+
 
 
 // How many portals can be waiting for drawing
@@ -94,10 +84,11 @@ static void Line2(int x1, int z1, int x2, int z2)
 // TESSELATION CALLBACKS
 // /////////////////////
 
-// Ring buffer for combine to use
-static GLdouble* combineBuffer = nullptr;
-#define COMBINE_BUFFER_SIZE (64*6)
-int combineBufferIndex = 0;
+// Ring buffer for tesselation
+#define VERTEX_BUFFER_SIZE_DOUBLES (3*64) // Divisible by three for the ring buffering to work; 3 doubles per vertex
+#define VERTEX_BUFFER_SIZE_BYTES (VERTEX_BUFFER_SIZE_DOUBLES * sizeof(double))
+static GLdouble* vertexRingBuffer = nullptr;
+int VertexBufferIndexDoubles = 0;
 
 #ifndef CALLBACK
 #define CALLBACK
@@ -107,6 +98,7 @@ void CALLBACK tessBegin(GLenum which)
 {
     //Log_InfoF("Tesselation start mode: %s \n", which == GL_TRIANGLES ? "Triangles" : "Not triangles");
     glEnable(GL_TEXTURE_2D);
+    // TODO Get texture from wall or ceiling
     glBindTexture(GL_TEXTURE_2D, checkers->textureId);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -119,17 +111,18 @@ void CALLBACK tessVertex(GLvoid* vertex, void* SectorPtr)
     pointer = (GLdouble*)vertex;
     //Log_InfoF("Tesselation vertex %.2f, %.2f\n", pointer[0], pointer[2]);
     // TODO texture coordinates and colors
-    float xrange = s->sizeXY.x;
-    float yrange = s->sizeXY.y;
-    float xdiff = pointer[0] - s->minXYPoint.x;
-    float ydiff = pointer[2] - s->minXYPoint.y;
+    float xrange = s->sizeXZ.x;
+    float zrange = s->sizeXZ.y;
+    float xdiff = pointer[0] - s->minXZPoint.x;
+    float zdiff = pointer[2] - s->minXZPoint.y;
     float tx = xdiff/xrange * s->maxTexCoord.x;
-    float ty = ydiff/yrange * s->maxTexCoord.y;
+    float tz = zdiff/zrange * s->maxTexCoord.y;
     //Log_InfoF("Tesselation tex coord %.2f, %.2f\n", tx, ty);
-    glTexCoord2f(tx,ty);
+    glTexCoord2f(tx,tz);
     glVertex3dv(pointer);
 
 }
+/* NOTE This is not used, points are far apart
 void CALLBACK tessCombine(GLdouble coords[3], GLdouble* vertex_data[4], GLfloat weight[4], GLdouble **dataOut)
 {
     Log_InfoF("Tesselation combine vertex: %.2f, %.2f\n", coords[0], coords[2]);
@@ -144,8 +137,6 @@ void CALLBACK tessCombine(GLdouble coords[3], GLdouble* vertex_data[4], GLfloat 
     vertex[0] = coords[0];
     vertex[1] = coords[1];
     vertex[2] = coords[2];
-    /* Weighing other data that we dont have yet
-     *
     for (int i = 3; i < 6; i++)
     {
         vertex[i] = weight[0] * vertex_data[0][i] +
@@ -153,10 +144,10 @@ void CALLBACK tessCombine(GLdouble coords[3], GLdouble* vertex_data[4], GLfloat 
                     weight[2] * vertex_data[2][i] +
                     weight[3] * vertex_data[3][i];
     }
-    */
     *dataOut = vertex;
     combineBufferIndex = (combineBufferIndex + 6) % COMBINE_BUFFER_SIZE;
 }
+*/
 
 void CALLBACK tessEnd(void)
 {
@@ -190,6 +181,7 @@ void BuildRender_Init(DukeMap* map, RenderSettingsOpenGL* settings3D)
     }
 
     // init again if more is needed
+    // TODO Just init to 4096 ?
     if (renderedSectorNames != nullptr)
     {
         if (lastSectorAmount < map->sectorAmount)
@@ -206,6 +198,7 @@ void BuildRender_Init(DukeMap* map, RenderSettingsOpenGL* settings3D)
     lastSectorAmount = map->sectorAmount;
     renderQueueInserts = 0;
 
+    // TODO move to graphics system
     checkers = Texture_GenerateCheckerBoard();
     if (tesselator == nullptr)
     {
@@ -216,14 +209,14 @@ void BuildRender_Init(DukeMap* map, RenderSettingsOpenGL* settings3D)
         gluTessCallback(tesselator, GLU_TESS_VERTEX_DATA, (_GLUfuncptr)tessVertex);
         gluTessCallback(tesselator, GLU_TESS_END, (_GLUfuncptr)tessEnd);
         gluTessCallback(tesselator, GLU_TESS_ERROR, (_GLUfuncptr)tessError);
-        gluTessCallback(tesselator, GLU_TESS_COMBINE, (_GLUfuncptr)tessCombine);
         gluTessCallback(tesselator, GLU_TESS_EDGE_FLAG, (_GLUfuncptr)tessEdgeFlag); // this makes tess only submit triangles
     }
 
-    if (combineBuffer == nullptr)
+    if (vertexRingBuffer == nullptr)
     {
-        combineBuffer = (GLdouble*)malloc(sizeof(GLdouble)*COMBINE_BUFFER_SIZE);
+        vertexRingBuffer = (GLdouble*)mgdl_AllocateGraphicsMemory(VERTEX_BUFFER_SIZE_BYTES);
     }
+
 
     // Build other data needed by game
     for (int si = 0; si < map->sectorAmount; si++)
@@ -234,21 +227,17 @@ void BuildRender_Init(DukeMap* map, RenderSettingsOpenGL* settings3D)
         for (s16 wi = 0; wi < sector->wallnum; wi++)
         {
             Wall* w = &map->walls[sector->wallptr + wi];
-            w->start = vec2New(w->x, w->y);
-            w->glutVertices[0] = w->x;
-            w->glutVertices[1] = 0; // Left to zero, glTranslate handles height
-            w->glutVertices[2] = w->y;
-            minp.x = min(w->start.x, minp.x);
-            minp.y = min(w->start.y, minp.y);
-            maxp.x = max(w->start.x, maxp.x);
-            maxp.y = max(w->start.y, maxp.y);
+            minp.x = min(w->x, minp.x);
+            minp.y = min(w->z, minp.y);
+            maxp.x = max(w->x, maxp.x);
+            maxp.y = max(w->z, maxp.y);
         }
         // Found points : calculate tex coords
         float width = (maxp.x - minp.x) * settings3D->scaleXZ;
         float height = (maxp.y - minp.y) * settings3D->scaleXZ;
         float aspect = width/height;
-        sector->minXYPoint = minp;
-        sector->sizeXY = vec2Subtract(maxp, minp);
+        sector->minXZPoint = minp;
+        sector->sizeXZ = vec2Subtract(maxp, minp);
         sector->maxTexCoord.x = aspect * height * settings3D->textureScale;
         sector->maxTexCoord.y = 1.0 * height * settings3D->textureScale;
     }
@@ -258,7 +247,9 @@ void DrawQuad(vec2 start, vec2 end, float floorY, float ceilingY, RenderSettings
 {
     // Keep texture aspect 1:1 unless told otherwise
     float width = vec2Length( vec2Subtract(end, start)) * settings3D->scaleXZ;
-    float height = (ceilingY - floorY) * settings3D->scaleY * -1.0f;
+    float height = (ceilingY - floorY) * settings3D->scaleY;
+
+    // TODO move to graphics
     float aspect = width/height;
     float tex_x1 = 0.0f;
     float tex_x2 = aspect * height * settings3D->textureScale;
@@ -304,11 +295,7 @@ void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* 
     head = renderQueue;
     tail = renderQueue;
 
-    vec2 playerPos2 = vec2New(player->positionOpenGL.x, player->positionOpenGL.y);
-    //playerPos2.x *= settings->scaleXZ;
-    //playerPos2.y *= settings->scaleXZ;
-    // Put the pla
-    // Draw whole screen: ytop and ybottom are at initial values
+    vec2 playerPos2 = vec2New(player->position.x, player->position.z);
     *head = {player->sectorNumber};
     renderQueueInserts++;
     // Circular buffer pointer arithmetics
@@ -319,9 +306,7 @@ void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* 
     }
 
     glPushMatrix();
-    glScalef(settings->scaleXZ, -settings->scaleY, settings->scaleXZ);
-
-    // Start drawing OpenGL lines
+    glScalef(settings->scaleXZ, settings->scaleY, settings->scaleXZ);
 
     // Draw a sector and put more sectors to queue for drawing
     do {
@@ -334,18 +319,16 @@ void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* 
         }
         // If the number is odd, keep rendering. If number is 32 give up
         // This tests that the same sector is not drawn too many times?
-        if (renderedSectorNames[request.number] & 0x21) // 0x21 is 32 + 1
+        if (renderedSectorNames[request.number] > 0) // DANGER not really sure what this was doing before with 0x21
         {
             continue;
         }
-        // Add one to this sector: it is now being rendered
-        renderedSectorNames[request.number] += 1;
 
         // Get the sector info from map
         Sector* sector = Map_GetSector(map, request.number);
 
-        float ceilingY = sector->ceilingz;
-        float floorY = sector->floorz;
+        float ceilingY = sector->ceilingy;
+        float floorY = sector->floory;
 
         bool drawTesselation = true;
         // Draw the floor and ceiling with tesselation
@@ -385,7 +368,12 @@ void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* 
                         // Tesselation
                         // NOTE DANGER Must be counter clockwise
                         //Log_InfoF("Tesselation vertex sent %d:: %.2f, %.2f\n", wi, w->glutVertices[0], w->glutVertices[2]);
-                        gluTessVertex(tesselator, w->glutVertices, w->glutVertices);
+                        // TODO Send normal too, but maybe not with every vertex?
+                        vertexRingBuffer[VertexBufferIndexDoubles + 0] = w->x;
+                        vertexRingBuffer[VertexBufferIndexDoubles + 1] = 0;
+                        vertexRingBuffer[VertexBufferIndexDoubles + 2] = w->z;
+                        gluTessVertex(tesselator, &vertexRingBuffer[VertexBufferIndexDoubles], &vertexRingBuffer[VertexBufferIndexDoubles]);
+                        VertexBufferIndexDoubles = (VertexBufferIndexDoubles + 3) % VERTEX_BUFFER_SIZE_DOUBLES;
                     }
                     gluTessEndContour(tesselator);
                     gluTessEndPolygon(tesselator);
@@ -402,8 +390,9 @@ void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* 
         for (s16 wi = 0; wi < sector->wallnum; wi++)
         {
             Wall* w = Map_GetWallInSector(map, request.number, wi);
-            vec2 start = w->start;
-            vec2 end =  w->end;
+            vec2 start = vec2New(w->x, w->z);
+            Wall* wend = Map_GetWallEnd(map, w);
+            vec2 end =  vec2New(wend->x, wend->z);
 
 
             vec2 startZ = vec2Subtract(start, playerPos2);
@@ -411,8 +400,8 @@ void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* 
 
             // The Y is how far ahead of player the point is
             // NOTE negative around player
-            startZ = RotateZ(startZ, -player->angleRad);
-            endZ = RotateZ(endZ, -player->angleRad);
+            startZ = Vec2XZRotateY(startZ, -player->angleRad);
+            endZ = Vec2XZRotateY(endZ, -player->angleRad);
             //startZ.x = start.x * player_sin - start.y * player_cos;
             //startZ.z = start.x * player_cos + start.y * player_sin;
             // endZ.x = end.x * player_sin - end.y * player_cos;
@@ -431,8 +420,8 @@ void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* 
             {
                 // Create wall that goes down or up to adjacent sector: Note! both sectors dont need to do this. Only lower one
                 Sector* neighbor = Map_GetSector(map, w->nextsector);
-                int n_floorY = neighbor->floorz;
-                int n_ceilingY = neighbor->ceilingz;
+                int n_floorY = neighbor->floory;
+                int n_ceilingY = neighbor->ceilingy;
 
                 // if this floor height is less than adjacent: Greate wall in between: goes up
                 if (floorY < n_floorY)
@@ -461,6 +450,7 @@ void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* 
             }
             else
             {
+                // Draw the wall
                 glColor3f(0.5f, 0.5f, 0.5f);
                 DrawQuad(start, end, floorY, ceilingY, settings);
 
@@ -478,7 +468,7 @@ void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* 
         } // All walls of the sector have been drawn; head has moved forward
 
 
-        // Make the count even??
+        // Mark the sector as drawn
         renderedSectorNames[request.number] += 1;
 
     } while(head != tail); // Render until buffer is empty: if nothing was added, they are the same
@@ -510,16 +500,16 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
     vec2 playerPos2;
     if (settings2D->movePlayer)
     {
-        playerPos2 = vec2New(player->positionOpenGL.x, player->positionOpenGL.y);
+        playerPos2 = vec2New(player->position.x, player->position.z);
     }
     else
     {
         playerPos2 = settings2D->collisionPoint;
     }
 
-    vec2 collision_forward = vec2New(0.0, settings2D->collisionLength);
+    vec2 collision_forward = vec2New(0.0, WORLD_FORWARD.z * settings2D->collisionLength);
 
-    collision_forward  = RotateZ(collision_forward,  Deg2Rad(settings2D->collisionAngleDeg));
+    collision_forward  = Vec2XZRotateY(collision_forward,  Deg2Rad(settings2D->collisionAngleDeg));
     vec2 collisionEnd = vec2Add(playerPos2, collision_forward);
 
     bool collisionMiss = true;
@@ -542,10 +532,19 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
 
         // The walls zoom
         glPushMatrix();
-            // Keep player at center of screen
-            glRotatef(Rad2Deg(-player->angleRad) + 180, 0, 0, 1);
+            // Turn the world around player
             glScalef(settings3D->scaleXZ, settings3D->scaleXZ, 1);
-            glTranslatef(-playerPos2.x, -playerPos2.y, 0);
+
+            if (settings2D->rotateMap)
+            {
+                glRotatef(Rad2Deg( (player->angleRad )), 0, 0, WORLD_FORWARD.z);
+            }
+
+            if (settings2D->centerMapToPlayer)
+            {
+                // Keep player at center of screen
+                glTranslatef(-playerPos2.x, -playerPos2.y, 0);
+            }
 
 
             // DRAW WALLS
@@ -556,6 +555,7 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
             Line2(0, -10, 0 ,10);
             Line2(-10, 0, 10, 0);
 
+            settings2D->collisionInsideSector = -1;
             for(int si = 0; si < map->sectorAmount; si++)
             {
                 if (settings2D->drawOneSector >=0 && settings2D->drawOneSector != si)
@@ -569,30 +569,27 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
                 {
                     if (settings2D->drawOneWall >=0 && settings2D->drawOneWall != wi)
                     { continue; }
-                    Wall* w = Map_GetWallInSector(map, si, wi);
-                    vec2 start = w->start;
-                    vec2 end =  w->end;
-                    //start = vec2Multiply(start, settings2D->scaleXZ);
-                    //end = vec2Multiply(end, settings2D->scaleXZ);
-                    // Rotate around player
-                    //start = vec2Subtract(start, playerPos2);
-                    //end = vec2Subtract(end, playerPos2);
 
-                    // TODO Show collision detection info here
+                    Wall* w = Map_GetWallInSector(map, si, wi);
+                    vec2 start = vec2New(w->x, w->z);
+                    Wall* wend = Map_GetWallEnd(map, w);
+                    vec2 end =  vec2New(wend->x, wend->z);
+
                     if (settings2D->movePlayer == false)
                     {
-                        if (Map_FindIntersectionWithWall(settings2D->collisionPoint, collisionEnd, w, &collisionOut))
+                        if (Map_IsPointInsideSectorOG(map, settings2D->collisionPoint, si))
+                        {
+                            settings2D->collisionInsideSector = si;
+                        }
+                        if (Map_FindIntersectionWithWall(map,  settings2D->collisionPoint, collisionEnd, w, &collisionOut))
                         {
                             DrawDot(collisionOut, 48, DefaultColor::Color_White);
                         }
                         else
                         {
                             collisionMiss = true;
-                            glPushMatrix();
-                            glScalef(1, -1, 1);
-                            glPopMatrix();
                         }
-                        if (Map_IsPointInsideWall(settings2D->collisionPoint, w))
+                        if (Map_IsPointInsideWall(map, settings2D->collisionPoint, w))
                         {
                             SetColor(Color_Green);
                         }
@@ -614,59 +611,65 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
                     }
 
                     Line2(start.x, start.y, end.x, end.y);
-                    vec2 m = Wall_GetMiddle(w);
-                    vec2 N = vec2Multiply( Wall_GetNormal(w), 32 );
+                    vec2 m = Map_GetWallMiddle(map, w);
+                    vec2 N = vec2Multiply( Map_GetWallNormal(map, w), 32 );
                     Line2(m.x, m.y, m.x + N.x, m.y + N.y);
                 }
             }
             glEnd(); // end walls
 
+            // DRAW WALL NUMBERS and SECTOR NUMBERS
             glPushMatrix();
-            glScalef(1, -1, 1);
+                glScalef(1, -1, 1);
 
-            Color4f* c = Color_GetDefaultColor(Color_White);
-            int numberSize = 32;
-            // DRAW WALL NUMBERS
+            Color4f* wc = Color_GetDefaultColor(Color_White);
+            Color4f* sc = Color_GetDefaultColor(Color_Green);
+            int numberSize = 128;
             for(int si = 0; si < map->sectorAmount; si++)
             {
-                if (settings2D->drawOneSector >=0 && settings2D->drawOneSector != si)
-                { continue; }
+                if (settings2D->drawOneSector >=0 && settings2D->drawOneSector != si) { continue; }
+
                 // Get the sector info from map
                 Sector* sector = Map_GetSector(map, si);
+
+                int sx = sector->minXZPoint.x + sector->sizeXZ.x/2;
+                int sy = -(sector->minXZPoint.y + sector->sizeXZ.y/2);
+                Draw2D_RectWH(sx, sy, numberSize, numberSize, Color_GetDefaultColor(Color_Black));
+
+                Font_Printf(df, sc, sx, sy, numberSize, "%d", si);
+
                 // Render all walls of the current sector
                 // Discard those that do not face player
                 for (s16 wi = 0; wi < sector->wallnum; wi++)
                 {
+                    if (settings2D->drawOneWall >=0 && settings2D->drawOneWall != wi) { continue; }
 
-                    if (settings2D->drawOneWall >=0 && settings2D->drawOneWall != wi)
-                    { continue; }
                     Wall* w = Map_GetWallInSector(map, si, wi);
-                    vec2 start = w->start;
+                    vec2 start = vec2New(w->x, w->z);
 
                     int tx = start.x - numberSize/2;
                     int ty = -start.y + numberSize/2;
 
                     Draw2D_RectWH(tx, ty, numberSize, numberSize, Color_GetDefaultColor(Color_Black));
 
-                    SetColor(Color_White);
-                    Font_Printf(df, c, tx, ty, numberSize, "%d", sector->wallptr+wi);
+                    Font_Printf(df, wc, tx, ty, numberSize, "%d", sector->wallptr+wi);
                     if (settings2D->drawOneWall == wi && settings2D->drawOneSector == si)
                     {
 
                         if (collisionMiss)
                         {
-                            Font_Printf(df, c, start.x, start.y + 64+32, 32, "U: %.2f", collisionOut.y);
-                            Font_Printf(df, c, start.x, start.y + 64, 32, "T: %.2f", collisionOut.x);
+                            Font_Printf(df, wc, start.x, start.y + 64+32, 32, "U: %.2f", collisionOut.y);
+                            Font_Printf(df, wc, start.x, start.y + 64, 32, "T: %.2f", collisionOut.x);
                         }
                         else
                         {
-                            Font_Printf(df, c, start.x, start.y + 64+32, 32, "Y: %.2f", collisionOut.y);
-                            Font_Printf(df, c, start.x, start.y + 64, 32, "X: %.2f", collisionOut.x);
+                            Font_Printf(df, wc, start.x, start.y + 64+32, 32, "Y: %.2f", collisionOut.y);
+                            Font_Printf(df, wc, start.x, start.y + 64, 32, "X: %.2f", collisionOut.x);
                         }
                     }
                 }
             }
-            glPopMatrix();
+            glPopMatrix(); // NUMBERS
         glPopMatrix(); // WALLS
 
         // DRAW PLAYER
@@ -685,20 +688,32 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
 
             // PLAYER ARROW
             // //////////////////
+            vec2 forward = vec2New(WORLD_FORWARD.x, WORLD_FORWARD.z);
             if (settings2D->movePlayer)
             {
-                playerPos2 = vec2Zero();
+                if (settings2D->centerMapToPlayer)
+                {
+                    playerPos2 = vec2Zero();
+                }
                 DrawDot(playerPos2, dotSize,pc );
                 SetColor(Color_Red);
-                vec2 forward = vec2New(0, -1);//vec2New(player->direction.x, player->direction.y);
+                if (settings2D->rotateMap == false)
+                {
+                    forward = Vec2XZRotateY(forward, player->angleRad + M_PI);
+                }
+                else
+                {
+                    forward = vec2New(WORLD_FORWARD.x, WORLD_FORWARD.z * -1);
+
+                }
                 forward = vec2Multiply(forward, player->radius * 2);
                 vec2 end = vec2Add(playerPos2, forward);
 
                 glVertex2i(playerPos2.x,playerPos2.y);
                 glVertex2f(end.x, end.y);
 
-                vec2 sideLeft = RotateZ(forward,  M_PI * 3.0f/4.0f);
-                vec2 sideRight = RotateZ(forward, -M_PI * 3.0f/4.0f);
+                vec2 sideLeft = Vec2XZRotateY(forward,  M_PI * 3.0f/4.0f);
+                vec2 sideRight = Vec2XZRotateY(forward, -M_PI * 3.0f/4.0f);
                 sideLeft = vec2Add(sideLeft, end);
                 sideRight = vec2Add(sideRight, end);
 
@@ -712,13 +727,9 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
             {
                 DrawDot(playerPos2, dotSize,pc );
                 SetColor(Color_Black);
-                vec2 forward = vec2New(0.0, settings2D->collisionLength);
-
-                forward  = RotateZ(forward,  Deg2Rad(settings2D->collisionAngleDeg));
-                vec2 end = vec2Add(playerPos2, forward);
 
                 glVertex2i(playerPos2.x,playerPos2.y);
-                glVertex2f(end.x, end.y);
+                glVertex2f(collisionEnd.x, collisionEnd.y);
             }
 
         glEnd();

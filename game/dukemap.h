@@ -25,13 +25,9 @@ struct DSprite
 };
 struct Wall
 {
-    vec2 start;
-    vec2 end;
-
-    GLdouble glutVertices[3]; ///< GLUT tesselation needs this
-
+    // GLdouble glutVertices[3]; ///< GLUT tesselation needs this
     // From file
-    s32 x, y; ///< Coordinates of the left side. Right side is left side of next wall.
+    s32 x, z; ///< Coordinates of the left side. Right side is left side of next wall.
     s16 point2; ///< Index of next wall in sector's walls.
     s16 nextwall; ///< Index of wall on the other side or -1 if no sector there
     s16 nextsector; ///< Index of sector on the other side or -1
@@ -50,7 +46,7 @@ struct Sector
     // From file
     s16 wallptr; /**< Index of first wall */
     s16 wallnum; /**< and amount of walls in this sector */
-    s32 ceilingz, floorz; ///< Z of ceiling and floor of first point
+    s32 ceilingy, floory; ///< Y of ceiling and floor of first point
     u16 ceilingstat, floorstat; ///< Stats about ceiling and floor
     s16 ceilingpicnum; ///< Texture of ceiling
     s16 ceilingheinum; ///< Sloping angle 0:flat, 4096: 45 degrees
@@ -65,8 +61,8 @@ struct Sector
     s16 extra;
 
     // For texture coordinates
-    vec2 minXYPoint;
-    vec2 sizeXY;
+    vec2 minXZPoint;
+    vec2 sizeXZ;
     vec2 maxTexCoord;
 };
 typedef struct Sector Sector;
@@ -88,6 +84,15 @@ struct DukeMap
     DSprite* sprites;
 };
 
+enum MoveResult
+{
+    Move_Ok,
+    Move_HitWall,
+    Move_HitPortal,
+    Move_Cancel
+};
+typedef enum MoveResult MoveResult;
+
 typedef struct DukeMap DukeMap;
 
 #ifdef __cplusplus
@@ -99,19 +104,22 @@ extern "C" {
      * @param map The map to convert.
      */
 void Map_ConvertToGameUnits(DukeMap* map);
-Sector* Map_GetSector(DukeMap* map, int sectorNumber);
+Sector* Map_GetSector(DukeMap* map, s16 sectorNumber);
 Wall* Map_GetWallInSector(DukeMap* map, s16 sector, s16 wi);
 void Map_PrintInfo(DukeMap* map);
 void Map_InitPlayer(DukeMap* map, Player* player);
-vec2 Wall_GetMiddle(Wall* w);
-vec2 Wall_GetNormal(Wall* w);
+vec2 Map_GetWallMiddle(DukeMap* map, Wall* w);
+vec2 Map_GetWallNormal(DukeMap* map, Wall* w);
+Wall* Map_GetWallEnd(DukeMap* map, Wall* w);
+s32 Map_GetSectorFloorHeight(DukeMap* map, s16 sectorNumber);
 
 bool Map_IsPointInsideSectorOG(DukeMap* map, vec2 point, int sectorNumber);
 bool Map_IsPointInsideSectorRay(DukeMap* map, vec2 point, int sectorNumber);
-bool Map_IsPointInsideWall(vec2 point, Wall* wall);
-bool Map_FindIntersectionWithWall(vec2 moveStart, vec2 moveEnd, Wall* wall, vec2* pointOUT);
+bool Map_IsPointInsideWall(DukeMap* map, vec2 point, Wall* wall);
+bool Map_FindIntersectionWithWall(DukeMap* map, vec2 moveStart, vec2 moveEnd, Wall* wall, vec2* pointOUT);
 
-float Map_AngleToRad(s16 angleInt);
+MoveResult Map_MovePointInMap(DukeMap* map, vec2 start, vec2 end, s16 sector, vec2* positionOut, s16* sectorOut);
+
 
 #ifdef __cplusplus
 }

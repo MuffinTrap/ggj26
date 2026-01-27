@@ -19,9 +19,12 @@ struct RenderSettings2D
 
     // Collision test debugging
     vec2 collisionPoint;
+    s16 collisionInsideSector;
     float collisionLength;
     float collisionAngleDeg;
     bool movePlayer;
+    bool rotateMap;
+    bool centerMapToPlayer;
 };
 typedef struct RenderSettings2D RenderSettings2D;
 

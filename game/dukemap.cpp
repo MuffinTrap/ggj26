@@ -4,27 +4,26 @@
 #include <mgdl/ccVector/ccVector.h>
 #include "dukemath.h"
 #include "player.h"
-Sector* Map_GetSector(DukeMap* map, int sectorNumber)
+Sector* Map_GetSector(DukeMap* map, s16 sectorNumber)
 {
     mgdl_assert_print((sectorNumber>= 0 && sectorNumber < map->sectorAmount),"Invalid sector for Map_GetSector");
     return &map->sectors[sectorNumber];
 }
+
 Wall* Map_GetWallInSector(DukeMap* map, s16 sector, s16 wi)
 {
     Sector* s = &map->sectors[sector];
     wi += s->wallptr;
     mgdl_assert_print((wi>= 0 && wi < map->wallAmount),"Invalid wall index for Sector_GetWall");
-    Wall* w = &map->walls[wi];
-    Wall* w2 = &map->walls[w->point2];
-    w->end = vec2New(w2->x, w2->y);
-    return w;
+    return &map->walls[wi];
 }
 
 void Map_InitPlayer(DukeMap* map, Player* player)
 {
-    player->positionOpenGL = map->startPosition;
-    player->angleRad = Map_AngleToRad(map->startAngle - 512);
+    player->position= map->startPosition;
+    player->angleRad = Math_DukeAngleToRad(map->startAngle - 512);
     player->sectorNumber = map->startingSector;
+    player->position.y = Map_GetSectorFloorHeight(map, map->startingSector);
 }
 
 void Map_PrintInfo(DukeMap* map)
@@ -40,7 +39,7 @@ void Map_PrintInfo(DukeMap* map)
     for (int i = 0; i < map->sectorAmount; i++)
     {
         Sector* s = &map->sectors[i];
-        Log_InfoF("Sector n: %d Walls: %d first wall %d FloorZ %d CeilingZ %d\n", i, s->wallnum, s->wallptr, s->floorz, s->ceilingz);
+        Log_InfoF("Sector n: %d Walls: %d first wall %d FloorZ %d CeilingZ %d\n", i, s->wallnum, s->wallptr, s->floory, s->ceilingy);
     }
 
     for (int s = 0; s < map->wallAmount; s++)
@@ -48,7 +47,7 @@ void Map_PrintInfo(DukeMap* map)
         Wall* w = &map->walls[s];
         Wall* w2 = &map->walls[w->point2];
 
-        Log_InfoF("Wall n: %d (%d,%d) - (%d,%d)\n", s, w->x, w->y, w2->x, w2->y);
+        Log_InfoF("Wall n: %d (%d,%d) - (%d,%d)\n", s, w->x, w->z, w2->x, w2->z);
     }
 
 
@@ -58,11 +57,6 @@ void Map_PrintInfo(DukeMap* map)
     }
 }
 
-float Map_AngleToRad(s16 angleInt)
-{
-    float ratio = (float)angleInt / (float)2048;
-    return ratio * M_PI * 2.0f;
-}
 
 // Are we inside a sector
 // NOTE FROM DUKE SOURCE CODE
@@ -75,8 +69,9 @@ bool Map_IsPointInsideSectorOG(DukeMap* map, vec2 point, int sectorNumber)
         for (s16 wi = 0; wi < sector->wallnum; wi++)
         {
             Wall* w = Map_GetWallInSector(map, sectorNumber, wi);
-            vec2 start = w->start;
-            vec2 end =  w->end;
+            Wall* wend = Map_GetWallEnd(map, w);
+            vec2 start = vec2New(w->x, w->z);
+            vec2 end = vec2New(wend->x, wend->z);
 
             // Check if these are different signs
             s32 testY1 = (s32)start.y - (s32)point.y;
@@ -117,87 +112,8 @@ bool Map_IsPointInsideSectorOG(DukeMap* map, vec2 point, int sectorNumber)
 		}
 		return  (count >> 31) > 0;
 }
-// Are we inside a sector
-// NOTE FROM DUKE SOURCE CODE
-bool Map_IsPointInsideSectorRay(DukeMap* map, vec2 point, int sectorNumber)
-{
-        Sector* sector = Map_GetSector(map, sectorNumber);
-        u32 count = 0;
 
-        for (s16 wi = 0; wi < sector->wallnum; wi++)
-        {
-            Wall* w = Map_GetWallInSector(map, sectorNumber, wi);
-            vec2 start = w->start;
-            vec2 end =  w->end;
-
-            s32 testY1 = (s32)start.y - (s32)point.y;
-            s32 testY2 = (s32)end.y - (s32)point.y;
-            if ((testY1^testY2) < 0)
-            {
-                // Different signs, point.y is between
-                s32 testX1 = (s32)start.x - (s32)point.x;
-                s32 testX2 = (s32)end.x - (s32)point.x;
-                if ((testX1^testX2) >= 0)
-                {
-                    // Change sign
-                    count ^= testX1;
-                }
-                else
-                {
-                    // Magic
-                    count ^= (testX1*testY2 - testX2*testY1)^testY2;
-                }
-            }
-		}
-		return  (count >> 31) >= 0;
-}
-
-
-
-// This is from https://gist.github.com/TimSC/47203a0f5f15293d2099507ba5da44e6
-// But it finds collisions with every wall
-double Det(double a, double b, double c, double d)
-{
-    return (a)*(d)-(b)*(c);
-}
-bool Map_FindIntersectionWithWallGithub(
-    float x1,
-    float y1,
-    float x2,
-    float y2,
-    float x3,
-    float y3,
-    float x4,
-    float y4,
-    vec2* pointOUT
-     )
-{
-    double detL1 = Det(x1, y1, x2, y2);
-	double detL2 = Det(x3, y3, x4, y4);
-	double x1mx2 = x1 - x2;
-	double x3mx4 = x3 - x4;
-	double y1my2 = y1 - y2;
-	double y3my4 = y3 - y4;
-
-	double xnom = Det(detL1, x1mx2, detL2, x3mx4);
-	double ynom = Det(detL1, y1my2, detL2, y3my4);
-	double denom = Det(x1mx2, y1my2, x3mx4, y3my4);
-	if(denom == 0.0)//Lines don't seem to cross
-	{
-		return false;
-	}
-
-	pointOUT->x = xnom / denom;
-	pointOUT->y = ynom / denom;
-	if(!isfinite(pointOUT->x) || !isfinite(pointOUT->y)) //Probably a numerical issue
-		return false;
-
-	return true; //All OK
-}
-
-// This is from Wikipedia and works half right
-// it finds intersections on line extensions too
-// which is bad :()
+// This is from Wikipedia and works
 
 bool Map_FindIntersectionWithWallUT(
     float x1,
@@ -228,64 +144,154 @@ bool Map_FindIntersectionWithWallUT(
     *pointOUT = vec2New(t, u);
     return false;
 }
-// This is from bisqwit
-// IntersectBox: Determine whether two 2D-boxes intersect.
-// Overlap:  Determine whether the two number ranges overlap.
-#define Overlap(a0,a1,b0,b1) (min(a0,a1) <= max(b0,b1) && min(b0,b1) <= max(a0,a1))
-#define IntersectBox(x0,y0, x1,y1, x2,y2, x3,y3) (Overlap(x0,x1,x2,x3) && Overlap(y0,y1,y2,y3))
-#define vxs(x0,y0, x1,y1)    ((x0)*(y1) - (x1)*(y0))   // vxs: Vector cross product
-#define Intersect(x1,y1, x2,y2, x3,y3, x4,y4) ((vec2New ( \
-    vxs(vxs(x1,y1, x2,y2), (x1)-(x2), vxs(x3,y3, x4,y4), (x3)-(x4)) / vxs((x1)-(x2), (y1)-(y2), (x3)-(x4), (y3)-(y4)), \
-    vxs(vxs(x1,y1, x2,y2), (y1)-(y2), vxs(x3,y3, x4,y4), (y3)-(y4)) / vxs((x1)-(x2), (y1)-(y2), (x3)-(x4), (y3)-(y4)) )))
 
-bool Map_FindIntersectionWithWallBisqwit(
-    float x1,
-    float y1,
-    float x2,
-    float y2,
-    float x3,
-    float y3,
-    float x4,
-    float y4,
-    vec2* pointOut
-     )
-{
-    *pointOut = Intersect(x1, y1, x2, y2, x3, y3, x4, y4);
-    return (isfinite(pointOut->x) && isfinite(pointOut->y));
-}
-
-
-bool Map_FindIntersectionWithWall(vec2 moveStart, vec2 moveEnd, Wall* wall, vec2* pointOUT)
+bool Map_FindIntersectionWithWall(DukeMap* map, vec2 moveStart, vec2 moveEnd, Wall* wall, vec2* pointOUT)
 {
     float x1 = moveStart.x;
-    float y1 = moveStart.y;
+    float z1 = moveStart.y;
     float x2 = moveEnd.x;
-    float y2 = moveEnd.y;
+    float z2 = moveEnd.y;
 
-    float x3 = wall->start.x;
-    float y3 = wall->start.y;
-    float x4 = wall->end.x;
-    float y4 = wall->end.y;
-    return Map_FindIntersectionWithWallUT(x1, y1, x2, y2, x3, y3, x4, y4, pointOUT);
+    float x3 = wall->x;
+    float z3 = wall->z;
+    Wall* wend = Map_GetWallEnd(map, wall);
+    float x4 = wend->x;
+    float z4 = wend->z;
+    return Map_FindIntersectionWithWallUT(x1, z1, x2, z2, x3, z3, x4, z4, pointOUT);
 }
 
-vec2 Wall_GetMiddle(Wall* w)
+vec2 Map_GetWallMiddle(DukeMap* map, Wall* w)
 {
-    return vec2Add(w->start, vec2Multiply( vec2Subtract(w->end, w->start), 0.5f));
+    Wall* wend = Map_GetWallEnd(map, w);
+    vec2 start = vec2New(w->x, w->z);
+    vec2 end = vec2New(wend->x, wend->z);
+    return vec2Add(start, vec2Multiply( vec2Subtract(end, start), 0.5f));
 }
-vec2 Wall_GetNormal(Wall* w)
+vec2 Map_GetWallNormal(DukeMap* map, Wall* w)
 {
-    vec2 wallVector = vec2Subtract(w->end, w->start);
-    return vec2Normalize(Vec2CrossWithZ(wallVector));
+    Wall* wend = Map_GetWallEnd(map, w);
+    vec2 start = vec2New(w->x, w->z);
+    vec2 end = vec2New(wend->x, wend->z);
+    vec2 wallVector = vec2Subtract(end, start);
+    return vec2Normalize(Vec2XZCrossWithY(wallVector));
+}
+Wall* Map_GetWallEnd(DukeMap* map, Wall* w)
+{
+    return &map->walls[w->point2];
 }
 
-bool Map_IsPointInsideWall(vec2 point, Wall* wall)
+bool Map_IsPointInsideWall(DukeMap* map, vec2 point, Wall* wall)
 {
     // negative if on the right side of wall.
     // walls go clockwise
+    Wall* wend = Map_GetWallEnd(map, wall);
+    vec2 start = vec2New(wall->x, wall->z);
+    vec2 end = vec2New(wend->x, wend->z);
 
-    vec2 wallVector = vec2Subtract(wall->end, wall->start);
-    float crossZ = Vec2CrossToZ(wallVector, vec2Subtract(point, wall->start));
+    vec2 wallVector = vec2Subtract(end, start);
+    float crossY = Vec2XZCrossToY(wallVector, vec2Subtract(point, start));
     // DANGER Again, this code works differently TM
-    return crossZ > 0.0f;
+    return crossY < 0.0f;
+}
+
+s32 Map_GetSectorFloorHeight(DukeMap* map, s16 sectorNumber)
+{
+    Sector* s = Map_GetSector(map, sectorNumber);
+    return s->floory;
+}
+
+MoveResult Map_MovePointInMap(DukeMap* map, vec2 start, vec2 end, s16 sectorNumber, vec2* positionOut, s16* sectorOut)
+{
+    Sector* sector = Map_GetSector(map, sectorNumber);
+
+    // Keep testing until player is back inside again
+    bool insideSector =  Map_IsPointInsideSectorOG(map, end, sectorNumber);
+    if (insideSector == true)
+    {
+        // TODO does player hit head
+        float ceilingY = sector->ceilingy;
+        float floorY = sector->floory;
+        /* TODO Jumping in different place function?
+         *				player->positionOpenGL.z = floorY + player->standingHeight;
+         *				if (player->positionOpenGL.z  > ceilingY)
+         *				{
+         *					player->positionOpenGL.z = ceilingY - player->standingHeight - 1;
+    }
+    */
+        *positionOut = end;
+        *sectorOut = sectorNumber;
+        return Move_Ok;
+    }
+    else
+    {
+        // Find out where player went
+        vec2 cross;
+        for (s16 wi = 0; wi < sector->wallnum; wi++)
+        {
+            Wall* w = Map_GetWallInSector(map, sectorNumber, wi);
+            // Did player cross this wall
+            if (Map_FindIntersectionWithWall(map, start, end, w, &cross))
+            {
+                // Yes
+                // Is it a portal?
+                if (w->nextsector >= 0)
+                {
+                    s16 newSector = w->nextsector;
+                    bool insideNewSector =  Map_IsPointInsideSectorOG(map, end, newSector);
+                    if (insideNewSector)
+                    {
+                        *positionOut = end;
+                        *sectorOut = newSector;
+                        return Move_HitPortal;
+                    }
+                    else
+                    {
+                        // Find player again
+                        return Map_MovePointInMap(map, cross, end, newSector, positionOut, sectorOut);
+                    }
+                }
+                else
+                {
+                    vec2 normal = Map_GetWallNormal(map, w);
+                    Wall* w2 = Map_GetWallEnd(map, w);
+                    // Push player back from wall
+                    vec2 hitEnd = vec2Add(cross, normal);
+                    // Slide player along the wall
+                    vec2 wstart = vec2New(w->x, w->z);
+                    vec2 wend = vec2New(w2->x, w2->z);
+                    vec2 slideMove = Vec2Project( vec2Subtract(hitEnd, start), vec2Subtract(wend, wstart));
+                    vec2 slideEnd = vec2Add(hitEnd, slideMove);
+                    bool stillInsideSector = Map_IsPointInsideSectorOG(map, slideEnd, sectorNumber);
+                    if (stillInsideSector)
+                    {
+                        *positionOut = slideEnd;
+                        *sectorOut = sectorNumber;
+                        return Move_HitWall;
+                    }
+                    else
+                    {
+                        return Map_MovePointInMap(map, hitEnd, slideEnd, sectorNumber, positionOut, sectorOut);
+                    }
+                }
+            }
+        }
+        {
+            // DANGER Player has escaped: return to original position
+
+            bool stillInsideSector = Map_IsPointInsideSectorOG(map, start, sectorNumber);
+            if (stillInsideSector)
+            {
+                *positionOut = start;
+                *sectorOut = sectorNumber;
+                return Move_Cancel;
+            }
+            else
+            {
+                // Put in center of sector
+                *positionOut = vec2Add(sector->minXZPoint, vec2Multiply(sector->sizeXZ, 0.5f));
+                *sectorOut = sectorNumber;
+                return Move_Cancel;
+            }
+        }
+    }
 }

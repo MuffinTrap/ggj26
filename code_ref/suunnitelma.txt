@@ -25,6 +25,11 @@ Käytä 2D piirtämistä laskemaan mitkä sektorit pitää piirtää [testaa]
 # Piirrä U ja T arvot
 # Piirrä seinien numerot push matrix ja flippaa skaalaus Y:llä
 
+# Koordinaatit: käytetään oikeakätistä koordinaattisysteemiä
+# 	Vaihda wall x y -> x z
+
+
+
 
 
 OpenGL piirtäminen
@@ -34,12 +39,18 @@ OpenGL piirtäminen
 #	Piirrä katon ja lattian tekstuurit
 	Tallenna koko sektori verteksibufferiin **ei ehkä tarvi**
 	Jos kenttä muuttuu pitää bufferi päivittää
+	Laita kaikki verteksit bufferiin ja piirrä sieltä glDrawArrays
+	Erota piirtäminen omaan systeemiin
+	Seinän kuva voi olla tekstuuri tai verteksien piirtämistä : Piirtoalue ja kuvan numero annetaan
 
 Pelaaja
 	Pelaajan tila, crouch, swim, fall, walk
 # 	Pidä pelaaja lattian korkeudelle + pelaajan korkeus
 	Strafe nopeus ja kontrollit
 #	Pelaaja liukuu pitkin seinää
+# 	Pelaaja tippuu automaattisesti
+#	Pelaajan törmääminen kenttään erikseen updatesta
+
 
 
 3D Arvot:

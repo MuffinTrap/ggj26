@@ -1,6 +1,7 @@
 #include <mgdl.h>
 #include "example.h"
 #include "dukemapreader.h"
+#include "dukemath.h"
 #include "build-render.h"
 #include "player.h"
 
@@ -45,10 +46,11 @@ void init()
 
     player.moveSpeed = 2048.0f; // NOTE Set
     player.verticalSpeed = 1400.0f;
+    player.fallingSpeed = 32000.0f;
     player.standingHeight = 10 * 1024.0f; // NOTE Set
     player.kneelingHeight = 4000.0f;
     player.turnSpeedDegrees = 150; // NOTE set
-    player.positionOpenGL.z += player.standingHeight;
+    player.position.y += player.standingHeight;
     player.radius = 128;
 
     mapMenu = Menu_CreateWindowed(DefaultFont_GetDefaultFont(), 1.0f, 1.5f, 256,mgdl_GetScreenHeight(), "Map menu");
@@ -59,12 +61,14 @@ void init()
     render2D.mapOffset = vec2New(0,0);
     render2D.mapZoom = 1.0f;
     render2D.scaleXZ = 1.0f;
-    render2D.collisionPoint = player.positionOpenGL.xy;
+    render2D.collisionPoint = vec2New(player.position.x, player.position.z);
     render2D.collisionLength = 100.0f;
     render2D.collisionAngleDeg = 180.0f;
     render2D.movePlayer = true;
     render2D.drawOneWall = -1;
     render2D.drawOneSector = -1;
+    render2D.rotateMap= true;
+    render2D.centerMapToPlayer= true;
     mapZoom = 0.9f;
     ZoomOut = false;
 
@@ -103,12 +107,15 @@ void frame()
 
 
     // Move camera
-    //NOTE Z is up
+    vec3 playerposGL = Vec3DukePosToOpenGL(player.position, &renderGL);
+
+    // NOTE this eventuall calls gluLookAt: which wants the eye position
     Camera_SetPosition(glCamera,
-                       player.positionOpenGL.x * renderGL.scaleXZ,
-                       player.positionOpenGL.z * renderGL.scaleY,
-                       player.positionOpenGL.y * renderGL.scaleXZ);
-    Camera_SetRotations(glCamera, player.Pitch * M_PI, Rad2Deg(-player.angleRad), 0.0f);
+                       playerposGL.x,
+                       playerposGL.y,
+                       playerposGL.z);
+
+    Camera_SetRotations(glCamera, player.pitchRad, Rad2Deg(-player.angleRad), 0.0f);
 
     Color4f c = Palette_GetColor4f(Palette_GetDefault(), 0);
     mgdl_glClearColor4f(&c);
@@ -165,8 +172,17 @@ void frame()
         Menu_Toggle(mapMenu, showMenu ? "Hide" : "Show", &showMenu);
     if (showMenu)
     {
-    Menu_TextF(mapMenu, "Player3D: (%.1f %.1f %.1f) Dir: %.0f", player.positionOpenGL.x, player.positionOpenGL.y, player.positionOpenGL.z, Rad2Deg(player.angleRad));
-    Menu_TextF(mapMenu, "Player Sector: %s %d", player.insideSector ? "Inside" : "Outside", player.sectorNumber);
+
+        if (render2D.movePlayer)
+        {
+            Menu_TextF(mapMenu, "Player3D: (%.1f %.1f %.1f) Dir: %.0f", player.position.x, player.position.y, player.position.z, Rad2Deg(player.angleRad));
+            Menu_TextF(mapMenu, "Player Sector: %s %d", player.sectorNumber >=0 ? "Inside" : "Outside", player.sectorNumber);
+        }
+        else
+        {
+            Menu_TextF(mapMenu, "Collision point: (%.1f %.1f) Dir: %.0f", render2D.collisionPoint.x, render2D.collisionPoint.y, render2D.collisionAngleDeg);
+            Menu_TextF(mapMenu, "Sector: %s %d", render2D.collisionInsideSector >= 0 ? "Inside" : "Outside", render2D.collisionInsideSector);
+        }
     //Menu_Slider(mapMenu, "Speed", 1, 2048.0f, &player.moveSpeed);
     //Menu_Slider(mapMenu, "V Speed", 1, 512.0f, &player.verticalSpeed);
     //Menu_Slider(mapMenu, "R Speed", 45, 720.0f, &player.turnSpeedDegrees);
@@ -181,6 +197,9 @@ void frame()
     {
         render2D.mapZoom = mapZoom;
     }
+
+    Menu_Toggle(mapMenu, "Rotate on Player", &render2D.rotateMap);
+    Menu_Toggle(mapMenu, "Center on Player", &render2D.centerMapToPlayer);
 
     if (Menu_Button(mapMenu, "Draw Wall -"))
     {
@@ -230,12 +249,11 @@ void frame()
     if (Menu_Button(mapMenu, "ResetPlayer"))
     {
         Map_InitPlayer(map, &player);
-        player.positionOpenGL.z += player.standingHeight;
+        player.position.y += player.standingHeight;
     }
     if (Menu_Button(mapMenu, "Reload map"))
     {
         LoadMap();
-        player.positionOpenGL.z += player.standingHeight;
     }
     /*
     for(int i = 0; i< 10; i++)
