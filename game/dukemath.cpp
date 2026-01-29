@@ -54,6 +54,12 @@ vec2 Vec2XZRotateY(vec2 p, float angle)
 	float zt = p.x*sin(angle) + p.y*cos(angle);
     return vec2New(xt, zt);
 }
+vec3 Vec3XYZRotateY(vec3 p, float angle)
+{
+	float xt = p.x*cos(angle) - p.z*sin(angle);
+	float zt = p.x*sin(angle) + p.z*cos(angle);
+    return vec3New(xt, p.y, zt);
+}
 
 
 float Math_DukeAngleToRad(s16 angleInt)

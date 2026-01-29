@@ -1,5 +1,6 @@
 #pragma once
 #include "dukemap.h"
+// Forward defs
 
 struct SectorRender
 {
@@ -33,6 +34,8 @@ struct RenderSettingsOpenGL
     float scaleXZ;
     float scaleY;
     float textureScale;
+    float spriteDefaultWidth;
+    float spriteDefaultHeight;
 };
 typedef struct RenderSettingsOpenGL RenderSettingsOpenGL;
 
@@ -41,16 +44,16 @@ extern int wallYPoints[20];
 
 
 void BuildRender_Init(DukeMap* map, RenderSettingsOpenGL* settings3D);
-/** @brief Draws the map using lines
- */
-void BuildRender_DrawFirstPerson(Player* player, DukeMap* map, RenderSettings2D* settings);
 /** @brief Draws the map wireframe and player
  */
 void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL* settings3D, RenderSettings2D* settings2D);
 
 /** @brief Draws the map in 3D using OpenGL
  */
-void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* settings);
+void BuildRender_Draw3D(Player* player, DukeMap* map, RenderSettingsOpenGL* settings);
+void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL* settings);
+void BuildRender_DrawSprites(DukeMap* map, Player* player, RenderSettingsOpenGL* settings);
+
 
 void BuildRender_TesselationTest();
 

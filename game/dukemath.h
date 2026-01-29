@@ -21,6 +21,7 @@ vec2 Vec2XZCrossWithY(vec2 a);
 vec2 Vec2Project(vec2 move, vec2 wall);
 
 vec2 Vec2XZRotateY(vec2 p, float angle);
+vec3 Vec3XYZRotateY(vec3 p, float angle);
 
 /**
  * @brief Converts duke angle to radians

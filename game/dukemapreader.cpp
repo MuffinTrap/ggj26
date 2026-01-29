@@ -18,7 +18,7 @@ DukeMap* ReadMapFromFile(const char* mapfilename)
     m.version = ReadInt32();
     s32 start_x = ReadInt32();
     s32 start_y = ReadInt32();
-    s32 start_z = ReadInt32();
+    s32 start_z = ReadInt32() * -1;
     m.startPosition = vec3New(start_x, start_z, start_y);
 
     m.startAngle = ReadInt16();
@@ -82,9 +82,12 @@ DukeMap* ReadMapFromFile(const char* mapfilename)
     for (int i = 0; i < m.spriteAmount; i++)
     {
         DSprite* s = &m.sprites[i];
-        s->x = ReadInt32();
-        s->y = ReadInt32();
-        s->z = ReadInt32();
+
+        s32 x = ReadInt32();
+        s32 y = ReadInt32();
+        s32 z = ReadInt32();
+        s->position = vec3New(x, z*-1, y);
+
         s->cstat = ReadInt16();
         s->picnum = ReadInt16();
         s->shade = ReadSByte();

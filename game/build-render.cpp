@@ -10,6 +10,7 @@
 #include "dukemap.h"
 #include "dukemath.h"
 #include "player.h"
+#include "opengl-render.h"
 
 
 // TODO move to mgdl util
@@ -64,113 +65,6 @@ bool BuildRender_WasSectorDrawn(s16 sectornumber)
     return renderedSectorNames[sectornumber] > 0;
 }
 
-// OpenGL
-Texture* checkers;
-GLUtesselator* tesselator = nullptr;
-bool tesselationActive = true;
-
-static void SetColor(DefaultColor oc)
-{
-    Color4f* c = Color_GetDefaultColor(oc);
-    glColor4fv(&c->red);
-}
-
-static void Line2(int x1, int z1, int x2, int z2)
-{
-    glVertex2i(x1, z1);
-    glVertex2i(x2, z2);
-}
-
-// TESSELATION CALLBACKS
-// /////////////////////
-
-// Ring buffer for tesselation
-#define VERTEX_BUFFER_SIZE_DOUBLES (3*64) // Divisible by three for the ring buffering to work; 3 doubles per vertex
-#define VERTEX_BUFFER_SIZE_BYTES (VERTEX_BUFFER_SIZE_DOUBLES * sizeof(double))
-static GLdouble* vertexRingBuffer = nullptr;
-int VertexBufferIndexDoubles = 0;
-
-#ifndef CALLBACK
-#define CALLBACK
-#endif
-
-void CALLBACK tessBegin(GLenum which)
-{
-    //Log_InfoF("Tesselation start mode: %s \n", which == GL_TRIANGLES ? "Triangles" : "Not triangles");
-    glEnable(GL_TEXTURE_2D);
-    // TODO Get texture from wall or ceiling
-    glBindTexture(GL_TEXTURE_2D, checkers->textureId);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glBegin(which);
-}
-void CALLBACK tessVertex(GLvoid* vertex, void* SectorPtr)
-{
-    const Sector* s = (Sector*)SectorPtr;
-    const GLdouble* pointer;
-    pointer = (GLdouble*)vertex;
-    //Log_InfoF("Tesselation vertex %.2f, %.2f\n", pointer[0], pointer[2]);
-    // TODO texture coordinates and colors
-    float xrange = s->sizeXZ.x;
-    float zrange = s->sizeXZ.y;
-    float xdiff = pointer[0] - s->minXZPoint.x;
-    float zdiff = pointer[2] - s->minXZPoint.y;
-    float tx = xdiff/xrange * s->maxTexCoord.x;
-    float tz = zdiff/zrange * s->maxTexCoord.y;
-    //Log_InfoF("Tesselation tex coord %.2f, %.2f\n", tx, ty);
-    glTexCoord2f(tx,tz);
-    glVertex3dv(pointer);
-
-}
-/* NOTE This is not used, points are far apart
-void CALLBACK tessCombine(GLdouble coords[3], GLdouble* vertex_data[4], GLfloat weight[4], GLdouble **dataOut)
-{
-    Log_InfoF("Tesselation combine vertex: %.2f, %.2f\n", coords[0], coords[2]);
-    if (combineBufferIndex + 6 >= COMBINE_BUFFER_SIZE)
-    {
-        combineBufferIndex = 0;
-    }
-    // Reads 6 doubles
-    GLdouble* vertex = &combineBuffer[combineBufferIndex];
-
-    // Coordinates of the combined vertex
-    vertex[0] = coords[0];
-    vertex[1] = coords[1];
-    vertex[2] = coords[2];
-    for (int i = 3; i < 6; i++)
-    {
-        vertex[i] = weight[0] * vertex_data[0][i] +
-                    weight[1] * vertex_data[1][i] +
-                    weight[2] * vertex_data[2][i] +
-                    weight[3] * vertex_data[3][i];
-    }
-    *dataOut = vertex;
-    combineBufferIndex = (combineBufferIndex + 6) % COMBINE_BUFFER_SIZE;
-}
-*/
-
-void CALLBACK tessEnd(void)
-{
-    //Log_Info("Tesselation end\n");
-    glEnd();
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glDisable(GL_TEXTURE_2D);
-}
-void CALLBACK tessError(GLenum errorCode)
-{
-    const GLubyte* str;
-    str = gluErrorString(errorCode);
-    Log_ErrorF("Tesselation error: %s\n", str);
-    tesselationActive = false;
-}
-
-void CALLBACK tessEdgeFlag(GLboolean flag)
-{
-   glEdgeFlag(flag);
-}
-
-
-
 void BuildRender_Init(DukeMap* map, RenderSettingsOpenGL* settings3D)
 {
     H = mgdl_GetScreenHeight();
@@ -198,24 +92,6 @@ void BuildRender_Init(DukeMap* map, RenderSettingsOpenGL* settings3D)
     lastSectorAmount = map->sectorAmount;
     renderQueueInserts = 0;
 
-    // TODO move to graphics system
-    checkers = Texture_GenerateCheckerBoard();
-    if (tesselator == nullptr)
-    {
-        tesselator = gluNewTess();
-        mgdl_assert_print(tesselator != nullptr, "No Glut tesselator!");
-
-        gluTessCallback(tesselator, GLU_TESS_BEGIN, (void(*)())tessBegin);
-        gluTessCallback(tesselator, GLU_TESS_VERTEX_DATA, (_GLUfuncptr)tessVertex);
-        gluTessCallback(tesselator, GLU_TESS_END, (_GLUfuncptr)tessEnd);
-        gluTessCallback(tesselator, GLU_TESS_ERROR, (_GLUfuncptr)tessError);
-        gluTessCallback(tesselator, GLU_TESS_EDGE_FLAG, (_GLUfuncptr)tessEdgeFlag); // this makes tess only submit triangles
-    }
-
-    if (vertexRingBuffer == nullptr)
-    {
-        vertexRingBuffer = (GLdouble*)mgdl_AllocateGraphicsMemory(VERTEX_BUFFER_SIZE_BYTES);
-    }
 
 
     // Build other data needed by game
@@ -241,50 +117,64 @@ void BuildRender_Init(DukeMap* map, RenderSettingsOpenGL* settings3D)
         sector->maxTexCoord.x = aspect * height * settings3D->textureScale;
         sector->maxTexCoord.y = 1.0 * height * settings3D->textureScale;
     }
+    OpenGLRender_Init();
 }
 
-void DrawQuad(vec2 start, vec2 end, float floorY, float ceilingY, RenderSettingsOpenGL* settings3D)
+
+
+
+
+void BuildRender_DrawSprites(DukeMap* map, Player* player, RenderSettingsOpenGL* settings)
 {
-    // Keep texture aspect 1:1 unless told otherwise
-    float width = vec2Length( vec2Subtract(end, start)) * settings3D->scaleXZ;
-    float height = (ceilingY - floorY) * settings3D->scaleY;
+    // Draw all the sprites from renderer sectors
+    for (int si = 0; si < map->spriteAmount; si++)
+    {
+        DSprite* sprite = &map->sprites[si];
+        if (renderedSectorNames[sprite->sectnum] > 0)
+        {
 
-    // TODO move to graphics
-    float aspect = width/height;
-    float tex_x1 = 0.0f;
-    float tex_x2 = aspect * height * settings3D->textureScale;
-    float tex_bottom = 0.0f;
-    float tex_top = 1.0 * height * settings3D->textureScale;
-    glEnable(GL_TEXTURE_2D);
-    glBindTexture(GL_TEXTURE_2D, checkers->textureId);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glBegin(GL_TRIANGLES);
-        // Build Triangles for wall
-        glTexCoord2f(tex_x1, tex_bottom); // 0
-        glVertex3f(start.x, floorY, start.y); // 0
+            // Keep the texture aspect correct
+            float scaleAspect = settings->scaleXZ / settings->scaleY;
 
-        glTexCoord2f(tex_x2, tex_bottom); // 1
-        glVertex3f(end.x, floorY, end.y);   // 1
+            // TODO xrepeat and yrepeat adjust the aspect
+            // The size comes from the size of the texture somehow
+            float spriteSize = settings->spriteDefaultWidth;
+            float spriteHeight = settings->spriteDefaultWidth * scaleAspect;
 
-        glTexCoord2f(tex_x2, tex_top); // 2
-        glVertex3f(end.x, ceilingY, end.y); // 2
+            float pushOut = 0;
+            SpriteAlignment al = Sprite_GetAlignment(sprite);
+            switch(al)
+            {
+                case Sprite_FACE: // nop
+                    break;
+                case Sprite_WALL:
+                    pushOut = settings->scaleXZ;
+                    break;
+                case Sprite_FLOOR:
+                    pushOut = settings->scaleY;
+                    break;
 
-        glTexCoord2f(tex_x2, tex_top); // 2
-        glVertex3f(end.x, ceilingY, end.y);  // 2
+            }
 
-        glTexCoord2f(tex_x1, tex_top); // 3
-        glVertex3f(start.x, ceilingY, start.y); // 3
-
-        glTexCoord2f(tex_x1, tex_bottom); // 0
-        glVertex3f(start.x, floorY, start.y); // 0
-
-    glEnd();
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glDisable(GL_TEXTURE_2D);
+            OpenGLRender_DrawSprite(sprite->position, spriteSize, spriteHeight,
+                                    Math_DukeAngleToRad(sprite->ang), player->angleRad,
+                                    al , Sprite_GetPivot(sprite),
+                                    sprite->picnum);
+        }
+    }
 }
 
-void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* settings)
+void BuildRender_Draw3D(Player* player, DukeMap* map, RenderSettingsOpenGL* settings)
+{
+    glPushMatrix();
+    glScalef(settings->scaleXZ, settings->scaleY, settings->scaleXZ);
+        BuildRender_DrawSectors(player, map, settings);
+        BuildRender_DrawSprites(map, player, settings);
+    glPopMatrix();
+}
+
+
+void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL* settings)
 {
     for (int i = 0; i < map->sectorAmount ; i++)
     {
@@ -305,8 +195,6 @@ void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* 
         head = renderQueue;
     }
 
-    glPushMatrix();
-    glScalef(settings->scaleXZ, settings->scaleY, settings->scaleXZ);
 
     // Draw a sector and put more sectors to queue for drawing
     do {
@@ -337,47 +225,7 @@ void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* 
         {
             bool floor = true;
             do {
-                if (floor)
-                {
-                    glColor3f(0.0f, 0.0f, 0.5f);
-                }
-                else
-                {
-                    glColor3f(0.0f, 0.5f, 0.0f);
-                }
-                glPushMatrix();
-                    // Set floor level to 0.0f
-                    if (floor)
-                    {
-                        glTranslatef(0.0f, floorY, 0.0f);
-                        gluTessNormal(tesselator, 0, 1, 0); // All points on XZ plane
-                    }
-                    else
-                    {
-                        glTranslatef(0.0f, ceilingY, 0.0f);
-                        gluTessNormal(tesselator, 0, -1, 0); // All points on XZ plane
-                    }
-                    // TODO If there are sectors inside sectors we need a much more complex
-                    // tesselation
-                    gluTessBeginPolygon(tesselator, sector);
-                    gluTessBeginContour(tesselator);
-                    //Log_InfoF("Tesselating sector %d\n", request.number);
-                    for (s16 wi = sector->wallnum-1; wi >= 0; wi--)
-                    {
-                        Wall* w = Map_GetWallInSector(map, request.number, wi);
-                        // Tesselation
-                        // NOTE DANGER Must be counter clockwise
-                        //Log_InfoF("Tesselation vertex sent %d:: %.2f, %.2f\n", wi, w->glutVertices[0], w->glutVertices[2]);
-                        // TODO Send normal too, but maybe not with every vertex?
-                        vertexRingBuffer[VertexBufferIndexDoubles + 0] = w->x;
-                        vertexRingBuffer[VertexBufferIndexDoubles + 1] = 0;
-                        vertexRingBuffer[VertexBufferIndexDoubles + 2] = w->z;
-                        gluTessVertex(tesselator, &vertexRingBuffer[VertexBufferIndexDoubles], &vertexRingBuffer[VertexBufferIndexDoubles]);
-                        VertexBufferIndexDoubles = (VertexBufferIndexDoubles + 3) % VERTEX_BUFFER_SIZE_DOUBLES;
-                    }
-                    gluTessEndContour(tesselator);
-                    gluTessEndPolygon(tesselator);
-                glPopMatrix();
+                OpenGLRender_DrawFloorOrCeiling(map, sector, floor);
                 floor = !floor;
                 // First round: floor is false
                 // Second round: floor is true
@@ -393,7 +241,6 @@ void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* 
             vec2 start = vec2New(w->x, w->z);
             Wall* wend = Map_GetWallEnd(map, w);
             vec2 end =  vec2New(wend->x, wend->z);
-
 
             vec2 startZ = vec2Subtract(start, playerPos2);
             vec2 endZ = vec2Subtract(end, playerPos2);
@@ -412,31 +259,15 @@ void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* 
                 // Draw next wall
                 continue;
             }
+            // TODO Clip tp view frustum and check if
+            // inside it
 
             // Wall is drawn
             // if it was a portal Add neighbor to queue
             // if there is neighbor AND AND there is room in QUEUE
+            OpenGLRender_DrawWall(map, w, floorY, ceilingY, settings);
             if (w->nextsector >= 0)
             {
-                // Create wall that goes down or up to adjacent sector: Note! both sectors dont need to do this. Only lower one
-                Sector* neighbor = Map_GetSector(map, w->nextsector);
-                int n_floorY = neighbor->floory;
-                int n_ceilingY = neighbor->ceilingy;
-
-                // if this floor height is less than adjacent: Greate wall in between: goes up
-                if (floorY < n_floorY)
-                {
-                    SetColor(Color_Blue);
-                    DrawQuad(start, end, floorY, n_floorY, settings);
-                }
-
-                // Ceiling:
-                // If this ceiling is higher than adjacent: Greate wall in between: goes down
-                if (ceilingY > n_ceilingY)
-                {
-                    SetColor(Color_Green);
-                    DrawQuad(start, end, n_ceilingY, ceilingY, settings);
-                }
                 if  ((head + MAX_PORTAL_QUEUE+1-tail)%MAX_PORTAL_QUEUE)
                 {
                     (*head) = {w->nextsector};
@@ -448,50 +279,15 @@ void BuildRender_DrawOpenGL(Player* player, DukeMap* map, RenderSettingsOpenGL* 
                     }
                 }
             }
-            else
-            {
-                // Draw the wall
-                glColor3f(0.5f, 0.5f, 0.5f);
-                DrawQuad(start, end, floorY, ceilingY, settings);
-
-                /*
-                glBegin(GL_LINE_LOOP);
-                    SetColor(Color_Red);
-                    // Draw outline
-                    glVertex3f(start.x, floorY, start.y); // 0
-                    glVertex3f(end.x, floorY, end.y);   // 1
-                    glVertex3f(end.x, ceilingY, end.y); // 2
-                    glVertex3f(start.x, ceilingY, start.y); // 3
-                glEnd();
-                */
-            }
         } // All walls of the sector have been drawn; head has moved forward
-
 
         // Mark the sector as drawn
         renderedSectorNames[request.number] += 1;
 
     } while(head != tail); // Render until buffer is empty: if nothing was added, they are the same
-    glPopMatrix();
 
 }
 
-void DrawDot(vec2 point, float size, DefaultColor color)
-{
-    SetColor(color);
-
-    glVertex2i(point.x,point.y - size);
-    glVertex2i(point.x + size,point.y);
-
-    glVertex2i(point.x + size,point.y);
-    glVertex2i(point.x ,point.y + size);
-
-    glVertex2i(point.x ,point.y + size);
-    glVertex2i(point.x - size,point.y);
-
-    glVertex2i(point.x - size,point.y);
-    glVertex2i(point.x,point.y - size);
-}
 
 void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL* settings3D, RenderSettings2D* settings2D)
 {
@@ -551,9 +347,9 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
             ////////////////////////////
             glBegin(GL_LINES);
             // Draw origo
-            SetColor(Color_White);
-            Line2(0, -10, 0 ,10);
-            Line2(-10, 0, 10, 0);
+            OpenGLRender_SetColor(Color_White);
+            OpenGLRender_Line2(0, -10, 0 ,10);
+            OpenGLRender_Line2(-10, 0, 10, 0);
 
             settings2D->collisionInsideSector = -1;
             for(int si = 0; si < map->sectorAmount; si++)
@@ -583,7 +379,7 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
                         }
                         if (Map_FindIntersectionWithWall(map,  settings2D->collisionPoint, collisionEnd, w, &collisionOut))
                         {
-                            DrawDot(collisionOut, 48, DefaultColor::Color_White);
+                            OpenGLRender_DrawDot(collisionOut, 48, DefaultColor::Color_White);
                         }
                         else
                         {
@@ -591,32 +387,51 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
                         }
                         if (Map_IsPointInsideWall(map, settings2D->collisionPoint, w))
                         {
-                            SetColor(Color_Green);
+                            OpenGLRender_SetColor(Color_Green);
                         }
                         else
                         {
-                            SetColor(Color_Black);
+                            OpenGLRender_SetColor(Color_Black);
                         }
                     }
                     else
                     {
                         if (w->nextsector < 0)
                         {
-                            SetColor(Color_White);
+                            OpenGLRender_SetColor(Color_White);
                         }
                         else
                         {
-                            SetColor(Color_Green);
+                            OpenGLRender_SetColor(Color_Green);
                         }
                     }
 
-                    Line2(start.x, start.y, end.x, end.y);
+                    OpenGLRender_Line2(start.x, start.y, end.x, end.y);
                     vec2 m = Map_GetWallMiddle(map, w);
                     vec2 N = vec2Multiply( Map_GetWallNormal(map, w), 32 );
-                    Line2(m.x, m.y, m.x + N.x, m.y + N.y);
+                    OpenGLRender_Line2(m.x, m.y, m.x + N.x, m.y + N.y);
                 }
             }
             glEnd(); // end walls
+
+            // DRAW SPRITES
+            // //////////////////////
+            glBegin(GL_LINES);
+
+            float spriteSize = 64;
+            DefaultColor spriteColor = Color_Red;
+            OpenGLRender_SetColor(spriteColor);
+            vec2 spriteForward = vec2New(WORLD_FORWARD.x, WORLD_FORWARD.z * -1);
+            for(int spi =  0; spi < map->spriteAmount; spi++)
+            {
+                DSprite* sprite = &map->sprites[spi];
+                vec2 spos2 = vec2New(sprite->position.x, sprite->position.z);
+                OpenGLRender_DrawDot(spos2, spriteSize, spriteColor);
+                vec2 spriteDir = Vec2XZRotateY(spriteForward, Math_DukeAngleToRad(sprite->ang)-M_PI_2f);
+                vec2 spriteEnd = vec2Add(spos2, vec2Multiply(spriteDir, settings3D->spriteDefaultWidth/2));
+                OpenGLRender_Line2(spos2.x, spos2.y, spriteEnd.x, spriteEnd.y);
+            }
+            glEnd();
 
             // DRAW WALL NUMBERS and SECTOR NUMBERS
             glPushMatrix();
@@ -672,6 +487,7 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
             glPopMatrix(); // NUMBERS
         glPopMatrix(); // WALLS
 
+
         // DRAW PLAYER
         // ////////////
 
@@ -679,7 +495,20 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
 
         glScalef(settings3D->scaleXZ, settings3D->scaleXZ, 1);
         glBegin(GL_LINES);
+
+            vec2 forward = vec2New(WORLD_FORWARD.x, WORLD_FORWARD.z);
+            if (settings2D->rotateMap == false)
+            {
+                forward = Vec2XZRotateY(forward, player->angleRad + M_PI);
+            }
+            else
+            {
+                forward = vec2New(WORLD_FORWARD.x, WORLD_FORWARD.z * -1);
+
+            }
         DefaultColor pc =  Color_Black;
+
+
             if (mgdl_GetElapsedFrames() % 30 == 0)
             {
                 pc = Color_White;
@@ -688,24 +517,14 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
 
             // PLAYER ARROW
             // //////////////////
-            vec2 forward = vec2New(WORLD_FORWARD.x, WORLD_FORWARD.z);
             if (settings2D->movePlayer)
             {
                 if (settings2D->centerMapToPlayer)
                 {
                     playerPos2 = vec2Zero();
                 }
-                DrawDot(playerPos2, dotSize,pc );
-                SetColor(Color_Red);
-                if (settings2D->rotateMap == false)
-                {
-                    forward = Vec2XZRotateY(forward, player->angleRad + M_PI);
-                }
-                else
-                {
-                    forward = vec2New(WORLD_FORWARD.x, WORLD_FORWARD.z * -1);
-
-                }
+                OpenGLRender_DrawDot(playerPos2, dotSize,pc );
+                OpenGLRender_SetColor(Color_Red);
                 forward = vec2Multiply(forward, player->radius * 2);
                 vec2 end = vec2Add(playerPos2, forward);
 
@@ -725,8 +544,8 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
             }
             else
             {
-                DrawDot(playerPos2, dotSize,pc );
-                SetColor(Color_Black);
+                OpenGLRender_DrawDot(playerPos2, dotSize,pc );
+                OpenGLRender_SetColor(Color_Black);
 
                 glVertex2i(playerPos2.x,playerPos2.y);
                 glVertex2f(collisionEnd.x, collisionEnd.y);

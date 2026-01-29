@@ -11,15 +11,21 @@ struct DSprite
     // Game info
 
     // From file
-    s32 x, y, z; ///< Sprite position in map
-    u16 cstat;
-    s16 picnum;
+    // s32 x, y, z; ///< Sprite position in map
+    vec3 position;
+    u16 cstat; ///< Type of sprite bitfield. Use DukeMap_GetSpriteAlignment
+    s16 picnum; ///< Texture index
     s8 shade;
-    u8 pal, clipdist, filler;
-    u8 xrepeat, yrepeat;
-    s8 xoffset, yoffset;
-    s16 sectnum, statnum;
-    s16 ang, owner, xvel, yvel, zvel;
+    u8 pal;
+    u8 clipdist; ///< Size in map as square, only used in FACE alignment
+    u8 filler;
+    u8 xrepeat, yrepeat; ///< How many pixels wide and tall : Default 64x64
+    s8 xoffset, yoffset; ///< Offset of center
+    s16 sectnum;
+    s16 statnum; ///< Status: inactive, bullet, monster etc...
+    s16 ang; ///< Facing angle
+    s16 owner;
+    s16 xvel, yvel, zvel; ///< Velocity
     u16 lotag, hitag;
     s16 extra;
 };
@@ -32,9 +38,12 @@ struct Wall
     s16 nextwall; ///< Index of wall on the other side or -1 if no sector there
     s16 nextsector; ///< Index of sector on the other side or -1
     u16 cstat; ///< Stats about wall
-    s16 picnum, overpicnum;
-    s8 shade;
-    u8 pal, xrepeat, yrepeat, xpanning, ypanning;
+    s16 picnum; ///< Texture number
+    s16 overpicnum; ///< Texture number for masked and one-way walls
+    s8 shade; /// Offset to shade: darker or brighter
+    u8 pal;  ///< Palette index
+    u8 xrepeat, yrepeat;  ///< Repeat texture more times
+    u8 xpanning, ypanning; //< Texture offset
     u16 lotag, hitag;
     s16 extra;
 
@@ -93,6 +102,21 @@ enum MoveResult
 };
 typedef enum MoveResult MoveResult;
 
+enum SpriteAlignment
+{
+    Sprite_FACE, ///< Billboard
+    Sprite_WALL, ///< Not billboard, drawn like wall
+    Sprite_FLOOR ///< Flat on floor or ceiling
+};
+typedef enum SpriteAlignment SpriteAlignment;
+
+enum SpritePivot
+{
+    Sprite_PivotCenter, // Center is position
+    Sprite_PivotFoot    // center is position + height/2
+};
+typedef enum SpritePivot SpritePivot;
+
 typedef struct DukeMap DukeMap;
 
 #ifdef __cplusplus
@@ -104,14 +128,22 @@ extern "C" {
      * @param map The map to convert.
      */
 void Map_ConvertToGameUnits(DukeMap* map);
-Sector* Map_GetSector(DukeMap* map, s16 sectorNumber);
-Wall* Map_GetWallInSector(DukeMap* map, s16 sector, s16 wi);
 void Map_PrintInfo(DukeMap* map);
 void Map_InitPlayer(DukeMap* map, Player* player);
+
+Sector* Map_GetSector(DukeMap* map, s16 sectorNumber);
+s32 Map_GetSectorFloorHeight(DukeMap* map, s16 sectorNumber);
+
+Wall* Map_GetWallInSector(DukeMap* map, s16 sector, s16 wi);
+Wall* Map_GetWallInSectorPtr(DukeMap* map, Sector* sector, s16 wi);
+Wall* Map_GetWallEnd(DukeMap* map, Wall* w);
+Wall* Map_GetWall(DukeMap* map, s16 wallIndex);
 vec2 Map_GetWallMiddle(DukeMap* map, Wall* w);
 vec2 Map_GetWallNormal(DukeMap* map, Wall* w);
-Wall* Map_GetWallEnd(DukeMap* map, Wall* w);
-s32 Map_GetSectorFloorHeight(DukeMap* map, s16 sectorNumber);
+
+SpriteAlignment Sprite_GetAlignment(DSprite* sprite);
+SpritePivot Sprite_GetPivot(DSprite* sprite);
+DSprite* Map_GetSprite(DukeMap* map, s16 spriteIndex);
 
 bool Map_IsPointInsideSectorOG(DukeMap* map, vec2 point, int sectorNumber);
 bool Map_IsPointInsideSectorRay(DukeMap* map, vec2 point, int sectorNumber);

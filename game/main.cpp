@@ -82,6 +82,8 @@ void init()
     renderGL.scaleXZ = 1.0f/dukeUnitsPerMetreXZ;
     renderGL.scaleY = 1.0f/dukeUnitsPerMetreY;
     renderGL.textureScale = 1.0/texCoordPerMetre;
+    renderGL.spriteDefaultWidth = 1024;
+    renderGL.spriteDefaultHeight = 8024;
 
     glCamera = Camera_CreateDefault();
     glCamera->nearZ = 0.0001f;
@@ -136,7 +138,7 @@ void frame()
             glEnable(GL_CULL_FACE);
             glCullFace(GL_BACK);
             glShadeModel(GL_FLAT);
-                BuildRender_DrawOpenGL(&player, map, &renderGL);
+                BuildRender_Draw3D(&player, map, &renderGL);
             glDisable(GL_DEPTH_TEST);
             glDisable(GL_CULL_FACE);
         glPopMatrix();
@@ -235,6 +237,8 @@ void frame()
 
     Menu_Slider(mapMenu, "Player Height", 1024, 16 * 1024, &player.standingHeight);
 
+    //Menu_Slider(mapMenu, "Sprite width", 64, 1024, &renderGL.spriteDefaultWidth);
+    //Menu_Slider(mapMenu, "Sprite height", 64, 8024, &renderGL.spriteDefaultHeight);
     //Menu_Slider(mapMenu, "GL Width scaling", 1, 16, &dukeUnitsPerMetreXZ);
     //Menu_Slider(mapMenu, "GL Height scaling", 16, 128, &dukeUnitsPerMetreY);
     // Menu_Slider(mapMenu, "GL Texture scale", 16, 128, &texCoordPerMetre);
@@ -245,7 +249,7 @@ void frame()
 
     //Menu_Text(mapMenu, "Camera");
     //Menu_Slider(mapMenu, "FOV ", 45, 90, &glCamera->fovY);
-    //Menu_Slider(mapMenu, "Far Z ", 100, 1000, &glCamera->farZ);
+    Menu_Slider(mapMenu, "Far Z ", 100, 1000, &glCamera->farZ);
     if (Menu_Button(mapMenu, "ResetPlayer"))
     {
         Map_InitPlayer(map, &player);

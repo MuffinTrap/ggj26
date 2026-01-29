@@ -18,6 +18,19 @@ Wall* Map_GetWallInSector(DukeMap* map, s16 sector, s16 wi)
     return &map->walls[wi];
 }
 
+Wall* Map_GetWall(DukeMap* map, s16 wallIndex)
+{
+    mgdl_assert_print((wallIndex>= 0 && wallIndex < map->wallAmount),"Invalid wall index for Sector_GetWall");
+    return &map->walls[wallIndex];
+}
+
+Wall* Map_GetWallInSectorPtr(DukeMap* map, Sector* sector, s16 wi)
+{
+    wi += sector->wallptr;
+    mgdl_assert_print((wi>= 0 && wi < map->wallAmount),"Invalid wall index for Sector_GetWall");
+    return &map->walls[wi];
+}
+
 void Map_InitPlayer(DukeMap* map, Player* player)
 {
     player->position= map->startPosition;
@@ -42,6 +55,7 @@ void Map_PrintInfo(DukeMap* map)
         Log_InfoF("Sector n: %d Walls: %d first wall %d FloorZ %d CeilingZ %d\n", i, s->wallnum, s->wallptr, s->floory, s->ceilingy);
     }
 
+    Log_Info("-- Walls ---------------\n");
     for (int s = 0; s < map->wallAmount; s++)
     {
         Wall* w = &map->walls[s];
@@ -51,9 +65,18 @@ void Map_PrintInfo(DukeMap* map)
     }
 
 
+    Log_Info("-- Sprites ---------------\n");
     for (int i = 0; i < map->spriteAmount; i++)
     {
-
+        DSprite* s = &map->sprites[i];
+        Log_InfoF("Pos (%.0f %.0f %.0f) Angle %d Pic: %d Alignment:", s->position.x, s->position.y, s->position.z, s->ang, s->picnum);
+        SpriteAlignment sa = Sprite_GetAlignment(s);
+        switch(sa)
+        {
+            case Sprite_FACE: Log_InfoF("FACE\n"); break;
+            case Sprite_WALL:Log_InfoF("WALL\n"); break;
+            case Sprite_FLOOR:Log_InfoF("FLOOR\n"); break;
+        };
     }
 }
 
@@ -198,6 +221,39 @@ s32 Map_GetSectorFloorHeight(DukeMap* map, s16 sectorNumber)
 {
     Sector* s = Map_GetSector(map, sectorNumber);
     return s->floory;
+}
+
+SpriteAlignment Sprite_GetAlignment(DSprite* sprite)
+{
+    if (Flag_IsSet(sprite->cstat, (1<<4)))
+    {
+        return Sprite_WALL;
+    }
+    else if (Flag_IsSet(sprite->cstat, (1<<5)))
+    {
+        return Sprite_FLOOR;
+    }
+    else
+    {
+        return Sprite_FACE;
+    }
+}
+SpritePivot Sprite_GetPivot(DSprite* sprite)
+{
+    if (Flag_IsSet(sprite->cstat, (1<<7)))
+    {
+        return Sprite_PivotCenter;
+    }
+    else
+    {
+        return Sprite_PivotFoot;
+    }
+}
+
+DSprite* Map_GetSprite(DukeMap* map, s16 spriteIndex)
+{
+    mgdl_assert_print(spriteIndex >= 0 && spriteIndex < map->spriteAmount, "Invalid sprite index");
+    return &map->sprites[spriteIndex];
 }
 
 MoveResult Map_MovePointInMap(DukeMap* map, vec2 start, vec2 end, s16 sectorNumber, vec2* positionOut, s16* sectorOut)
