@@ -13,15 +13,15 @@ float Vec2XZCrossToY(vec2 a, vec2 b)
 {
 	float ax = a.x;
 	float az = a.y;
-	float ay = 0.0f;
+	//float ay = 0.0f;
 	float bx = b.x;
 	float bz = b.y;
-	float by = 0.0f;
+	//float by = 0.0f;
 
 	// The A
-	float x = ay*bz - az*by;
+	// float x = ay*bz - az*by;
 	float y = az*bx - ax*bz;
-	float z = ax*by - ay*bx;
+	// // float z = ax*by - ay*bx;
 	return y;
 }
 
@@ -37,7 +37,7 @@ vec2 Vec2XZCrossWithY(vec2 a)
 
 
 	float x = ay*bz - az*by;
-	float y = az*bx - ax*bz;
+	// // float y = az*bx - ax*bz;
 	float z = ax*by - ay*bx;
 	return vec2New( x, z);
 }

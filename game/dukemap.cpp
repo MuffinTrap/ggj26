@@ -265,9 +265,10 @@ MoveResult Map_MovePointInMap(DukeMap* map, vec2 start, vec2 end, s16 sectorNumb
     if (insideSector == true)
     {
         // TODO does player hit head
+
+        /* TODO Jumping in different place function?
         float ceilingY = sector->ceilingy;
         float floorY = sector->floory;
-        /* TODO Jumping in different place function?
          *				player->positionOpenGL.z = floorY + player->standingHeight;
          *				if (player->positionOpenGL.z  > ceilingY)
          *				{

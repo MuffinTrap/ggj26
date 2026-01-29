@@ -23,6 +23,7 @@
 #define IntersectBox(x0,y0, x1,y1, x2,y2, x3,y3) (Overlap(x0,x1,x2,x3) && Overlap(y0,y1,y2,y3))
 
 // TODO move to util
+/*
 static int clampInt(int v, int min, int max)
 {
     if (v<min)
@@ -35,6 +36,7 @@ static int clampInt(int v, int min, int max)
     }
     return v;
 }
+*/
 
 
 
@@ -141,8 +143,9 @@ void BuildRender_DrawSprites(DukeMap* map, Player* player, RenderSettingsOpenGL*
             float spriteSize = settings->spriteDefaultWidth;
             float spriteHeight = settings->spriteDefaultWidth * scaleAspect;
 
-            float pushOut = 0;
             SpriteAlignment al = Sprite_GetAlignment(sprite);
+            /*
+            //float pushOut = 0;
             switch(al)
             {
                 case Sprite_FACE: // nop
@@ -155,6 +158,7 @@ void BuildRender_DrawSprites(DukeMap* map, Player* player, RenderSettingsOpenGL*
                     break;
 
             }
+            */
 
             OpenGLRender_DrawSprite(sprite->position, spriteSize, spriteHeight,
                                     Math_DukeAngleToRad(sprite->ang), player->angleRad,
@@ -427,7 +431,7 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
                 DSprite* sprite = &map->sprites[spi];
                 vec2 spos2 = vec2New(sprite->position.x, sprite->position.z);
                 OpenGLRender_DrawDot(spos2, spriteSize, spriteColor);
-                vec2 spriteDir = Vec2XZRotateY(spriteForward, Math_DukeAngleToRad(sprite->ang)-M_PI_2f);
+                vec2 spriteDir = Vec2XZRotateY(spriteForward, Math_DukeAngleToRad(sprite->ang)-M_PI_2);
                 vec2 spriteEnd = vec2Add(spos2, vec2Multiply(spriteDir, settings3D->spriteDefaultWidth/2));
                 OpenGLRender_Line2(spos2.x, spos2.y, spriteEnd.x, spriteEnd.y);
             }

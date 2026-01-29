@@ -37,11 +37,18 @@ OpenGL piirtäminen
 	Laske tiling offsetit ja muut kun laitetaan tekstuurikoordinaatti
 #	Laske seinien normaalit
 #	Piirrä katon ja lattian tekstuurit
+	Clippaa pelaajan view frustumin kanssa
 	Tallenna koko sektori verteksibufferiin **ei ehkä tarvi**
 	Jos kenttä muuttuu pitää bufferi päivittää
 	Laita kaikki verteksit bufferiin ja piirrä sieltä glDrawArrays
 	Erota piirtäminen omaan systeemiin
+		Mitä piirretään
+		Miten piirretään : käytä verteksibufferia ja kun se on täynnä käytä glDrawArrays
+		Seinän tesselointi: jaa quad aina 4 pienempään kunnes koko on tarpeeksi pieni. Jaa kolmioiksi ja piirrä. Voi jakaa aina kahdella >>1 ja käyttää samaa suuntavektoria joka osoittaa nurkasta quadin keskelle
 	Seinän kuva voi olla tekstuuri tai verteksien piirtämistä : Piirtoalue ja kuvan numero annetaan
+
+Seinien, sektorien ja spritejen tiedot
+	Tee omat tiedostot jotka kääntävät cstat ja muut stat arvot enumeiksi
 
 Pelaaja
 	Pelaajan tila, crouch, swim, fall, walk

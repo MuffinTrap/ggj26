@@ -113,7 +113,9 @@ void CALLBACK tessError(GLenum errorCode)
 
 void CALLBACK tessEdgeFlag(GLboolean flag)
 {
+#ifndef GEKKO
    glEdgeFlag(flag);
+#endif
 }
 
 
@@ -136,7 +138,11 @@ void OpenGLRender_Init()
 
     if (vertexRingBuffer == nullptr)
     {
+#ifdef GEKKO
+        vertexRingBuffer = (GLdouble*)malloc(VERTEX_BUFFER_SIZE_BYTES);
+#else
         vertexRingBuffer = (GLdouble*)mgdl_AllocateGraphicsMemory(VERTEX_BUFFER_SIZE_BYTES);
+#endif
     }
 }
 
@@ -307,7 +313,7 @@ void OpenGLRender_DrawSprite(vec3 position, float width, float height, float spr
 
 	if (alignment == Sprite_FACE)
 	{
-		spriteAngle = playerAngle - M_PI_2f;
+		spriteAngle = playerAngle - M_PI_2;
 	}
 
 	vec3 spriteDir = Vec3XYZRotateY(WORLD_FORWARD, spriteAngle);
@@ -331,7 +337,7 @@ void OpenGLRender_DrawSprite(vec3 position, float width, float height, float spr
 		// TODO position.y += pushOut;
 
 		// Calculate four carpet corners
-		vec3 toLeft = Vec3XYZRotateY(spriteDir, M_PI_2f);
+		vec3 toLeft = Vec3XYZRotateY(spriteDir, M_PI_2);
 		// bl = pos + left + forward
 		bottomLeft = vec3Add(position, vec3Add( vec3Multiply(toLeft, width/2), vec3Multiply(spriteDir, width/2)));
 		// br = pos - left + forward
