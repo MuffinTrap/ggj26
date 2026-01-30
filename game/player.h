@@ -32,6 +32,13 @@ struct Player
     float kneelingHeight; ///< How much above ground when kneeling/crouching
 
     float radius;
+
+    // Shooting
+    float shootTimer;
+    float shootRate;
+    bool shotThisFrame;
+    vec3 shotOrigin;
+    vec3 shotDirection;
 };
 typedef struct Player Player;
 

@@ -84,4 +84,27 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 
 	// Keep player on floor
 	player->position.y = maxF(player->position.y, Map_GetSectorFloorHeight(map, player->sectorNumber) + player->standingHeight);
+
+	// Shooting, when trigger is pressed and shoot timer is ok
+	if (WiiController_ButtonHeld(controller, ButtonB))
+	{
+		if (mgdl_GetElapsedSeconds() > player->shootTimer)
+		{
+			// Bullet spawning will clear this
+			player->shotThisFrame = true;
+
+			// Limit shooting speed
+			player->shootTimer = mgdl_GetElapsedSeconds() + player->shootRate;
+
+			// Data for bullet initialization
+			player->shotOrigin = player->position;
+			vec3 bulletDir
+			{
+				player->direction.x,
+				player->direction.y,
+				0.0f
+			};
+			player->shotDirection = bulletDir;
+		}
+	}
 }

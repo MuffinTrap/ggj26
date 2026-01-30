@@ -53,6 +53,11 @@ void init()
     player.turnSpeedDegrees = 150; // NOTE set
     player.position.y += player.standingHeight;
     player.radius = 128;
+    player.shootTimer = 0.0f;
+    player.shootRate = 0.33f;
+    player.shotThisFrame = false;
+    player.shotOrigin = vec3();
+    player.shotDirection = vec3();
 
     Gameplay_Init();
 
