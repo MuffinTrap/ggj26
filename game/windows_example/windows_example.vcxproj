@@ -100,14 +100,14 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;MGDL_PLATFORM_WINDOWS;MGDL_PLATFORM="Windows Native";MGDL_WINDOWS_NATIVE;MGDL_USE_CCVECTOR;UFBX_REAL_IS_FLOAT;_XKEYCHECK_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;MGDL_PLATFORM_WINDOWS;MGDL_PLATFORM="Windows Native";MGDL_WINDOWS_NATIVE;MGDL_USE_CCVECTOR;UFBX_REAL_IS_FLOAT;_XKEYCHECK_H;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Program Files %28x86%29\OpenAL 1.1 SDK\include;C:\Dev\libsndfile-1.2.2-win64\include;C:\Dev\freeglut\include;C:\Dev\libogg-1.3.6\include;C:\Dev\libvorbis-1.3.7\include;C:\Dev\Wii\mtek-gdl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Git\mtek-gdl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\Dev\Wii\mtek-gdl\windows_mgdl\x64\Release;C:\Dev\freeglut\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Git\mtek-gdl\windows_mgdl\x64\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>windows_mgdl.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -117,24 +117,38 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;MGDL_PLATFORM_WINDOWS;MGDL_PLATFORM="Windows Native";MGDL_WINDOWS_NATIVE;MGDL_USE_CCVECTOR;UFBX_REAL_IS_FLOAT;_XKEYCHECK_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;MGDL_PLATFORM_WINDOWS;MGDL_PLATFORM="Windows Native";MGDL_WINDOWS_NATIVE;MGDL_USE_CCVECTOR;UFBX_REAL_IS_FLOAT;_XKEYCHECK_H;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Dev\Wii\mtek-gdl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Git\mtek-gdl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\Dev\Wii\mtek-gdl\windows_mgdl\x64\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Git\gluteslib\x64\Release;C:\Git\mtek-gdl\windows_mgdl\x64\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>windows_mgdl.lib;opengl32.lib;glu32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\example.cpp" />
-    <ClCompile Include="..\main.cpp" />
+    <ClInclude Include="..\binaryreader.h" />
+    <ClInclude Include="..\build-render.h" />
+    <ClInclude Include="..\dukemap.h" />
+    <ClInclude Include="..\dukemapreader.h" />
+    <ClInclude Include="..\dukemath.h" />
+    <ClInclude Include="..\example.h" />
+    <ClInclude Include="..\opengl-render.h" />
+    <ClInclude Include="..\player.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\example.h" />
+    <ClCompile Include="..\binaryreader.cpp" />
+    <ClCompile Include="..\build-render.cpp" />
+    <ClCompile Include="..\dukemap.cpp" />
+    <ClCompile Include="..\dukemapreader.cpp" />
+    <ClCompile Include="..\dukemath.cpp" />
+    <ClCompile Include="..\example.cpp" />
+    <ClCompile Include="..\main.cpp" />
+    <ClCompile Include="..\opengl-render.cpp" />
+    <ClCompile Include="..\player.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

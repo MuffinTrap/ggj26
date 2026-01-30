@@ -4,6 +4,9 @@
 #include "dukemap.h"
 #include "build-render.h"
 #include "dukemath.h"
+#ifdef MGDL_PLATFORM_WINDOWS
+#define _GLUfuncptr void(*)()
+#endif
 
 // OpenGL
 Texture* checkers;

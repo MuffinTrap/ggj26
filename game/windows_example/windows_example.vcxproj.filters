@@ -15,16 +15,58 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\main.cpp">
+    <ClInclude Include="..\example.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\binaryreader.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\build-render.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\dukemap.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\dukemapreader.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\dukemath.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\opengl-render.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\player.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\binaryreader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\build-render.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dukemap.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dukemapreader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dukemath.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\example.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\example.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
+    <ClCompile Include="..\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\opengl-render.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\player.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
