@@ -3,6 +3,7 @@
 
 #include "dukemap.h"
 #include "dukemath.h"
+#include "math.h"
 
 void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings2D* settings2D, RenderSettingsOpenGL* settingsGL, DukeMap* map)
 {
@@ -13,24 +14,44 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 	float verticalSpeed3D = verticalSpeed;
 	float dt = mgdl_GetDeltaTime();
 
-	vec2 jdir =  WiiController_GetNunchukJoystickDirection(controller);
+// Use right joystick for turning on Windows
+#ifdef MGDL_PLATFORM_WINDOWS
+	float turn = WiiController_GetRoll(controller);
+	if(abs(turn) < CONTROLLER_DEADZONE) turn = 0.0f;
+
+// Use dpad for turning on Wii
+#else
+	float turn = 0.0f; 
+	if (WiiController_ButtonHeld(controller, ButtonRight)) turn = 1.0f;
+	else if (WiiController_ButtonHeld(controller, ButtonLeft)) turn = -1.0f;
+#endif
+
 	// NOTE turning left around Y is positive
 	// Forward is 0
 	// Left is 90
 	// right is -90
 	// So when joystick is turned right: it is positive : decrease rotation
-	player->angleRad += jdir.x * turnSpeed * dt;
+	player->angleRad += turn * turnSpeed * dt;
 
+	vec2 jdir = WiiController_GetNunchukJoystickDirection(controller);
+	if (abs(jdir.x) < CONTROLLER_DEADZONE) jdir.x = 0.0f;
+	if (abs(jdir.y) < CONTROLLER_DEADZONE) jdir.y = 0.0f;
 
 	vec2 forward = vec2New(WORLD_FORWARD.x, WORLD_FORWARD.z);
 	player->direction = Vec2XZRotateY(forward, player->angleRad);
+	vec2 strafeDirection = Vec2XZRotateY(forward, player->angleRad - (90.0f * 3.14159f / 180.0f));
 
-	player->prevPosition = player->position; // Store old
 	// NOTE  Joystick dir -Y is forward, +Y is backwards
 	// But -Z is forward so...
-	vec2 moveXZ = vec2Multiply(player->direction, jdir.y * moveSpeed3D* dt);
-	player->position.x += moveXZ.x;
-	player->position.z += moveXZ.y;
+	vec2 moveXZ = vec2Multiply(player->direction, jdir.y * moveSpeed3D * dt);
+	vec2 strafe = vec2Multiply(strafeDirection, jdir.x * moveSpeed3D * dt);
+
+	// Store old
+	player->prevPosition = player->position;
+
+	// Apply move
+	player->position.x += moveXZ.x + strafe.x;
+	player->position.z += moveXZ.y + strafe.y;
 
 	// Jetback controls?
 	if (WiiController_ButtonHeld(controller, Button1))

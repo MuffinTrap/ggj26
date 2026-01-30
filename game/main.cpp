@@ -4,6 +4,7 @@
 #include "dukemath.h"
 #include "build-render.h"
 #include "player.h"
+#include "gameplay.h"
 
 static Example example;
 static DukeMap* map;
@@ -53,6 +54,8 @@ void init()
     player.position.y += player.standingHeight;
     player.radius = 128;
 
+    Gameplay_Init();
+
     mapMenu = Menu_CreateWindowed(DefaultFont_GetDefaultFont(), 1.0f, 1.5f, 256,mgdl_GetScreenHeight(), "Map menu");
     drawTopdown = true;
     drawOpenGL = true;
@@ -95,6 +98,8 @@ void init()
 
 void frame()
 {
+    Gameplay_Update(mgdl_GetDeltaTime());
+
     //example.Update();
     if (render2D.movePlayer)
     {

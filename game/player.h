@@ -35,4 +35,6 @@ struct Player
 };
 typedef struct Player Player;
 
+const float CONTROLLER_DEADZONE = 0.4f;
+
 void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings2D* settings2D, RenderSettingsOpenGL* settingsGL, DukeMap* map);

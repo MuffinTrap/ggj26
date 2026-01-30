@@ -18,26 +18,29 @@
     <ClInclude Include="..\example.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\binaryreader.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\build-render.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\dukemap.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\dukemapreader.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\binaryreader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\build-render.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\dukemap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\dukemath.h">
-      <Filter>Source Files</Filter>
+      <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\opengl-render.h">
-      <Filter>Source Files</Filter>
+      <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\player.h">
-      <Filter>Source Files</Filter>
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\gameplay.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -66,6 +69,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\player.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\gameplay.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
