@@ -23,6 +23,7 @@ void Gameplay_Init()
 		}
 		else if (i == MAX_BULLET_AMOUNT)
 		{
+			tempSprites[i].cstat = Flag_Unset(tempSprites[i].cstat, 1 << SPRITE_PIVOT_BIT);
 			tempSprites[i].picnum = PICNUM_TREASURE;
 			tempSprites[i].extra = 400.0f;
 		}
