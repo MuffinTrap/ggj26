@@ -10,7 +10,7 @@
 
 // OpenGL
 Texture* checkers;
-Texture* bulletTexture;
+Sprite* bulletTexture;
 Sprite* treasureTexture;
 Texture* playerTexture;
 Texture* playerWithMaskTexture;
@@ -29,7 +29,8 @@ Texture* OpenGLRender_GetTexture(s16 picnum)
     uvs.h = 1.0f;
     if (picnum == PICNUM_BULLET)
     {
-        return bulletTexture;
+        uvs = Sprite_GetTextureCoordinates(bulletTexture, animationFrame % 4);
+        return bulletTexture->_font->_fontTexture;
     }
     else if (picnum == PICNUM_TREASURE)
     {
@@ -168,7 +169,7 @@ void OpenGLRender_Init()
         gluTessCallback(tesselator, GLU_TESS_EDGE_FLAG, (_GLUfuncptr)tessEdgeFlag); // this makes tess only submit triangles
     }
 
-    bulletTexture = mgdl_LoadTexture("assets/tempBullet.png", Linear);
+    bulletTexture = mgdl_LoadSprite("assets/bullet_spritesheet.png", 64, 64);
     treasureTexture = mgdl_LoadSprite("assets/treasure_mask_spritesheet.png", 128, 128);
     playerTexture = mgdl_LoadTexture("assets/tempPlayer.png", Linear);
     playerWithMaskTexture = mgdl_LoadTexture("assets/tempPlayerWithMask.png", Linear);
