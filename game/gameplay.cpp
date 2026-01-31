@@ -2,6 +2,38 @@
 
 void Gameplay_Init()
 {
+	for (int i = 0; i < TEMP_SPRITE_AMOUNT; ++i)
+	{
+		tempSprites[i].position = vec3(); // SET ON UPDATE
+		tempSprites[i].cstat = CSTAT_SPRITE_INVISIBLE;
+		if (i < MAX_BULLET_AMOUNT)
+		{
+			tempSprites[i].picnum = 0; // SET ON SPAWN, BULLET
+		}
+		else if (i >= MAX_BULLET_AMOUNT)
+		{
+			tempSprites[i].picnum = 0; // SET ON SPAWN, TREASURE
+		}
+		tempSprites[i].shade = 0;
+		tempSprites[i].pal = 0;
+		tempSprites[i].clipdist = 0;
+		tempSprites[i].filler = 0;
+		tempSprites[i].xrepeat = 64; // SET ON SPAWN
+		tempSprites[i].yrepeat = 64; // SET ON SPAWN
+		tempSprites[i].xoffset = 0;
+		tempSprites[i].yoffset = 0;
+		tempSprites[i].sectnum = 0; // SET ON UPDATE
+		tempSprites[i].statnum = 0;
+		tempSprites[i].ang = 0;
+		tempSprites[i].owner = 0;
+		tempSprites[i].xvel = 0;
+		tempSprites[i].yvel = 0;
+		tempSprites[i].zvel = 0;
+		tempSprites[i].lotag = 0;
+		tempSprites[i].hitag = 0;
+		tempSprites[i].extra = 0;
+	}
+
 	for (int i = 0; i < MAX_BULLET_AMOUNT; ++i)
 	{
 		bullets[i].sectorNumber = 0;
@@ -49,7 +81,13 @@ void Gameplay_Update(Player* player, DukeMap* map)
 	
 	if (treasure.render)
 	{
-		// TODO: Draw treasure
+		tempSprites[MAX_BULLET_AMOUNT].cstat = CSTAT_SPRITE_NO_FLAGS;
+		tempSprites[MAX_BULLET_AMOUNT].position = treasure.position;
+		tempSprites[MAX_BULLET_AMOUNT].sectnum = treasure.sectorNumber;
+	}
+	else
+	{
+		tempSprites[MAX_BULLET_AMOUNT].cstat = CSTAT_SPRITE_INVISIBLE;
 	}
 
 	// Update bullets
@@ -70,10 +108,13 @@ void Gameplay_Update(Player* player, DukeMap* map)
 				player->shotThisFrame = false;
 				Log_Info("BULLET SPAWNED\n");
 			}
+			tempSprites[i].cstat = CSTAT_SPRITE_INVISIBLE;
 		}
 		else
 		{
-			// TODO: Draw alive bullets
+			tempSprites[i].cstat = CSTAT_SPRITE_NO_FLAGS;
+			tempSprites[i].position = bullets[i].position;
+			tempSprites[i].sectnum = bullets[i].sectorNumber;
 
 			// Update bullets alive (-z forwads, thus negative speed)
 			vec3 movementEnd = vec3Multiply(bullets[i].direction, -BULLET_SPEED * dt);

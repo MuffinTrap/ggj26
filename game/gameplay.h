@@ -5,11 +5,19 @@
 #include "dukemap.h"
 #include "math.h"
 
+#define CSTAT_SPRITE_NO_FLAGS 0
+#define CSTAT_SPRITE_INVISIBLE 32768
+
 const int MAX_BULLET_AMOUNT = 32;
 const float BULLET_SPEED = 2048.0f;
 const float BULLET_MAX_TIME_ALIVE = 5.0f;
 const float PLAYER_STUN_DURATION = 3.0f;
 const float PLAYER_STUN_DURATION_WITH_TREASURE = 6.0f;
+
+#define TEMP_SPRITE_AMOUNT 33
+// 0-31 bullets
+// 32 treasure
+static DSprite tempSprites[TEMP_SPRITE_AMOUNT];
 
 struct Bullet
 {
