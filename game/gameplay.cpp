@@ -65,6 +65,7 @@ void Gameplay_StartMap(DukeMap* map)
 	DSprite* treasureSprite = Map_FindSprite(map, TREASURE_LOTAG, 0);
 	if (treasureSprite)
 	{
+		treasureSprite->cstat = Flag_Set(treasureSprite->cstat, 1 << CSTAT_SPRITE_INVISIBLE);
 		treasure.render = true;
 		treasure.position = treasureSprite->position;
 		treasure.sectorNumber = treasureSprite->sectnum;
