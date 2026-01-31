@@ -44,15 +44,12 @@ void Gameplay_Init()
 		tempSprites[i].owner = 9;
 	}
 
-	for (int i = 0; i < MAX_BULLET_AMOUNT; ++i)
-	{
-		bullets[i].sectorNumber = 0;
-		bullets[i].alive = false;
-		bullets[i].timeAlive = 0.0f;
-		bullets[i].position = vec3();
-		bullets[i].direction = vec3();
-		bullets[i].radius = 32.0f;
-	}
+	Gameplay_Reset();
+}
+
+void Gameplay_Reset()
+{
+	winnerPlayerIndex = -1;
 
 	// TODO: Get treasure spawn from the map
 	treasure.render = true;
@@ -65,6 +62,16 @@ void Gameplay_Init()
 	treasureExit.position = vec3New(-256.0f, 2048.0f, -127.0f);
 	treasureExit.sectorNumber = 0;
 	treasureExit.radius = 32.0f;
+
+	for (int i = 0; i < MAX_BULLET_AMOUNT; ++i)
+	{
+		bullets[i].sectorNumber = 0;
+		bullets[i].alive = false;
+		bullets[i].timeAlive = 0.0f;
+		bullets[i].position = vec3();
+		bullets[i].direction = vec3();
+		bullets[i].radius = 128.0f;
+	}
 }
 
 void Gameplay_Update(Player* player, DukeMap* map)
@@ -82,7 +89,8 @@ void Gameplay_Update(Player* player, DukeMap* map)
 	if (!player->hasTreasure)
 	{
 		// Pick up treasure
-		if (Gameplay_SphereToSphereCollision(player->position, player->radius, treasure.position, treasure.radius))
+		if (treasure.render
+			&& Gameplay_SphereToSphereCollision(player->position, player->radius, treasure.position, treasure.radius))
 		{
 			Log_Info("PICK UP TREASURE\n");
 			player->hasTreasure = true;
@@ -108,23 +116,30 @@ void Gameplay_Update(Player* player, DukeMap* map)
 	{
 		tempSprites[MAX_BULLET_AMOUNT].cstat = Flag_Set(tempSprites[MAX_BULLET_AMOUNT].cstat, 1 << CSTAT_SPRITE_INVISIBLE);
 	}
+}
 
-	// Update bullets
+void Gameplay_UpdateBullets(Player* players, int playerAmount, DukeMap* map)
+{
+	float dt = mgdl_GetDeltaTime();
+
 	for (int i = 0; i < MAX_BULLET_AMOUNT; ++i)
 	{
 		if (!bullets[i].alive)
 		{
 			// Spawn new bullet, if shot this frame
-			if (player->shotThisFrame)
+			for (int j = 0; j < playerAmount; ++j)
 			{
-				bullets[i].alive = true;
-				bullets[i].timeAlive = 0.0f;
-				bullets[i].position = player->shotOrigin;
-				bullets[i].direction = player->shotDirection;
-				bullets[i].sectorNumber = player->sectorNumber;
-				bullets[i].playerNumber = player->playerNumber;
-				player->shotThisFrame = false;
-				Log_Info("BULLET SPAWNED\n");
+				if (players[j].shotThisFrame)
+				{
+					bullets[i].alive = true;
+					bullets[i].timeAlive = 0.0f;
+					bullets[i].position = players[j].shotOrigin;
+					bullets[i].direction = players[j].shotDirection;
+					bullets[i].sectorNumber = players[j].sectorNumber;
+					bullets[i].playerNumber = players[j].playerNumber;
+					players[j].shotThisFrame = false;
+					Log_Info("BULLET SPAWNED\n");
+				}
 			}
 			tempSprites[i].cstat = Flag_Set(tempSprites[i].cstat, 1 << CSTAT_SPRITE_INVISIBLE);
 		}
@@ -158,7 +173,7 @@ void Gameplay_Update(Player* player, DukeMap* map)
 				bullets[i].alive = false;
 			}
 
-			// Destory bullet when it hits wall
+			// Destroy bullet when it hits wall
 			if (result == Move_HitWall || hitFloor || hitCeiling)
 			{
 				Log_InfoF("BULLET HIT %s%s%s\n", (result == Move_HitWall) ? "WALL" : "", hitFloor ? "FLOOR" : "", hitCeiling ? "CEILING" : "");
@@ -166,27 +181,32 @@ void Gameplay_Update(Player* player, DukeMap* map)
 				// TODO: Play wall hit sfx
 			}
 
-			if (bullets[i].playerNumber != player->playerNumber)
+			// Check bullet to player collisions
+			for (int j = 0; j < playerAmount; ++j)
 			{
-				if (Gameplay_SphereToSphereCollision(bullets[i].position, bullets[i].radius, player->position, player->radius))
+				if (bullets[i].playerNumber != players[j].playerNumber)
 				{
-					bullets[i].alive = false;
+					if (Gameplay_SphereToSphereCollision(bullets[i].position, bullets[i].radius, players[j].position, players[j].radius))
+					{
+						bullets[i].alive = false;
 
-					if (player->hasTreasure)
-					{
-						Log_Info("DROP TREASURE\n");
-						treasure.render = true;
-						treasure.sectorNumber = true;
-						treasure.position = player->position;
-						treasure.render = true;
-						player->hasTreasure = false;
-						player->stunTimer = mgdl_GetElapsedSeconds() + PLAYER_STUN_DURATION_WITH_TREASURE;
-						// TODO: Bullet hit player with treasure sfx
-					}
-					else
-					{
-						player->stunTimer = mgdl_GetElapsedSeconds() + PLAYER_STUN_DURATION;
-						// TODO: Bullet hit player sfx
+						if (players[j].hasTreasure)
+						{
+							Log_Info("DROP TREASURE\n");
+							treasure.render = true;
+							treasure.sectorNumber = true;
+							treasure.position = players[j].position;
+							treasure.render = true;
+							players[j].hasTreasure = false;
+							players[j].stunTimer = mgdl_GetElapsedSeconds() + PLAYER_STUN_DURATION_WITH_TREASURE;
+							// TODO: Bullet hit player with treasure sfx
+						}
+						else
+						{
+							players[j].stunTimer = mgdl_GetElapsedSeconds() + PLAYER_STUN_DURATION;
+							// TODO: Bullet hit player sfx
+						}
+						Log_InfoF("BULLET HIT PLAYER %i\n", players[j].playerNumber);
 					}
 				}
 			}

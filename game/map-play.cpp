@@ -250,10 +250,10 @@ void MapPlay_Init()
         players[pi].fallingSpeed = 32000.0f;
         players[pi].standingHeight = 10 * 1024.0f; // NOTE Set
         players[pi].kneelingHeight = 4000.0f;
-        players[pi].turnSpeedDegrees = 150; // NOTE set
+        players[pi].turnSpeedDegrees = 150.0f; // NOTE set
         players[pi].position.y += players[pi].standingHeight;
-        players[pi].radius = 128;
-        players[pi].pitchRad = 0;
+        players[pi].radius = 512.0f;
+        players[pi].pitchRad = 0.0f;
         players[pi].shootTimer = 0.0f;
         players[pi].shootRate = 0.33f;
         players[pi].shotThisFrame = false;
@@ -348,6 +348,7 @@ MapPlayResult MapPlay_Frame()
         for (int pi = 0; pi < activePlayerAmount; pi++)
         {
             Gameplay_Update(&players[pi], activeMap);
+            Gameplay_UpdateBullets(players, activePlayerAmount, activeMap);
             Player_UpdateMove(&players[pi], mgdl_GetController(pi), &render2D, &renderGL, activeMap);
         }
         // TODO Ask Gameplay if game is over

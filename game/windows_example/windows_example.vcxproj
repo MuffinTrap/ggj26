@@ -137,6 +137,8 @@
     <ClInclude Include="..\dukemath.h" />
     <ClInclude Include="..\example.h" />
     <ClInclude Include="..\gameplay.h" />
+    <ClInclude Include="..\mainmenu.h" />
+    <ClInclude Include="..\map-play.h" />
     <ClInclude Include="..\opengl-render.h" />
     <ClInclude Include="..\player.h" />
   </ItemGroup>
@@ -149,6 +151,8 @@
     <ClCompile Include="..\example.cpp" />
     <ClCompile Include="..\gameplay.cpp" />
     <ClCompile Include="..\main.cpp" />
+    <ClCompile Include="..\mainmenu.cpp" />
+    <ClCompile Include="..\map-play.cpp" />
     <ClCompile Include="..\opengl-render.cpp" />
     <ClCompile Include="..\player.cpp" />
   </ItemGroup>

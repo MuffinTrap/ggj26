@@ -42,6 +42,12 @@
     <ClInclude Include="..\gameplay.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\mainmenu.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\map-play.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\binaryreader.cpp">
@@ -72,6 +78,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\gameplay.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\mainmenu.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\map-play.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
