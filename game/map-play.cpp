@@ -358,7 +358,7 @@ MapPlayResult MapPlay_Frame()
             Gameplay_UpdateBullets(players, activePlayerAmount, activeMap);
             Player_UpdateMove(&players[pi], mgdl_GetController(pi), &render2D, &renderGL, activeMap, activePlayerAmount);
         }
-        // TODO Ask Gameplay if game is over
+
         if (Gameplay_GetWinner() >= 0)
         {
             return MapPlayEndMap;
