@@ -16,6 +16,7 @@ extern "C" {
     typedef enum MapPlayResult MapPlayResult;
 
     void MapPlay_Init();
+    void MapPlay_ResetPlayers();
 
     MapPlayResult MapPlay_Frame();
     void MapPlay_StartMap(int mapIndex, int playerAmount);

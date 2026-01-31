@@ -243,7 +243,21 @@ void MapPlay_Init()
     InitRenderSettings3D();
 
     players = (Player*)mgdl_AllocateGeneralMemory(sizeof(Player) * MAX_PLAYERS);
+    MapPlay_ResetPlayers();
 
+    // Change controller mapping : First gamepad to second controller etc...
+    Platform_MapJoystickToController(0, 1);
+    Platform_MapJoystickToController(1, 2);
+    Platform_MapJoystickToController(2, 3);
+
+    // Load Maps
+    allMapsArray = (DukeMap**)mgdl_AllocateGeneralMemory(sizeof(DukeMap**) * MAX_MAP_AMOUNT);
+    allMapsArray[0] = MapPlay_LoadMap("assets/Maps/tonnitesti.map");
+    loadedMapAmount = 1;
+}
+
+void MapPlay_ResetPlayers()
+{
     for (int pi = 0; pi < MAX_PLAYERS; pi++)
     {
         players[pi].playerNumber = pi;
@@ -264,16 +278,6 @@ void MapPlay_Init()
         players[pi].hasTreasure = false;
         players[pi].stunTimer = 0.0f;
     }
-    // Change controller mapping : First gamepad to second controller etc...
-    Platform_MapJoystickToController(0, 1);
-    Platform_MapJoystickToController(1, 2);
-    Platform_MapJoystickToController(2, 3);
-
-    // Load Maps
-    allMapsArray = (DukeMap**)mgdl_AllocateGeneralMemory(sizeof(DukeMap**) * MAX_MAP_AMOUNT);
-    allMapsArray[0] = MapPlay_LoadMap("assets/Maps/tonnitesti.map");
-    loadedMapAmount = 1;
-
 }
 
 DukeMap* MapPlay_LoadMap(const char* mapfile)
@@ -295,8 +299,9 @@ void MapPlay_StartMap(int mapIndex, int playerAmount)
         return;
     }
     BuildRender_Init(activeMap, &renderGL);
-
+    MapPlay_ResetPlayers();
     Map_InitPlayers(activeMap, players, activePlayerAmount);
+    Gameplay_Reset();
 }
 
 Rect MapPlay_GetPlayerScreenRect(int playerIndex, int amountPlayers)
