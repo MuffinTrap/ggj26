@@ -95,7 +95,14 @@ void Gameplay_Update(Player* player, DukeMap* map)
 	tempSprites[index].position = player->position;
 	tempSprites[index].owner = player->playerNumber;
 	tempSprites[index].cstat = Flag_Unset(tempSprites[index].cstat, 1 << CSTAT_SPRITE_INVISIBLE);
-	tempSprites[index].picnum = player->hasTreasure ? PICNUM_PLAYER_WITH_MASK : PICNUM_PLAYER;
+	if (Player_IsStunned(player))
+	{
+		tempSprites[index].picnum = PICNUM_PLAYER_SHOCK;
+	}
+	else
+	{
+		tempSprites[index].picnum = player->hasTreasure ? PICNUM_PLAYER_WITH_MASK : PICNUM_PLAYER;
+	}
 
 	// Update treasure
 	if (!player->hasTreasure)

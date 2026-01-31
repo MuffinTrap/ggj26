@@ -14,6 +14,7 @@ Sprite* bulletTexture;
 Sprite* treasureTexture;
 Texture* playerTexture;
 Texture* playerWithMaskTexture;
+Texture* playerShockTexture;
 GLUtesselator* tesselator = nullptr;
 bool tesselationActive = true;
 static RectF uvs;
@@ -44,6 +45,10 @@ Texture* OpenGLRender_GetTexture(s16 picnum)
     else if (picnum == PICNUM_PLAYER_WITH_MASK)
     {
         return playerWithMaskTexture;
+    }
+    else if (picnum == PICNUM_PLAYER_SHOCK)
+    {
+        return playerShockTexture;
     }
     return checkers;
 }
@@ -173,6 +178,7 @@ void OpenGLRender_Init()
     treasureTexture = mgdl_LoadSprite("assets/treasure_mask_spritesheet.png", 128, 128);
     playerTexture = mgdl_LoadTexture("assets/tempPlayer.png", Linear);
     playerWithMaskTexture = mgdl_LoadTexture("assets/tempPlayerWithMask.png", Linear);
+    playerShockTexture = mgdl_LoadTexture("assets/tempPlayerShock.png", Linear);
 
     glEnable(GL_TEXTURE_2D);
 
@@ -189,6 +195,10 @@ void OpenGLRender_Init()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
     glBindTexture(GL_TEXTURE_2D, playerWithMaskTexture->textureId);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    glBindTexture(GL_TEXTURE_2D, playerShockTexture->textureId);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
