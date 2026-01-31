@@ -11,24 +11,38 @@
 // OpenGL
 Texture* checkers;
 Texture* bulletTexture;
-Texture* treasureTexture;
+Sprite* treasureTexture;
 Texture* playerTexture;
+Texture* playerWithMaskTexture;
 GLUtesselator* tesselator = nullptr;
 bool tesselationActive = true;
+static RectF uvs;
+int animationFrame = 0;
+float animationRate = 0.05f;
+float animationTimer = 0;
 
 Texture* OpenGLRender_GetTexture(s16 picnum)
 {
+    uvs.x = 0.0f;
+    uvs.y = 0.0f;
+    uvs.w = 1.0f;
+    uvs.h = 1.0f;
     if (picnum == PICNUM_BULLET)
     {
         return bulletTexture;
     }
     else if (picnum == PICNUM_TREASURE)
     {
-        return treasureTexture;
+        uvs = Sprite_GetTextureCoordinates(treasureTexture, animationFrame % 16);
+        return treasureTexture->_font->_fontTexture;
     }
     else if (picnum == PICNUM_PLAYER)
     {
         return playerTexture;
+    }
+    else if (picnum == PICNUM_PLAYER_WITH_MASK)
+    {
+        return playerWithMaskTexture;
     }
     return checkers;
 }
@@ -155,8 +169,9 @@ void OpenGLRender_Init()
     }
 
     bulletTexture = mgdl_LoadTexture("assets/tempBullet.png", Linear);
-    treasureTexture = mgdl_LoadTexture("assets/tempTreasure.png", Linear);
+    treasureTexture = mgdl_LoadSprite("assets/treasure_mask_spritesheet.png", 128, 128);
     playerTexture = mgdl_LoadTexture("assets/tempPlayer.png", Linear);
+    playerWithMaskTexture = mgdl_LoadTexture("assets/tempPlayerWithMask.png", Linear);
 
     if (vertexRingBuffer == nullptr)
     {
@@ -403,18 +418,28 @@ void OpenGLRender_DrawSprite(vec3 position, float width, float height, float spr
 
     glBegin(GL_QUADS);
 	//glColor3f(0.5f, 0.0f, 0.0f);
-	glTexCoord2f(0.0f, 0.0f);
+	glTexCoord2f(uvs.x, uvs.y);
 	glVertex3f(bottomLeft.x, bottomLeft.y, bottomLeft.z);
-	glTexCoord2f(1.0f, 0.0f);
+	glTexCoord2f(uvs.x + uvs.w, uvs.y);
 	glVertex3f(bottomRight.x, bottomRight.y, bottomRight.z);
-	glTexCoord2f(1.0f, 1.0f);
+	glTexCoord2f(uvs.x + uvs.w, uvs.y + uvs.h);
 	glVertex3f(topRight.x, topRight.y, topRight.z);
-	glTexCoord2f(0.0f, 1.0f);
+	glTexCoord2f(uvs.x, uvs.y + uvs.h);
 	glVertex3f(topLeft.x, topLeft.y, topLeft.z);
 	glEnd();
 
 	glBindTexture(GL_TEXTURE_2D, 0);
 	glDisable(GL_TEXTURE_2D);
+}
+
+void OpenGLRender_AnimateSprites()
+{
+    animationTimer += mgdl_GetDeltaTime();
+    if (animationTimer > animationRate)
+    {
+        animationFrame++;
+        animationTimer = 0.0f;
+    }
 }
 
 void OpenGLRender_DrawDot(vec2 point, float size, DefaultColor color)

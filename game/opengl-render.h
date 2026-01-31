@@ -22,6 +22,7 @@ void OpenGLRender_DrawFloorOrCeiling(DukeMap* map, Sector* sector, bool floor);
 void OpenGLRender_Line2(int x1, int z1, int x2, int z2);
 void OpenGLRender_Line3(vec3 start, vec3 end);
 void OpenGLRender_DrawSprite(vec3 position, float width, float height, float spriteAngle, float playerAngle, SpriteAlignment alignment, SpritePivot pivot, s16 picnum);
+void OpenGLRender_AnimateSprites();
 
 Texture* OpenGLRender_GetTexture(s16 picnum);
 void OpenGLRender_SetColor(DefaultColor oc);

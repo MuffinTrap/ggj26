@@ -12,14 +12,17 @@ void Gameplay_Init()
 		if (i < MAX_BULLET_AMOUNT)
 		{
 			tempSprites[i].picnum = PICNUM_BULLET;
+			tempSprites[i].extra = 150.0f;
 		}
 		else if (i == MAX_BULLET_AMOUNT)
 		{
 			tempSprites[i].picnum = PICNUM_TREASURE;
+			tempSprites[i].extra = 400.0f;
 		}
 		else
 		{
 			tempSprites[i].picnum = PICNUM_PLAYER;
+			tempSprites[i].extra = 400.0f;
 		}
 		tempSprites[i].shade = 0;
 		tempSprites[i].pal = 0;
@@ -37,7 +40,7 @@ void Gameplay_Init()
 		tempSprites[i].zvel = 0;
 		tempSprites[i].lotag = 0;
 		tempSprites[i].hitag = 0;
-		tempSprites[i].extra = 0;
+		tempSprites[i].owner = 9;
 	}
 
 	for (int i = 0; i < MAX_BULLET_AMOUNT; ++i)
@@ -72,6 +75,7 @@ void Gameplay_Update(Player* player, DukeMap* map)
 	tempSprites[index].position = player->position;
 	tempSprites[index].owner = player->playerNumber;
 	tempSprites[index].cstat = Flag_Unset(tempSprites[index].cstat, 1 << CSTAT_SPRITE_INVISIBLE);
+	tempSprites[index].picnum = player->hasTreasure ? PICNUM_PLAYER_WITH_MASK : PICNUM_PLAYER;
 
 	// Update treasure
 	if (!player->hasTreasure)
