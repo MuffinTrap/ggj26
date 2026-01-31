@@ -156,7 +156,7 @@ static Rect GetPlayerRect(int playerIndex, int amountPlayers)
 
 void frame()
 {
-    Gameplay_Update(&player, map);
+    Gameplay_Update(&players[0], map);
 
     //example.Update();
     if (render2D.movePlayer)
