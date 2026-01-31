@@ -12,6 +12,8 @@ struct RenderSettingsOpenGL;
  */
 struct Player
 {
+    int playerNumber;
+
     s16 sectorNumber;
 
     // Position in duke units

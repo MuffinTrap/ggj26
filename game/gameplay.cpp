@@ -110,8 +110,7 @@ void Gameplay_Update(Player* player, DukeMap* map)
 				bullets[i].position = player->shotOrigin;
 				bullets[i].direction = player->shotDirection;
 				bullets[i].sectorNumber = player->sectorNumber;
-				// TODO: Get ID of the player who shot the bullet
-				bullets[i].playerNumber = 0;
+				bullets[i].playerNumber = player->playerNumber;
 				player->shotThisFrame = false;
 				Log_Info("BULLET SPAWNED\n");
 			}
@@ -155,31 +154,27 @@ void Gameplay_Update(Player* player, DukeMap* map)
 				// TODO: Play wall hit sfx
 			}
 
-			// TODO: Update player amount
-			for (int j = 0; j < 1; ++j)
+			if (bullets[i].playerNumber != player->playerNumber)
 			{
-				if (bullets[i].playerNumber != j)
+				if (Gameplay_SphereToSphereCollision(bullets[i].position, bullets[i].radius, player->position, player->radius))
 				{
-					if (Gameplay_SphereToSphereCollision(bullets[i].position, bullets[i].radius, player->position, player->radius))
-					{
-						bullets[i].alive = false;
+					bullets[i].alive = false;
 
-						if (player->hasTreasure)
-						{
-							Log_Info("DROP TREASURE\n");
-							treasure.render = true;
-							treasure.sectorNumber = true;
-							treasure.position = player->position;
-							treasure.render = true;
-							player[j].hasTreasure = false;
-							player->stunTimer = mgdl_GetElapsedSeconds() + PLAYER_STUN_DURATION_WITH_TREASURE;
-							// TODO: Bullet hit player with treasure sfx
-						}
-						else
-						{
-							player->stunTimer = mgdl_GetElapsedSeconds() + PLAYER_STUN_DURATION;
-							// TODO: Bullet hit player sfx
-						}
+					if (player->hasTreasure)
+					{
+						Log_Info("DROP TREASURE\n");
+						treasure.render = true;
+						treasure.sectorNumber = true;
+						treasure.position = player->position;
+						treasure.render = true;
+						player->hasTreasure = false;
+						player->stunTimer = mgdl_GetElapsedSeconds() + PLAYER_STUN_DURATION_WITH_TREASURE;
+						// TODO: Bullet hit player with treasure sfx
+					}
+					else
+					{
+						player->stunTimer = mgdl_GetElapsedSeconds() + PLAYER_STUN_DURATION;
+						// TODO: Bullet hit player sfx
 					}
 				}
 			}

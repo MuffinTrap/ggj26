@@ -54,6 +54,7 @@ void init()
 
     for (int pi = 0; pi < MAX_PLAYERS; pi++)
     {
+        players[pi].playerNumber = pi;
         players[pi].moveSpeed = 2048.0f; // NOTE Set
         players[pi].verticalSpeed = 1400.0f;
         players[pi].fallingSpeed = 32000.0f;
@@ -156,7 +157,10 @@ static Rect GetPlayerRect(int playerIndex, int amountPlayers)
 
 void frame()
 {
-    Gameplay_Update(&players[0], map);
+    for (int pi = 0; pi < playerAmount; pi++)
+    {
+        Gameplay_Update(&players[pi], map);
+    }
 
     //example.Update();
     if (render2D.movePlayer)
