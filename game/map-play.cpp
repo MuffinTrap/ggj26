@@ -252,8 +252,11 @@ void MapPlay_Init()
 
     // Load Maps
     allMapsArray = (DukeMap**)mgdl_AllocateGeneralMemory(sizeof(DukeMap**) * MAX_MAP_AMOUNT);
-    allMapsArray[0] = MapPlay_LoadMap("assets/Maps/tonnitesti.map");
-    loadedMapAmount = 1;
+    allMapsArray[0] = MapPlay_LoadMap("assets/Maps/samulitesti.map");
+    allMapsArray[1] = MapPlay_LoadMap("assets/Maps/GGJ26Test1.map");
+    allMapsArray[2] = MapPlay_LoadMap("assets/Maps/GGJ26Test2.map");
+    allMapsArray[3] = MapPlay_LoadMap("assets/Maps/tonnitesti.map");
+    loadedMapAmount = 4;
 }
 
 void MapPlay_ResetPlayers()
@@ -282,7 +285,7 @@ void MapPlay_ResetPlayers()
 
 DukeMap* MapPlay_LoadMap(const char* mapfile)
 {
-    DukeMap* map = ReadMapFromFile("assets/Maps/tonnitesti.map");
+    DukeMap* map = ReadMapFromFile(mapfile);
     Map_PrintInfo(map);
     return map;
 }
