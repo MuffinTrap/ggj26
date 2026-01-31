@@ -86,7 +86,7 @@ void Gameplay_Update(Player* player, DukeMap* map)
 	tempSprites[index].picnum = player->hasTreasure ? PICNUM_PLAYER_WITH_MASK : PICNUM_PLAYER;
 
 	// Update treasure
-	if (!player->hasTreasure)
+	if (!player->hasTreasure && !Player_IsStunned(player))
 	{
 		// Pick up treasure
 		if (treasure.render

@@ -8,7 +8,7 @@
 void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings2D* settings2D, RenderSettingsOpenGL* settingsGL, DukeMap* map)
 {
 	// Skip movement if stunned
-	if (player->stunTimer > mgdl_GetElapsedSeconds())
+	if (Player_IsStunned(player))
 	{
 		return;
 	}
@@ -134,4 +134,9 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 			Log_Info("BULLET SHOT\n");
 		}
 	}
+}
+
+bool Player_IsStunned(Player* player)
+{
+	return (player->stunTimer > mgdl_GetElapsedSeconds());
 }
