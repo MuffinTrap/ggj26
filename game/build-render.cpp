@@ -158,7 +158,8 @@ void BuildRender_DrawSprites(DukeMap* map, Player* player, RenderSettingsOpenGL*
     for (int si = 0; si < map->spriteAmount; si++)
     {
         DSprite* sprite = &map->sprites[si];
-        if (renderedSectorNames[sprite->sectnum] > 0)
+        if (renderedSectorNames[sprite->sectnum] > 0
+            && !Flag_IsSet(sprite->cstat, 1 << CSTAT_SPRITE_INVISIBLE))
         {
 
             // Keep the texture aspect correct
