@@ -130,15 +130,15 @@ void BuildRender_DrawTempSprites(DukeMap* map, Player* player, RenderSettingsOpe
     for (int i = 0; i < TEMP_SPRITE_AMOUNT; i++)
     {
         DSprite* sprite = &tempSprites[i];
-        if (renderedSectorNames[sprite->sectnum] > 0)
+        if (renderedSectorNames[sprite->sectnum] > 0 && !Flag_IsSet(sprite->cstat, 1 << CSTAT_SPRITE_INVISIBLE))
         {
             // Keep the texture aspect correct
             float scaleAspect = settings->scaleXZ / settings->scaleY;
 
             // TODO xrepeat and yrepeat adjust the aspect
             // The size comes from the size of the texture somehow
-            float spriteSize = settings->spriteDefaultWidth;
-            float spriteHeight = settings->spriteDefaultWidth * scaleAspect;
+            float spriteSize = 150.0f;
+            float spriteHeight = spriteSize * scaleAspect;
 
             OpenGLRender_DrawSprite(sprite->position, spriteSize, spriteHeight,
                 Math_DukeAngleToRad(sprite->ang), player->angleRad,
