@@ -103,7 +103,7 @@ void init()
 
 void frame()
 {
-    Gameplay_Update(mgdl_GetDeltaTime());
+    Gameplay_Update(&player, map);
 
     //example.Update();
     if (render2D.movePlayer)

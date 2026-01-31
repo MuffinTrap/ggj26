@@ -39,6 +39,9 @@ struct Player
     bool shotThisFrame;
     vec3 shotOrigin;
     vec3 shotDirection;
+
+    // Treasure
+    bool hasTreasure;
 };
 typedef struct Player Player;
 

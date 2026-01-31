@@ -105,6 +105,7 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 				0.0f
 			};
 			player->shotDirection = bulletDir;
+			Log_Info("BULLET SHOT\n");
 		}
 	}
 }
