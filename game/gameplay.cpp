@@ -3,6 +3,12 @@
 DSprite tempSprites[TEMP_SPRITE_AMOUNT];
 int winnerPlayerIndex = -1;
 
+Sound* sfxShoot;
+Sound* sfxHitWall;
+Sound* sfxHitPlayer;
+Sound* sfxHitPlayerWithMask;
+Sound* sfxPickupMask;
+
 void Gameplay_Init()
 {
 	for (int i = 0; i < TEMP_SPRITE_AMOUNT; ++i)
@@ -43,6 +49,12 @@ void Gameplay_Init()
 		tempSprites[i].hitag = 0;
 		tempSprites[i].owner = 9;
 	}
+
+	sfxShoot = mgdl_LoadSoundWav("assets/blipSelect.wav");
+	sfxHitWall = mgdl_LoadSoundWav("assets/blipSelect.wav");
+	sfxHitPlayer = mgdl_LoadSoundWav("assets/blipSelect.wav");
+	sfxHitPlayerWithMask = mgdl_LoadSoundWav("assets/blipSelect.wav");
+	sfxPickupMask = mgdl_LoadSoundWav("assets/blipSelect.wav");
 
 	Gameplay_Reset();
 }
@@ -96,6 +108,7 @@ void Gameplay_Update(Player* player, DukeMap* map)
 			Log_Info("PICK UP TREASURE\n");
 			player->hasTreasure = true;
 			treasure.render = false;
+			Audio_PlaySound(sfxPickupMask);
 		}
 	}
 	else // Return treasure check
@@ -139,6 +152,7 @@ void Gameplay_UpdateBullets(Player* players, int playerAmount, DukeMap* map)
 					bullets[i].sectorNumber = players[j].sectorNumber;
 					bullets[i].playerNumber = players[j].playerNumber;
 					players[j].shotThisFrame = false;
+					Audio_PlaySound(sfxShoot);
 					Log_Info("BULLET SPAWNED\n");
 				}
 			}
@@ -179,7 +193,7 @@ void Gameplay_UpdateBullets(Player* players, int playerAmount, DukeMap* map)
 			{
 				Log_InfoF("BULLET HIT %s%s%s\n", (result == Move_HitWall) ? "WALL" : "", hitFloor ? "FLOOR" : "", hitCeiling ? "CEILING" : "");
 				bullets[i].alive = false;
-				// TODO: Play wall hit sfx
+				Audio_PlaySound(sfxHitWall);
 			}
 
 			// Check bullet to player collisions
@@ -200,12 +214,12 @@ void Gameplay_UpdateBullets(Player* players, int playerAmount, DukeMap* map)
 							treasure.render = true;
 							players[j].hasTreasure = false;
 							players[j].stunTimer = mgdl_GetElapsedSeconds() + PLAYER_STUN_DURATION_WITH_TREASURE;
-							// TODO: Bullet hit player with treasure sfx
+							Audio_PlaySound(sfxHitPlayerWithMask);
 						}
 						else
 						{
 							players[j].stunTimer = mgdl_GetElapsedSeconds() + PLAYER_STUN_DURATION;
-							// TODO: Bullet hit player sfx
+							Audio_PlaySound(sfxHitPlayer);
 						}
 						Log_InfoF("BULLET HIT PLAYER %i\n", players[j].playerNumber);
 					}
