@@ -7,6 +7,12 @@
 
 void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings2D* settings2D, RenderSettingsOpenGL* settingsGL, DukeMap* map)
 {
+	// Skip movement if stunned
+	if (player->stunTimer > mgdl_GetElapsedSeconds())
+	{
+		return;
+	}
+
 	float turnSpeed = Deg2Rad(player->turnSpeedDegrees);
 	float moveSpeed = player->moveSpeed;
 	float moveSpeed3D = moveSpeed;

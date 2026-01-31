@@ -41,7 +41,6 @@ void Gameplay_Update(Player* player, DukeMap* map)
 	}
 	else // Return treasure check
 	{
-		// TODO: Check if you are in an exit sector
 		if (SphereToSphereCollision(player->position, player->radius, treasureExit.position, treasureExit.radius))
 		{
 			// TODO: Game ends! This player wins!
@@ -106,7 +105,6 @@ void Gameplay_Update(Player* player, DukeMap* map)
 				// TODO: Play wall hit sfx
 			}
 
-			// TODO: Check bullet to player collisions
 			// TODO: Update player amount
 			for (int j = 0; j < 1; ++j)
 			{
@@ -118,19 +116,20 @@ void Gameplay_Update(Player* player, DukeMap* map)
 
 						if (player->hasTreasure)
 						{
-							// TODO: Bullet hit player with treasure sfx
-							// TODO: Player drops treasure
 							treasure.render = true;
 							treasure.sectorNumber = true;
 							treasure.position = player->position;
 							treasure.render = true;
 							player[j].hasTreasure = false;
+							player->stunTimer = mgdl_GetElapsedSeconds() + PLAYER_STUN_DURATION_WITH_TREASURE;
+							// TODO: Bullet hit player with treasure sfx
 						}
 						else
 						{
+							player->stunTimer = mgdl_GetElapsedSeconds() + PLAYER_STUN_DURATION;
 							// TODO: Bullet hit player sfx
 						}
-						// TODO: Stun player
+						
 					}
 				}
 			}

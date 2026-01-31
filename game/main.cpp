@@ -59,6 +59,7 @@ void init()
     player.shotOrigin = vec3();
     player.shotDirection = vec3();
     player.hasTreasure = false;
+    player.stunTimer = 0.0f;
 
     Gameplay_Init();
 

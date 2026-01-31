@@ -42,6 +42,9 @@ struct Player
 
     // Treasure
     bool hasTreasure;
+
+    // Stun
+    float stunTimer;
 };
 typedef struct Player Player;
 
