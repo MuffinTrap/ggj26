@@ -21,6 +21,9 @@ int animationFrame = 0;
 float animationRate = 0.05f;
 float animationTimer = 0;
 
+GLfloat floorNormal[3];
+GLfloat ceilingNormal[3];
+
 Texture* OpenGLRender_GetTexture(s16 picnum)
 {
     uvs.x = 0.0f;
@@ -74,6 +77,12 @@ void OpenGLRender_Line3(vec3 start, vec3 end)
 static GLdouble* vertexRingBuffer = nullptr;
 int VertexBufferIndexDoubles = 0;
 
+// Ring buffer for tesselation combine
+#define COMBINE_BUFFER_SIZE_DOUBLES (3*64) // Divisible by three for the ring buffering to work; 3 doubles per vertex
+#define COMBINE_BUFFER_SIZE_BYTES (COMBINE_BUFFER_SIZE_DOUBLES * sizeof(double))
+static GLdouble* combineRingBuffer = nullptr;
+int CombineBufferIndexDoubles = 0;
+
 #ifndef CALLBACK
 #define CALLBACK
 #endif
@@ -86,36 +95,43 @@ void CALLBACK tessBegin(GLenum which)
 void CALLBACK tessVertex(GLvoid* vertex, void* SectorPtr)
 {
     const Sector* s = (Sector*)SectorPtr;
-    const GLdouble* pointer;
-    pointer = (GLdouble*)vertex;
+    const GLdouble* coordinates;
+    const GLdouble* normal;
+    coordinates = (GLdouble*)vertex;
+    normal = &coordinates[3];
+
     //Log_InfoF("Tesselation vertex %.2f, %.2f\n", pointer[0], pointer[2]);
     // TODO texture coordinates and colors
     float xrange = s->sizeXZ.x;
     float zrange = s->sizeXZ.y;
-    float xdiff = pointer[0] - s->minXZPoint.x;
-    float zdiff = pointer[2] - s->minXZPoint.y;
+    float xdiff = coordinates[0] - s->minXZPoint.x;
+    float zdiff = coordinates[2] - s->minXZPoint.y;
     float tx = xdiff/xrange * s->maxTexCoord.x;
     float tz = zdiff/zrange * s->maxTexCoord.y;
     //Log_InfoF("Tesselation tex coord %.2f, %.2f\n", tx, ty);
     glTexCoord2f(tx,tz);
-    glVertex3dv(pointer);
+    glNormal3f(normal[0], normal[1], normal[2]);
+    glVertex3dv(coordinates);
 
 }
-/* NOTE This is not used, points are far apart
 void CALLBACK tessCombine(GLdouble coords[3], GLdouble* vertex_data[4], GLfloat weight[4], GLdouble **dataOut)
 {
     Log_InfoF("Tesselation combine vertex: %.2f, %.2f\n", coords[0], coords[2]);
-    if (combineBufferIndex + 6 >= COMBINE_BUFFER_SIZE)
+    if (CombineBufferIndexDoubles + 6 >= COMBINE_BUFFER_SIZE_DOUBLES)
     {
-        combineBufferIndex = 0;
+        CombineBufferIndexDoubles = 0;
     }
     // Reads 6 doubles
-    GLdouble* vertex = &combineBuffer[combineBufferIndex];
+    GLdouble* vertex = &combineRingBuffer[CombineBufferIndexDoubles];
 
     // Coordinates of the combined vertex
     vertex[0] = coords[0];
     vertex[1] = coords[1];
     vertex[2] = coords[2];
+    vertex[3] = 0.0f;
+    vertex[4] = 0.0f;
+    vertex[5] = 0.0f;
+    /*
     for (int i = 3; i < 6; i++)
     {
         vertex[i] = weight[0] * vertex_data[0][i] +
@@ -123,10 +139,10 @@ void CALLBACK tessCombine(GLdouble coords[3], GLdouble* vertex_data[4], GLfloat 
                     weight[2] * vertex_data[2][i] +
                     weight[3] * vertex_data[3][i];
     }
+    */
     *dataOut = vertex;
-    combineBufferIndex = (combineBufferIndex + 6) % COMBINE_BUFFER_SIZE;
+    CombineBufferIndexDoubles = (CombineBufferIndexDoubles + 6) % COMBINE_BUFFER_SIZE_DOUBLES;
 }
-*/
 
 void CALLBACK tessEnd(void)
 {
@@ -161,11 +177,19 @@ void OpenGLRender_Init()
         tesselator = gluNewTess();
         mgdl_assert_print(tesselator != nullptr, "No Glut tesselator!");
 
-        gluTessCallback(tesselator, GLU_TESS_BEGIN_DATA, (void(*)())tessBegin);
+        gluTessCallback(tesselator, GLU_TESS_BEGIN_DATA, (_GLUfuncptr)tessBegin);
         gluTessCallback(tesselator, GLU_TESS_VERTEX_DATA, (_GLUfuncptr)tessVertex);
         gluTessCallback(tesselator, GLU_TESS_END, (_GLUfuncptr)tessEnd);
         gluTessCallback(tesselator, GLU_TESS_ERROR, (_GLUfuncptr)tessError);
         gluTessCallback(tesselator, GLU_TESS_EDGE_FLAG, (_GLUfuncptr)tessEdgeFlag); // this makes tess only submit triangles
+        gluTessCallback(tesselator, GLU_TESS_COMBINE, (_GLUfuncptr)tessCombine);
+
+        floorNormal[0] = 0;
+        floorNormal[1] = 1;
+        floorNormal[2] = 0;
+        ceilingNormal[0] = 0;
+        ceilingNormal[1] = 1;
+        ceilingNormal[2] = 0;
     }
 
     bulletTexture = mgdl_LoadTexture("assets/tempBullet.png", Linear);
@@ -179,6 +203,14 @@ void OpenGLRender_Init()
         vertexRingBuffer = (GLdouble*)malloc(VERTEX_BUFFER_SIZE_BYTES);
 #else
         vertexRingBuffer = (GLdouble*)mgdl_AllocateGraphicsMemory(VERTEX_BUFFER_SIZE_BYTES);
+#endif
+    }
+    if (combineRingBuffer == nullptr)
+    {
+#ifdef GEKKO
+        combineRingBuffer = (GLdouble*)malloc(COMBINE_BUFFER_SIZE_BYTES);
+#else
+        combineRingBuffer = (GLdouble*)mgdl_AllocateGraphicsMemory(COMBINE_BUFFER_SIZE_BYTES);
 #endif
     }
 }
@@ -270,14 +302,8 @@ void OpenGLRender_DrawFloorOrCeiling(DukeMap* map, Sector* sector, bool floor)
 {
     float ceilingY = sector->ceilingy;
     float floorY = sector->floory;
-    if (floor)
-    {
-        glColor3f(0.0f, 0.0f, 0.5f);
-    }
-    else
-    {
-        glColor3f(0.0f, 0.5f, 0.0f);
-    }
+
+    GLfloat* normal = floorNormal;
 
     // TODO Get texture from wall or ceiling
     // TODO Are we drawing floor or ceiling???
@@ -299,41 +325,45 @@ void OpenGLRender_DrawFloorOrCeiling(DukeMap* map, Sector* sector, bool floor)
 
             Texture* ceilingTexture = OpenGLRender_GetTexture(sector->ceilingpicnum);
             glBindTexture(GL_TEXTURE_2D, ceilingTexture->textureId);
+            normal = ceilingNormal;
 
         }
         // TODO do this only once
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-        // TODO If there are sectors inside sectors we need a much more complex
-        // tesselation
-        gluTessBeginPolygon(tesselator, sector);
 
-        // If the end of last wall is not the sectors wallptr, then there are islands
-        Wall* last_wall = Map_GetWallInSectorPtr(map, sector, sector->wallnum-1);
-        if (last_wall->nextwall != sector->wallptr)
-        {
-            // This sector contains islands
-            // TODO do something about it
-        }
+        // If the Sector extra is not -1, it shows where the first polygon ends
+        int startingWall = sector->wallnum-1;
 
-        gluTessBeginContour(tesselator);
-        //Log_InfoF("Tesselating sector %d\n", request.number);
-        for (s16 wi = sector->wallnum-1; wi >= 0; wi--)
+        //Log_InfoF("Tesselating sector:  extra %d\n", sector->extra);
+        if (sector->extra < 0)
         {
-            Wall* w = Map_GetWallInSectorPtr(map, sector, wi);
-            // Tesselation
-            // NOTE DANGER Must be counter clockwise
-            //Log_InfoF("Tesselation vertex sent %d:: %.2f, %.2f\n", wi, w->glutVertices[0], w->glutVertices[2]);
-            // TODO Send normal too, but maybe not with every vertex?
-            vertexRingBuffer[VertexBufferIndexDoubles + 0] = w->x;
-            vertexRingBuffer[VertexBufferIndexDoubles + 1] = 0;
-            vertexRingBuffer[VertexBufferIndexDoubles + 2] = w->z;
-            gluTessVertex(tesselator, &vertexRingBuffer[VertexBufferIndexDoubles], &vertexRingBuffer[VertexBufferIndexDoubles]);
-            VertexBufferIndexDoubles = (VertexBufferIndexDoubles + 3) % VERTEX_BUFFER_SIZE_DOUBLES;
+            //startingWall = sector->extra;
+            // TODO If there are sectors inside sectors we need a much more complex
+            // tesselation
+            gluTessBeginPolygon(tesselator, sector);
+
+            gluTessBeginContour(tesselator);
+            //Log_InfoF("Tesselating sector %d start %d/%d\n", sector->lotag, startingWall, sector->wallnum);
+            for (s16 wi = startingWall; wi >= 0; wi--)
+            {
+                Wall* w = Map_GetWallInSectorPtr(map, sector, wi);
+
+                // Tesselation
+                // NOTE DANGER Must be counter clockwise
+                //Log_InfoF("Tesselation vertex sent %d:: %.2f, %.2f\n", wi, w->glutVertices[0], w->glutVertices[2]);
+                // TODO Send normal too, but maybe not with every vertex?
+                vertexRingBuffer[VertexBufferIndexDoubles + 0] = w->x;
+                vertexRingBuffer[VertexBufferIndexDoubles + 1] = 0;
+                vertexRingBuffer[VertexBufferIndexDoubles + 2] = w->z;
+
+                gluTessVertex(tesselator, &vertexRingBuffer[VertexBufferIndexDoubles], &vertexRingBuffer[VertexBufferIndexDoubles]);
+                VertexBufferIndexDoubles = (VertexBufferIndexDoubles + 3) % VERTEX_BUFFER_SIZE_DOUBLES;
+            }
+            gluTessEndContour(tesselator);
+            gluTessEndPolygon(tesselator);
         }
-        gluTessEndContour(tesselator);
-        gluTessEndPolygon(tesselator);
     glPopMatrix();
     // First round: floor is false
     // Second round: floor is true

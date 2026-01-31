@@ -37,11 +37,12 @@ void Map_InitPlayers(DukeMap* map, Player* players, int playerAmount)
     // When there are multiple players find starting sectors for all of them
     // Put player one in the official starting position
     Map_InitPlayer(map, &players[0]);
-    for (int pi = 0; pi < playerAmount; pi++)
+    for (int pi = 1; pi < playerAmount; pi++)
     {
         DSprite* startingPos = Map_FindSprite(map, SpriteLOTAG::Sprite_LOTAG_Multiplayer_Start, pi+2);
         if (startingPos)
         {
+            Log_InfoF("Found starting position for player %d\n", pi);
             players[pi].position= startingPos->position;
             players[pi].angleRad = Math_DukeAngleToRad(startingPos->ang);
             players[pi].sectorNumber = startingPos->sectnum;
@@ -50,6 +51,7 @@ void Map_InitPlayers(DukeMap* map, Player* players, int playerAmount)
         else
         {
             // If no own position found, put to starting position
+            Log_InfoF("No starting position for player %d\n", pi);
             Map_InitPlayer(map, &players[pi]);
         }
     }
@@ -75,19 +77,29 @@ void Map_PrintInfo(DukeMap* map)
     Log_InfoF("Duke Map Sectors:%d Walls:%d, Sprites:%d\n", map->sectorAmount, map->wallAmount, map->spriteAmount);
     for (int i = 0; i < map->sectorAmount; i++)
     {
-        Sector* s = &map->sectors[i];
-        Log_InfoF("Sector n: %d Walls: %d first wall %d FloorZ %d CeilingZ %d\n", i, s->wallnum, s->wallptr, s->floory, s->ceilingy);
+        Sector* S = &map->sectors[i];
+        Log_InfoF("Sector n: %d Walls: %d first wall %d FloorZ %d CeilingZ %d\n", i, S->wallnum, S->wallptr, S->floory, S->ceilingy);
+        Log_InfoF("Sector LOTAG: %d HITAG: %d EXTRA: %d\n", S->lotag, S->hitag, S->extra);
+        Log_Info("-- Walls ---------------\n");
+        for (int wi = 0; wi < S->wallnum; wi++)
+        {
+            Wall* w = &map->walls[S->wallptr + wi];
+            Wall* w2 = &map->walls[w->point2];
+
+
+            Log_InfoF("\tWall n: %d:(%d,%d) - %d:(%d,%d)\n",
+                      S->wallptr+wi, w->x, w->z,
+                      w->point2,    w2->x, w2->z);
+
+
+            if (w->point2 == S->wallptr && wi < S->wallnum-1)
+            {
+                Log_Info("Sector has island\n");
+                Log_InfoF("Wall loop: %d - %d\n", S->wallptr+wi, w->point2);
+                S->extra = wi;
+            }
+        }
     }
-
-    Log_Info("-- Walls ---------------\n");
-    for (int s = 0; s < map->wallAmount; s++)
-    {
-        Wall* w = &map->walls[s];
-        Wall* w2 = &map->walls[w->point2];
-
-        Log_InfoF("Wall n: %d (%d,%d) - (%d,%d)\n", s, w->x, w->z, w2->x, w2->z);
-    }
-
 
     Log_Info("-- Sprites ---------------\n");
     for (int i = 0; i < map->spriteAmount; i++)
@@ -101,6 +113,7 @@ void Map_PrintInfo(DukeMap* map)
             case Sprite_WALL:Log_InfoF("WALL\n"); break;
             case Sprite_FLOOR:Log_InfoF("FLOOR\n"); break;
         };
+        Log_InfoF("Tags: LOTAG: %d HITAG: %d EXTRA: %d\n", s->lotag, s->hitag, s->extra);
     }
 }
 
