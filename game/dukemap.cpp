@@ -31,6 +31,30 @@ Wall* Map_GetWallInSectorPtr(DukeMap* map, Sector* sector, s16 wi)
     return &map->walls[wi];
 }
 
+
+void Map_InitPlayers(DukeMap* map, Player* players, int playerAmount)
+{
+    // When there are multiple players find starting sectors for all of them
+    // Put player one in the official starting position
+    Map_InitPlayer(map, &players[0]);
+    for (int pi = 0; pi < playerAmount; pi++)
+    {
+        DSprite* startingPos = Map_FindSprite(map, SpriteLOTAG::Sprite_LOTAG_Multiplayer_Start, pi+2);
+        if (startingPos)
+        {
+            players[pi].position= startingPos->position;
+            players[pi].angleRad = Math_DukeAngleToRad(startingPos->ang);
+            players[pi].sectorNumber = startingPos->sectnum;
+            players[pi].position.y = Map_GetSectorFloorHeight(map, players[pi].sectorNumber);
+        }
+        else
+        {
+            // If no own position found, put to starting position
+            Map_InitPlayer(map, &players[pi]);
+        }
+    }
+}
+
 void Map_InitPlayer(DukeMap* map, Player* player)
 {
     player->position= map->startPosition;
@@ -248,6 +272,19 @@ SpritePivot Sprite_GetPivot(DSprite* sprite)
     {
         return Sprite_PivotFoot;
     }
+}
+
+DSprite* Map_FindSprite(DukeMap* map, s16 lotag, s16 hitag)
+{
+    for (int si = 0; si < map->spriteAmount; si++)
+    {
+        DSprite* S = &map->sprites[si];
+        if (S->lotag == lotag && S->hitag == hitag)
+        {
+            return S;
+        }
+    }
+    return nullptr;
 }
 
 DSprite* Map_GetSprite(DukeMap* map, s16 spriteIndex)

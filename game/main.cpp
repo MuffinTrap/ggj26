@@ -7,7 +7,7 @@
 
 static Example example;
 static DukeMap* map;
-static Player player;
+static Player* players;
 
 // Map menu
 static bool showMenu;
@@ -24,11 +24,16 @@ static float dukeUnitsPerMetreY;
 static float texCoordPerMetre;
 static Camera* glCamera;
 
+#define MAX_PLAYERS 4 // How many players can the game have at maximum
+static float playerAmountSlider = 1;
+static int playerAmount = 1;
+
 void LoadMap()
 {
     map = ReadMapFromFile("assets/Maps/tonnitesti.map");
     Map_PrintInfo(map);
-    Map_InitPlayer(map, &player);
+    // Init all players
+    Map_InitPlayers(map, players, MAX_PLAYERS);
     BuildRender_Init(map, &renderGL);
 }
 
@@ -43,15 +48,25 @@ void init()
     glLoadIdentity();
 
     //example.Init();
+    // TODO Get player amount from somewhere
+    players = (Player*)mgdl_AllocateGeneralMemory(sizeof(Player) * MAX_PLAYERS);
 
-    player.moveSpeed = 2048.0f; // NOTE Set
-    player.verticalSpeed = 1400.0f;
-    player.fallingSpeed = 32000.0f;
-    player.standingHeight = 10 * 1024.0f; // NOTE Set
-    player.kneelingHeight = 4000.0f;
-    player.turnSpeedDegrees = 150; // NOTE set
-    player.position.y += player.standingHeight;
-    player.radius = 128;
+    for (int pi = 0; pi < MAX_PLAYERS; pi++)
+    {
+        players[pi].moveSpeed = 2048.0f; // NOTE Set
+        players[pi].verticalSpeed = 1400.0f;
+        players[pi].fallingSpeed = 32000.0f;
+        players[pi].standingHeight = 10 * 1024.0f; // NOTE Set
+        players[pi].kneelingHeight = 4000.0f;
+        players[pi].turnSpeedDegrees = 150; // NOTE set
+        players[pi].position.y += players[pi].standingHeight;
+        players[pi].radius = 128;
+        players[pi].pitchRad = 0;
+    }
+    // Change controller mapping : First gamepad to second controller etc...
+        Platform_MapJoystickToController(0, 1);
+        Platform_MapJoystickToController(1, 2);
+        Platform_MapJoystickToController(2, 3);
 
     mapMenu = Menu_CreateWindowed(DefaultFont_GetDefaultFont(), 1.0f, 1.5f, 256,mgdl_GetScreenHeight(), "Map menu");
     drawTopdown = true;
@@ -61,7 +76,7 @@ void init()
     render2D.mapOffset = vec2New(0,0);
     render2D.mapZoom = 1.0f;
     render2D.scaleXZ = 1.0f;
-    render2D.collisionPoint = vec2New(player.position.x, player.position.z);
+    render2D.collisionPoint = vec2New(players[0].position.x, players[0].position.z);
     render2D.collisionLength = 100.0f;
     render2D.collisionAngleDeg = 180.0f;
     render2D.movePlayer = true;
@@ -88,9 +103,46 @@ void init()
     glCamera = Camera_CreateDefault();
     glCamera->nearZ = 0.0001f;
     glCamera->fovY = 77.7f;
+    glCamera->projection = CameraNone;
     Camera_SetMode(glCamera, CameraDirection);
 
     LoadMap();
+}
+
+static Rect GetPlayerRect(int playerIndex, int amountPlayers)
+{
+    int W = mgdl_GetScreenWidth();
+    int H = mgdl_GetScreenHeight();
+    Rect r = Rect_Create(0, 0, W, H);
+
+    if (amountPlayers == 1)
+    {
+        // Full screen
+        // [ 1 ]
+        // [   ]
+        // NOP
+    }
+    if (amountPlayers == 2)
+    {
+        // Half screen vertically, multiply y with index
+        // [ 1 ]
+        // [ 2 ]
+        // XY is bottom left
+        r = Rect_Create(0,  H/2 - (H/2)*playerIndex, W, H/2);
+
+    }
+    else if (amountPlayers >= 3)
+    {
+        // Quarter of screen;
+        // [1] [2]
+        // [3] [4]
+        // X = index % 2
+        // Y = index/2 % 2
+        int x = playerIndex % 2;  // 0-> 0 1-> 1  2-0 3 ->1
+        int y = (playerIndex/2) % 2; // 0 -> 0, 1->0  2-> 1 3-> 1
+        r = Rect_Create(W/2 * x, H/2 - (H/2)*y, W/2, H/2);
+    }
+    return r;
 }
 
 void frame()
@@ -98,7 +150,10 @@ void frame()
     //example.Update();
     if (render2D.movePlayer)
     {
-        Player_UpdateMove(&player, mgdl_GetController(0), &render2D, &renderGL, map);
+        for (int pi = 0; pi < playerAmount; pi++)
+        {
+            Player_UpdateMove(&players[pi], mgdl_GetController(pi), &render2D, &renderGL, map);
+        }
     }
     else
     {
@@ -108,16 +163,6 @@ void frame()
     // Check if player went outside perimeter wall and put them back
 
 
-    // Move camera
-    vec3 playerposGL = Vec3DukePosToOpenGL(player.position, &renderGL);
-
-    // NOTE this eventuall calls gluLookAt: which wants the eye position
-    Camera_SetPosition(glCamera,
-                       playerposGL.x,
-                       playerposGL.y,
-                       playerposGL.z);
-
-    Camera_SetRotations(glCamera, player.pitchRad, Rad2Deg(-player.angleRad), 0.0f);
 
     Color4f c = Palette_GetColor4f(Palette_GetDefault(), 0);
     mgdl_glClearColor4f(&c);
@@ -128,7 +173,6 @@ void frame()
     if (drawOpenGL)
     {
         glPushMatrix();
-            Camera_Apply(glCamera);
             glEnable(GL_DEPTH_TEST);
             glDepthFunc(GL_LEQUAL);
             glDepthMask(GL_TRUE); //  is this needed?
@@ -138,33 +182,65 @@ void frame()
             glEnable(GL_CULL_FACE);
             glCullFace(GL_BACK);
             glShadeModel(GL_FLAT);
-                BuildRender_Draw3D(&player, map, &renderGL);
+
+            for (int pi = 0; pi < playerAmount; pi++)
+            {
+                Player* player = &players[pi];
+                // Move camera
+                vec3 playerposGL = Vec3DukePosToOpenGL(player->position, &renderGL);
+
+                // NOTE this eventuall calls gluLookAt: which wants the eye position
+
+                Rect viewPort = GetPlayerRect(pi, playerAmount);
+                glMatrixMode(GL_PROJECTION);
+                glLoadIdentity();
+                gluPerspective(glCamera->fovY,
+                                (float)viewPort.w/(float)viewPort.h,
+                                glCamera->nearZ,
+                                glCamera->farZ);
+                    // Draw the game for multiple players
+                glViewport(viewPort.x, viewPort.y, viewPort.w, viewPort.h);
+
+                Camera_SetPosition(glCamera,
+                                playerposGL.x,
+                                playerposGL.y,
+                                playerposGL.z);
+
+                Camera_SetRotations(glCamera, player->pitchRad, Rad2Deg(-player->angleRad), 0.0f);
+                Camera_Apply(glCamera); // Camera_Apply sets projection matrix, need to override it
+
+                BuildRender_Draw3D(player, map, &renderGL);
+            }
             glDisable(GL_DEPTH_TEST);
             glDisable(GL_CULL_FACE);
         glPopMatrix();
     }
 
+    // Reset viewPort
+    Rect viewPort = GetPlayerRect(0, 1);
+    glViewport(viewPort.x, viewPort.y, viewPort.w, viewPort.h);
 
 
     // example.Draw();
     ///////////////////
-    if (drawTopdown)
-    {
-        glPushMatrix();
-            glMatrixMode(GL_PROJECTION);
-            glLoadIdentity();
-            /////////// 2D drawing mode
-            // Y increases down :
-            gluOrtho2D(0.0, (double)mgdl_GetScreenWidth(), (double)mgdl_GetScreenHeight(), 0.0);
+    glPushMatrix();
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        /////////// 2D drawing mode
+        // Y increases down :
+        gluOrtho2D(0.0, (double)mgdl_GetScreenWidth(), (double)mgdl_GetScreenHeight(), 0.0);
 
-            glMatrixMode(GL_MODELVIEW);
-            glLoadIdentity();
-            // NOTE: This is from the OpenGL red book. The purpose is to have the vertices
-            // in the middle of the screen pixels
-        glTranslatef(0.375f, 0.375f, 0.0f);
-        BuildRender_DrawTopDown(&player, map, &renderGL, &render2D);
-        glPopMatrix();
-    }
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+        // NOTE: This is from the OpenGL red book. The purpose is to have the vertices
+        // in the middle of the screen pixels
+        if (drawTopdown)
+        {
+
+            glTranslatef(0.375f, 0.375f, 0.0f);
+            BuildRender_DrawTopDown(&players[0], map, &renderGL, &render2D);
+        }
+    glPopMatrix();
 
     mgdl_InitOrthoProjection();
 
@@ -177,8 +253,14 @@ void frame()
 
         if (render2D.movePlayer)
         {
-            Menu_TextF(mapMenu, "Player3D: (%.1f %.1f %.1f) Dir: %.0f", player.position.x, player.position.y, player.position.z, Rad2Deg(player.angleRad));
-            Menu_TextF(mapMenu, "Player Sector: %s %d", player.sectorNumber >=0 ? "Inside" : "Outside", player.sectorNumber);
+            Menu_TextF(mapMenu, "Player3D: (%.1f %.1f %.1f) Dir: %.0f",
+                       players[0].position.x,
+                       players[0].position.y,
+                       players[0].position.z,
+                       Rad2Deg(players[0].angleRad));
+
+            Menu_TextF(mapMenu, "Player Sector: %s %d",
+                       players[0].sectorNumber >=0 ? "Inside" : "Outside", players[0].sectorNumber);
         }
         else
         {
@@ -235,7 +317,7 @@ void frame()
 
     Menu_Toggle(mapMenu, "OpenGL", &drawOpenGL);
 
-    Menu_Slider(mapMenu, "Player Height", 1024, 16 * 1024, &player.standingHeight);
+    //Menu_Slider(mapMenu, "Player Height", 1024, 16 * 1024, &players[0].standingHeight);
 
     //Menu_Slider(mapMenu, "Sprite width", 64, 1024, &renderGL.spriteDefaultWidth);
     //Menu_Slider(mapMenu, "Sprite height", 64, 8024, &renderGL.spriteDefaultHeight);
@@ -252,12 +334,35 @@ void frame()
     Menu_Slider(mapMenu, "Far Z ", 100, 1000, &glCamera->farZ);
     if (Menu_Button(mapMenu, "ResetPlayer"))
     {
-        Map_InitPlayer(map, &player);
-        player.position.y += player.standingHeight;
+        Map_InitPlayer(map, &players[0]);
+        players[0].position.y += players[0].standingHeight;
     }
     if (Menu_Button(mapMenu, "Reload map"))
     {
         LoadMap();
+    }
+
+    Menu_Slider(mapMenu,"Player count", 1.1f, 4.1f, &playerAmountSlider);
+    playerAmount = (int)playerAmountSlider;
+    if (playerAmount < 1)
+    {
+        playerAmount = 1;
+    }
+    // Show controller status
+    if (Menu_Button(mapMenu, "Init controllers"))
+    {
+        Platform_InitControllers();
+        Platform_MapJoystickToController(0, 1);
+        Platform_MapJoystickToController(1, 2);
+        Platform_MapJoystickToController(2, 3);
+    }
+    for (int i = 0; i <MGDL_MAX_CONTROLLERS; i++)
+    {
+        bool isConnected = Platform_IsControllerConnected(i);
+        if (isConnected)
+        {
+            Menu_TextF(mapMenu, "Controller %d", i);
+        }
     }
     /*
     for(int i = 0; i< 10; i++)
