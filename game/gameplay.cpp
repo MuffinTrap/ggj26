@@ -61,7 +61,6 @@ void Gameplay_StartMap(DukeMap* map)
 {
 	winnerPlayerIndex = -1;
 
-	// TODO: Get treasure spawn from the map
 	DSprite* treasureSprite = Map_FindSprite(map, TREASURE_LOTAG, 0);
 	if (treasureSprite)
 	{
