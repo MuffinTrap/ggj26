@@ -2,7 +2,6 @@
 
 DSprite tempSprites[TEMP_SPRITE_AMOUNT];
 int winnerPlayerIndex = -1;
-int treasureSector = -1;
 
 Sound* sfxShoot;
 Sound* sfxHitWall;
@@ -64,9 +63,6 @@ void Gameplay_Reset()
 {
 	winnerPlayerIndex = -1;
 
-	// TODO: Load sector from map
-	treasureSector = 0;
-
 	// TODO: Get treasure spawn from the map
 	treasure.render = true;
 	treasure.position = vec3New(1789.2f, -2048.0f, 525.3f);
@@ -118,7 +114,7 @@ void Gameplay_Update(Player* player, DukeMap* map)
 	}
 	else // Return treasure check
 	{
-		if (player->sectorNumber == treasureSector)
+		if (Map_GetSector(map, player->sectorNumber)->lotag == LEVEL_END_LOTAG)
 		{
 			winnerPlayerIndex = player->playerNumber;
 			Log_InfoF("WINNER: %i\n", winnerPlayerIndex);

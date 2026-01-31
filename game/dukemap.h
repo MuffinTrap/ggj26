@@ -124,6 +124,8 @@ enum SpriteLOTAG
 };
 typedef enum SpriteLOTAG SpriteLOTAG;
 
+#define LEVEL_END_LOTAG 65535
+
 typedef struct DukeMap DukeMap;
 
 #ifdef __cplusplus
