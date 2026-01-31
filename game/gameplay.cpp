@@ -1,7 +1,5 @@
 #include "gameplay.h"
 
-// 0-31 bullets
-// 32 treasure
 DSprite tempSprites[TEMP_SPRITE_AMOUNT];
 
 void Gameplay_Init()
@@ -15,9 +13,13 @@ void Gameplay_Init()
 		{
 			tempSprites[i].picnum = PICNUM_BULLET;
 		}
-		else if (i >= MAX_BULLET_AMOUNT)
+		else if (i == MAX_BULLET_AMOUNT)
 		{
 			tempSprites[i].picnum = PICNUM_TREASURE;
+		}
+		else
+		{
+			tempSprites[i].picnum = PICNUM_PLAYER;
 		}
 		tempSprites[i].shade = 0;
 		tempSprites[i].pal = 0;
@@ -30,7 +32,6 @@ void Gameplay_Init()
 		tempSprites[i].sectnum = 0; // SET ON UPDATE
 		tempSprites[i].statnum = 0;
 		tempSprites[i].ang = 0;
-		tempSprites[i].owner = 0;
 		tempSprites[i].xvel = 0;
 		tempSprites[i].yvel = 0;
 		tempSprites[i].zvel = 0;
@@ -65,6 +66,12 @@ void Gameplay_Init()
 void Gameplay_Update(Player* player, DukeMap* map)
 {
 	float dt = mgdl_GetDeltaTime();
+
+	// Update player model
+	int index = MAX_BULLET_AMOUNT + 1 + player->playerNumber;
+	tempSprites[index].position = player->position;
+	tempSprites[index].owner = player->playerNumber;
+	tempSprites[index].cstat = Flag_Unset(tempSprites[index].cstat, 1 << CSTAT_SPRITE_INVISIBLE);
 
 	// Update treasure
 	if (!player->hasTreasure)

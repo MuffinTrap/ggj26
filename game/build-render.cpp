@@ -130,7 +130,9 @@ void BuildRender_DrawTempSprites(DukeMap* map, Player* player, RenderSettingsOpe
     for (int i = 0; i < TEMP_SPRITE_AMOUNT; i++)
     {
         DSprite* sprite = &tempSprites[i];
-        if (renderedSectorNames[sprite->sectnum] > 0 && !Flag_IsSet(sprite->cstat, 1 << CSTAT_SPRITE_INVISIBLE))
+        if (renderedSectorNames[sprite->sectnum] > 0
+            && !Flag_IsSet(sprite->cstat, 1 << CSTAT_SPRITE_INVISIBLE)
+            && player->playerNumber != sprite->owner)
         {
             // Keep the texture aspect correct
             float scaleAspect = settings->scaleXZ / settings->scaleY;

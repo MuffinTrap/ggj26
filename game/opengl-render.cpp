@@ -12,6 +12,7 @@
 Texture* checkers;
 Texture* bulletTexture;
 Texture* treasureTexture;
+Texture* playerTexture;
 GLUtesselator* tesselator = nullptr;
 bool tesselationActive = true;
 
@@ -24,6 +25,10 @@ Texture* OpenGLRender_GetTexture(s16 picnum)
     else if (picnum == PICNUM_TREASURE)
     {
         return treasureTexture;
+    }
+    else if (picnum == PICNUM_PLAYER)
+    {
+        return playerTexture;
     }
     return checkers;
 }
@@ -151,6 +156,7 @@ void OpenGLRender_Init()
 
     bulletTexture = mgdl_LoadTexture("assets/tempBullet.png", Linear);
     treasureTexture = mgdl_LoadTexture("assets/tempTreasure.png", Linear);
+    playerTexture = mgdl_LoadTexture("assets/tempPlayer.png", Linear);
 
     if (vertexRingBuffer == nullptr)
     {

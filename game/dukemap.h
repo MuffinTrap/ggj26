@@ -24,7 +24,7 @@ struct DSprite
     s16 sectnum;
     s16 statnum; ///< Status: inactive, bullet, monster etc...
     s16 ang; ///< Facing angle
-    s16 owner;
+    s16 owner; // Owning player index
     s16 xvel, yvel, zvel; ///< Velocity
     u16 lotag, hitag;
     s16 extra;
