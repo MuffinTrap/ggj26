@@ -17,8 +17,8 @@ void MainMenu_Init()
 
 MainMenuResult MainMenu_Frame()
 {
-
     mgdl_InitOrthoProjection();
+    glViewport(0, 0, mgdl_GetScreenWidth(), mgdl_GetScreenHeight());
     // TODO Draw menu
     Menu_Start(mainMenu, 0, mgdl_GetScreenHeight(), mgdl_GetScreenWidth());
     Menu_Text(mainMenu, "MAIN MENU");
