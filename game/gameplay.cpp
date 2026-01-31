@@ -69,7 +69,7 @@ void Gameplay_StartMap(DukeMap* map)
 		treasure.render = true;
 		treasure.position = treasureSprite->position;
 		treasure.sectorNumber = treasureSprite->sectnum;
-		treasure.radius = 32.0f;
+		treasure.radius = 800.0f;
 	}
 
 	for (int i = 0; i < MAX_BULLET_AMOUNT; ++i)
