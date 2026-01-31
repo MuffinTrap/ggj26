@@ -84,12 +84,13 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 	vec2 pointOut;
 	s16 sectorOut;
 	MoveResult result = Map_MovePointInMap(map, point, endpoint, player->sectorNumber, &pointOut, &sectorOut);
-	// TODO Sector height
+
 	player->position = vec3New(pointOut.x, player->position.y, pointOut.y);;
 	player->sectorNumber = sectorOut;
 
-	// Keep player on floor
+	// Keep player on floor and under the ceiling
 	player->position.y = maxF(player->position.y, Map_GetSectorFloorHeight(map, player->sectorNumber) + player->standingHeight);
+	player->position.y = minF(player->position.y, Map_GetSectorCeilingHeight(map, player->sectorNumber));
 
 	// Shooting, when trigger is pressed and shoot timer is ok
 	if (WiiController_ButtonHeld(controller, ButtonB))

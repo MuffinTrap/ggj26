@@ -223,6 +223,12 @@ s32 Map_GetSectorFloorHeight(DukeMap* map, s16 sectorNumber)
     return s->floory;
 }
 
+s32 Map_GetSectorCeilingHeight(DukeMap* map, s16 sectorNumber)
+{
+    Sector* s = Map_GetSector(map, sectorNumber);
+    return s->ceilingy;
+}
+
 SpriteAlignment Sprite_GetAlignment(DSprite* sprite)
 {
     if (Flag_IsSet(sprite->cstat, (1<<4)))

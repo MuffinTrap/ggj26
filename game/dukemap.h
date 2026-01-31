@@ -133,6 +133,7 @@ void Map_InitPlayer(DukeMap* map, Player* player);
 
 Sector* Map_GetSector(DukeMap* map, s16 sectorNumber);
 s32 Map_GetSectorFloorHeight(DukeMap* map, s16 sectorNumber);
+s32 Map_GetSectorCeilingHeight(DukeMap* map, s16 sectorNumber);
 
 Wall* Map_GetWallInSector(DukeMap* map, s16 sector, s16 wi);
 Wall* Map_GetWallInSectorPtr(DukeMap* map, Sector* sector, s16 wi);
