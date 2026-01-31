@@ -232,8 +232,8 @@ static void DrawDebugMenu()
     {
         Menu_TextF(debugMenu, "Wall %d x: %d -> %d", i, wallXPoints[i*2], wallXPoints[i*2+1]);
     }
-    
-    }*/
+    */
+    //}
     Menu_DrawCursor(debugMenu);
 }
 
@@ -268,7 +268,7 @@ void MapPlay_ResetPlayers()
         players[pi].kneelingHeight = 4000.0f;
         players[pi].turnSpeedDegrees = 150.0f; // NOTE set
         players[pi].position.y += players[pi].standingHeight;
-        players[pi].radius = 512.0f;
+        players[pi].radius = 340.0f;
         players[pi].pitchRad = 0.0f;
         players[pi].shootTimer = 0.0f;
         players[pi].shootRate = 0.33f;

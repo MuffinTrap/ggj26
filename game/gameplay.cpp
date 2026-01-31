@@ -2,6 +2,7 @@
 
 DSprite tempSprites[TEMP_SPRITE_AMOUNT];
 int winnerPlayerIndex = -1;
+int treasureSector = -1;
 
 Sound* sfxShoot;
 Sound* sfxHitWall;
@@ -63,17 +64,14 @@ void Gameplay_Reset()
 {
 	winnerPlayerIndex = -1;
 
+	// TODO: Load sector from map
+	treasureSector = 0;
+
 	// TODO: Get treasure spawn from the map
 	treasure.render = true;
-	treasure.position = vec3New(1789.2f, 0.0f, 525.3f);
+	treasure.position = vec3New(1789.2f, -2048.0f, 525.3f);
 	treasure.sectorNumber = 3;
 	treasure.radius = 32.0f;
-
-	// TODO: Get exit spawn from the map
-	treasureExit.render = false;
-	treasureExit.position = vec3New(-256.0f, 2048.0f, -127.0f);
-	treasureExit.sectorNumber = 0;
-	treasureExit.radius = 32.0f;
 
 	for (int i = 0; i < MAX_BULLET_AMOUNT; ++i)
 	{
@@ -120,7 +118,7 @@ void Gameplay_Update(Player* player, DukeMap* map)
 	}
 	else // Return treasure check
 	{
-		if (Gameplay_SphereToSphereCollision(player->position, player->radius, treasureExit.position, treasureExit.radius))
+		if (player->sectorNumber == treasureSector)
 		{
 			winnerPlayerIndex = player->playerNumber;
 			Log_InfoF("WINNER: %i\n", winnerPlayerIndex);
