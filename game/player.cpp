@@ -21,7 +21,7 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 	float dt = mgdl_GetDeltaTime();
 
 // Use right joystick for turning on Windows
-#ifdef MGDL_PLATFORM_WINDOWS
+#if defined (MGDL_PLATFORM_WINDOWS) || defined (MGDL_PLATFORM_LINUX)
 	float turn = WiiController_GetRoll(controller);
 	if(abs(turn) < CONTROLLER_DEADZONE) turn = 0.0f;
 
@@ -109,12 +109,6 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 
 			// Data for bullet initialization
 			player->shotOrigin = player->position;
-			vec3 bulletDir
-			{
-				player->direction.x,
-				0.0f,
-				player->direction.y
-			};
 
 			// Add cursor position to shooting direction
 			// 0,0 is the center of the screen
@@ -123,9 +117,19 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 			relativeScreenPosition.x -= 0.5f;
 			relativeScreenPosition.y -= 0.5f;
 			Log_InfoF("CURSOR X: %.2f Y: %.2f\n", relativeScreenPosition.x, relativeScreenPosition.y);
-			bulletDir.y -= relativeScreenPosition.y * 20.0f;
-			// TODO: Add cursor position to horizontal aiming
 
+			// Initial direction, without cursor addon
+			vec3 bulletDir = vec3New(player->direction.x, 0.0f, player->direction.y);
+
+			// Horizontal addon
+			vec3 bulletRight = vec3CrossProduct(WORLD_UP, vec3Normalize(bulletDir));
+			bulletRight = vec3Multiply(bulletRight, -relativeScreenPosition.x * 2.0f);
+			bulletDir = vec3Add(bulletDir, bulletRight);
+
+			// Vertical addon
+			bulletDir.y -= relativeScreenPosition.y * 20.0f;
+			
+			// Final direction
 			player->shotDirection = bulletDir;
 			Log_Info("BULLET SHOT\n");
 		}
