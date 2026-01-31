@@ -39,7 +39,7 @@ void Map_InitPlayers(DukeMap* map, Player* players, int playerAmount)
     Map_InitPlayer(map, &players[0]);
     for (int pi = 1; pi < playerAmount; pi++)
     {
-        DSprite* startingPos = Map_FindSprite(map, SpriteLOTAG::Sprite_LOTAG_Multiplayer_Start, pi+2);
+        DSprite* startingPos = Map_FindSprite(map, SpriteLOTAG::Sprite_LOTAG_Multiplayer_Start, pi);
         if (startingPos)
         {
             Log_InfoF("Found starting position for player %d\n", pi);

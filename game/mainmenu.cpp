@@ -13,7 +13,7 @@ void MainMenu_Init()
     // menuFont = mgdl_LoadFont()
     menuFont = DefaultFont_GetDefaultFont();
     mainMenu = Menu_Create(menuFont, 2, 1.2f);
-    mapMenu = Menu_Create(menuFont, 2, 1.2f);and cstat Invisible ( set bit 15)
+    mapMenu = Menu_Create(menuFont, 2, 1.2f);
     // TODO set colors etc
     // color ffbe03
 
