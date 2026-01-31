@@ -126,11 +126,11 @@ void Gameplay_Update(Player* player, DukeMap* map)
 			vec2 pointOut;
 			s16 sectorOut;
 			MoveResult result = Map_MovePointInMap(map, point, endpoint, bullets[i].sectorNumber, &pointOut, &sectorOut);
-			bullets[i].position = vec3New(pointOut.x, bullets[i].position.y, pointOut.y);;
+			bullets[i].position = vec3New(pointOut.x, movementEnd.y, pointOut.y);;
 			bullets[i].sectorNumber = sectorOut;
-			//Log_InfoF("BULLET UPDATE SECTOR: %i X: %.2f Y: %.2f Z: %.2f TIME: %.2f \n", bullets[i].sectorNumber, bullets[i].position.x, bullets[i].position.y, bullets[i].position.z, bullets[i].timeAlive);
+			Log_InfoF("BULLET UPDATE SECTOR: %i X: %.2f Y: %.2f Z: %.2f TIME: %.2f \n", bullets[i].sectorNumber, bullets[i].position.x, bullets[i].position.y, bullets[i].position.z, bullets[i].timeAlive);
 			bool hitFloor = bullets[i].position.y < Map_GetSectorFloorHeight(map, bullets[i].sectorNumber);
-			bool hitCeiling= bullets[i].position.y > Map_GetSectorCeilingHeight(map, bullets[i].sectorNumber);
+			bool hitCeiling = bullets[i].position.y > Map_GetSectorCeilingHeight(map, bullets[i].sectorNumber);
 
 			// Silently destroy out of bounds bullets
 			bullets[i].timeAlive += dt;
@@ -143,7 +143,7 @@ void Gameplay_Update(Player* player, DukeMap* map)
 			// Destory bullet when it hits wall
 			if (result == Move_HitWall || hitFloor || hitCeiling)
 			{
-				Log_Info("BULLET HIT WALL\n");
+				Log_InfoF("BULLET HIT %s%s%s\n", (result == Move_HitWall) ? "WALL" : "", hitFloor ? "FLOOR" : "", hitCeiling ? "CEILING" : "");
 				bullets[i].alive = false;
 				// TODO: Play wall hit sfx
 			}
@@ -172,7 +172,6 @@ void Gameplay_Update(Player* player, DukeMap* map)
 							player->stunTimer = mgdl_GetElapsedSeconds() + PLAYER_STUN_DURATION;
 							// TODO: Bullet hit player sfx
 						}
-						
 					}
 				}
 			}

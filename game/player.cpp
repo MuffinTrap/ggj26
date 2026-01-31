@@ -32,6 +32,10 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 	else if (WiiController_ButtonHeld(controller, ButtonLeft)) turn = -1.0f;
 #endif
 
+	// TODO: Use only area within your own player in split screen
+	vec2 screenPosition = WiiController_GetCursorPosition(controller);
+	// TODO: Draw crosshair
+
 	// NOTE turning left around Y is positive
 	// Forward is 0
 	// Left is 90
@@ -108,9 +112,19 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 			vec3 bulletDir
 			{
 				player->direction.x,
-				player->direction.y,
-				0.0f
+				0.0f,
+				player->direction.y
 			};
+
+			// Add cursor position to shooting direction
+			// 0,0 is the center of the screen
+			// x right & y up is positive
+			vec2 relativeScreenPosition = vec2New(screenPosition.x / mgdl_GetScreenWidth(), screenPosition.y / mgdl_GetScreenHeight());
+			relativeScreenPosition.x -= 0.5f;
+			relativeScreenPosition.y -= 0.5f;
+			Log_InfoF("CURSOR X: %.2f Y: %.2f\n", relativeScreenPosition.x, relativeScreenPosition.y);
+			bulletDir.y -= relativeScreenPosition.y * 10.0f;
+
 			player->shotDirection = bulletDir;
 			Log_Info("BULLET SHOT\n");
 		}
