@@ -58,6 +58,7 @@ void init()
     player.shotThisFrame = false;
     player.shotOrigin = vec3();
     player.shotDirection = vec3();
+    player.hasTreasure = false;
 
     Gameplay_Init();
 
