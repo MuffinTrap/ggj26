@@ -29,7 +29,7 @@ void Gameplay_Init()
 		else
 		{
 			tempSprites[i].picnum = PICNUM_PLAYER;
-			tempSprites[i].extra = 400.0f;
+			tempSprites[i].extra = 900.0f;
 		}
 		tempSprites[i].shade = 0;
 		tempSprites[i].pal = 0;

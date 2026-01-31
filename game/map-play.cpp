@@ -264,7 +264,7 @@ void MapPlay_ResetPlayers()
         players[pi].moveSpeed = 2048.0f; // NOTE Set
         players[pi].verticalSpeed = 1400.0f;
         players[pi].fallingSpeed = 32000.0f;
-        players[pi].standingHeight = 10 * 1024.0f; // NOTE Set
+        players[pi].standingHeight = 6 * 1024.0f; // NOTE Set
         players[pi].kneelingHeight = 4000.0f;
         players[pi].turnSpeedDegrees = 150.0f; // NOTE set
         players[pi].position.y += players[pi].standingHeight;
