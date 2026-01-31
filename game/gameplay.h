@@ -7,6 +7,9 @@
 
 #define CSTAT_SPRITE_INVISIBLE 15
 
+#define PICNUM_BULLET 99
+#define PICNUM_TREASURE 98
+
 const int MAX_BULLET_AMOUNT = 32;
 const float BULLET_SPEED = 2048.0f;
 const float BULLET_MAX_TIME_ALIVE = 5.0f;

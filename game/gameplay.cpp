@@ -9,15 +9,15 @@ void Gameplay_Init()
 	for (int i = 0; i < TEMP_SPRITE_AMOUNT; ++i)
 	{
 		tempSprites[i].position = vec3(); // SET ON UPDATE
-		tempSprites[i].cstat = Flag_Set(tempSprites[i].cstat, 1 << SPRITE_PIVOT_BIT);
-		tempSprites[i].cstat = Flag_Set(tempSprites[i].cstat, 1 << CSTAT_SPRITE_INVISIBLE);
+		tempSprites[i].cstat = Flag_Set(tempSprites[i].cstat, 1 << SPRITE_PIVOT_BIT); // SET ON UPDATE
+		tempSprites[i].cstat = Flag_Set(tempSprites[i].cstat, 1 << CSTAT_SPRITE_INVISIBLE); // SET ON UPDATE
 		if (i < MAX_BULLET_AMOUNT)
 		{
-			tempSprites[i].picnum = 99; // SET ON SPAWN, BULLET
+			tempSprites[i].picnum = PICNUM_BULLET;
 		}
 		else if (i >= MAX_BULLET_AMOUNT)
 		{
-			tempSprites[i].picnum = 0; // SET ON SPAWN, TREASURE
+			tempSprites[i].picnum = PICNUM_TREASURE;
 		}
 		tempSprites[i].shade = 0;
 		tempSprites[i].pal = 0;
@@ -51,13 +51,13 @@ void Gameplay_Init()
 
 	// TODO: Get treasure spawn from the map
 	treasure.render = true;
-	treasure.position = vec3New(0.0f, 0.0f, 0.0f);
-	treasure.sectorNumber = 0;
+	treasure.position = vec3New(1789.2f, 0.0f, 525.3f);
+	treasure.sectorNumber = 3;
 	treasure.radius = 32.0f;
 
 	// TODO: Get exit spawn from the map
 	treasureExit.render = false;
-	treasureExit.position = vec3New(0.0f, 0.0f, 0.0f);
+	treasureExit.position = vec3New(-256.0f, 2048.0f, -127.0f);
 	treasureExit.sectorNumber = 0;
 	treasureExit.radius = 32.0f;
 }
@@ -72,6 +72,7 @@ void Gameplay_Update(Player* player, DukeMap* map)
 		// Pick up treasure
 		if (Gameplay_SphereToSphereCollision(player->position, player->radius, treasure.position, treasure.radius))
 		{
+			Log_Info("PICK UP TREASURE\n");
 			player->hasTreasure = true;
 			treasure.render = false;
 		}
@@ -80,19 +81,20 @@ void Gameplay_Update(Player* player, DukeMap* map)
 	{
 		if (Gameplay_SphereToSphereCollision(player->position, player->radius, treasureExit.position, treasureExit.radius))
 		{
+			Log_Info("GAME OVER!\n");
 			// TODO: Game ends! This player wins!
 		}
 	}
 	
 	if (treasure.render)
 	{
-		tempSprites[MAX_BULLET_AMOUNT].cstat = Flag_Set(tempSprites[MAX_BULLET_AMOUNT].cstat, 1 << CSTAT_SPRITE_INVISIBLE);
+		tempSprites[MAX_BULLET_AMOUNT].cstat = Flag_Unset(tempSprites[MAX_BULLET_AMOUNT].cstat, 1 << CSTAT_SPRITE_INVISIBLE);
 		tempSprites[MAX_BULLET_AMOUNT].position = treasure.position;
 		tempSprites[MAX_BULLET_AMOUNT].sectnum = treasure.sectorNumber;
 	}
 	else
 	{
-		tempSprites[MAX_BULLET_AMOUNT].cstat = Flag_Unset(tempSprites[MAX_BULLET_AMOUNT].cstat, 1 << CSTAT_SPRITE_INVISIBLE);
+		tempSprites[MAX_BULLET_AMOUNT].cstat = Flag_Set(tempSprites[MAX_BULLET_AMOUNT].cstat, 1 << CSTAT_SPRITE_INVISIBLE);
 	}
 
 	// Update bullets
@@ -164,6 +166,7 @@ void Gameplay_Update(Player* player, DukeMap* map)
 
 						if (player->hasTreasure)
 						{
+							Log_Info("DROP TREASURE\n");
 							treasure.render = true;
 							treasure.sectorNumber = true;
 							treasure.position = player->position;

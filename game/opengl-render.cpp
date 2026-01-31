@@ -10,15 +10,20 @@
 
 // OpenGL
 Texture* checkers;
-Texture* tex;
+Texture* bulletTexture;
+Texture* treasureTexture;
 GLUtesselator* tesselator = nullptr;
 bool tesselationActive = true;
 
 Texture* OpenGLRender_GetTexture(s16 picnum)
 {
-    if (picnum == 99)
+    if (picnum == PICNUM_BULLET)
     {
-        return tex;
+        return bulletTexture;
+    }
+    else if (picnum == PICNUM_TREASURE)
+    {
+        return treasureTexture;
     }
     return checkers;
 }
@@ -144,7 +149,8 @@ void OpenGLRender_Init()
         gluTessCallback(tesselator, GLU_TESS_EDGE_FLAG, (_GLUfuncptr)tessEdgeFlag); // this makes tess only submit triangles
     }
 
-    tex = mgdl_LoadTexture("assets/tempBullet.png", Linear);
+    bulletTexture = mgdl_LoadTexture("assets/tempBullet.png", Linear);
+    treasureTexture = mgdl_LoadTexture("assets/tempTreasure.png", Linear);
 
     if (vertexRingBuffer == nullptr)
     {
