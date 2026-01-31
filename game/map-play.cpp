@@ -244,6 +244,7 @@ void MapPlay_Init()
 
     for (int pi = 0; pi < MAX_PLAYERS; pi++)
     {
+        players[pi].playerNumber = pi;
         players[pi].moveSpeed = 2048.0f; // NOTE Set
         players[pi].verticalSpeed = 1400.0f;
         players[pi].fallingSpeed = 32000.0f;
@@ -270,6 +271,7 @@ void MapPlay_Init()
     allMapsArray = (DukeMap**)mgdl_AllocateGeneralMemory(sizeof(DukeMap**) * MAX_MAP_AMOUNT);
     allMapsArray[0] = MapPlay_LoadMap("assets/Maps/tonnitesti.map");
     loadedMapAmount = 1;
+
 }
 
 DukeMap* MapPlay_LoadMap(const char* mapfile)
@@ -343,13 +345,13 @@ MapPlayResult MapPlay_Frame()
     // Update
     if (render2D.movePlayer)
     {
-        Gameplay_Update(players, activeMap);
         for (int pi = 0; pi < activePlayerAmount; pi++)
         {
+            Gameplay_Update(&players[pi], activeMap);
             Player_UpdateMove(&players[pi], mgdl_GetController(pi), &render2D, &renderGL, activeMap);
         }
         // TODO Ask Gameplay if game is over
-        if (false)
+        if (Gameplay_GetWinner() >= 0)
         {
             return MapPlayEndMap;
         }
