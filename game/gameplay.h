@@ -55,3 +55,4 @@ static WorldObject treasureExit;
 void Gameplay_Init();
 void Gameplay_Update(Player* player, DukeMap* map);
 bool Gameplay_SphereToSphereCollision(vec3 pos1, float radius1, vec3 pos2, float radius2);
+int Gameplay_GetWinner();

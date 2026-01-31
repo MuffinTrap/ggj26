@@ -1,6 +1,7 @@
 #include "gameplay.h"
 
 DSprite tempSprites[TEMP_SPRITE_AMOUNT];
+int winnerPlayerIndex = -1;
 
 void Gameplay_Init()
 {
@@ -92,8 +93,8 @@ void Gameplay_Update(Player* player, DukeMap* map)
 	{
 		if (Gameplay_SphereToSphereCollision(player->position, player->radius, treasureExit.position, treasureExit.radius))
 		{
-			Log_Info("GAME OVER!\n");
-			// TODO: Game ends! This player wins!
+			winnerPlayerIndex = player->playerNumber;
+			Log_InfoF("WINNER: %i\n", winnerPlayerIndex);
 		}
 	}
 	
@@ -201,4 +202,11 @@ bool Gameplay_SphereToSphereCollision(vec3 pos1, float radius1, vec3 pos2, float
 		pow(pos1.z - pos2.z, 2);
 	float radiusSum = radius1 + radius2;
 	return distanceSquared <= (radiusSum * radiusSum);
+}
+
+/// Get index of winning player.
+/// -1 means, no winner currently
+int Gameplay_GetWinner()
+{
+	return winnerPlayerIndex;
 }
