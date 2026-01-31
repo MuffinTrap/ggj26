@@ -86,11 +86,12 @@ void Gameplay_Update(Player* player, DukeMap* map)
 	tempSprites[index].picnum = player->hasTreasure ? PICNUM_PLAYER_WITH_MASK : PICNUM_PLAYER;
 
 	// Update treasure
-	if (!player->hasTreasure && !Player_IsStunned(player))
+	if (!player->hasTreasure)
 	{
 		// Pick up treasure
 		if (treasure.render
-			&& Gameplay_SphereToSphereCollision(player->position, player->radius, treasure.position, treasure.radius))
+			&& Gameplay_SphereToSphereCollision(player->position, player->radius, treasure.position, treasure.radius)
+			&& !Player_IsStunned(player))
 		{
 			Log_Info("PICK UP TREASURE\n");
 			player->hasTreasure = true;

@@ -4,8 +4,9 @@
 #include "dukemap.h"
 #include "dukemath.h"
 #include "math.h"
+#include "map-play.h"
 
-void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings2D* settings2D, RenderSettingsOpenGL* settingsGL, DukeMap* map)
+void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings2D* settings2D, RenderSettingsOpenGL* settingsGL, DukeMap* map, int amountPlayers)
 {
 	// Skip movement if stunned
 	if (Player_IsStunned(player))
@@ -20,22 +21,18 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 	float verticalSpeed3D = verticalSpeed;
 	float dt = mgdl_GetDeltaTime();
 
-// Use right joystick for turning on Windows
+	// Use right joystick for turning on Windows
 #if defined (MGDL_PLATFORM_WINDOWS) || defined (MGDL_PLATFORM_LINUX)
 	float turn = WiiController_GetRoll(controller);
-	if(abs(turn) < CONTROLLER_DEADZONE) turn = 0.0f;
+	if (abs(turn) < CONTROLLER_DEADZONE) turn = 0.0f;
 
-// Use dpad for turning on Wii
+	// Use dpad for turning on Wii
 #else
-	float turn = 0.0f; 
+	float turn = 0.0f;
 	if (WiiController_ButtonHeld(controller, ButtonRight)) turn = 1.0f;
 	else if (WiiController_ButtonHeld(controller, ButtonLeft)) turn = -1.0f;
 #endif
-
-	// TODO: Use only area within your own player in split screen
-	vec2 screenPosition = WiiController_GetCursorPosition(controller);
-	// TODO: Draw crosshair
-
+	
 	// NOTE turning left around Y is positive
 	// Forward is 0
 	// Left is 90
@@ -96,42 +93,52 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 	player->position.y = maxF(player->position.y, Map_GetSectorFloorHeight(map, player->sectorNumber) + player->standingHeight);
 	player->position.y = minF(player->position.y, Map_GetSectorCeilingHeight(map, player->sectorNumber));
 
-	// Shooting, when trigger is pressed and shoot timer is ok
-	if (WiiController_ButtonHeld(controller, ButtonB))
+	// Shooting, when trigger is pressed, cursor is within viewport and shoot timer is ok
+	vec2 cursorPosition = WiiController_GetCursorPosition(controller);
+	Rect screenRect = MapPlay_GetPlayerScreenRect(player->playerNumber, amountPlayers);
+	if (IsPointInsideRect(screenRect, cursorPosition))
 	{
-		if (mgdl_GetElapsedSeconds() > player->shootTimer)
+		// TODO: Draw crosshair
+
+		if (WiiController_ButtonHeld(controller, ButtonB))
 		{
-			// Bullet spawning will clear this
-			player->shotThisFrame = true;
+			if (mgdl_GetElapsedSeconds() > player->shootTimer)
+			{
+				// Bullet spawning will clear this
+				player->shotThisFrame = true;
 
-			// Limit shooting speed
-			player->shootTimer = mgdl_GetElapsedSeconds() + player->shootRate;
+				// Limit shooting speed
+				player->shootTimer = mgdl_GetElapsedSeconds() + player->shootRate;
 
-			// Data for bullet initialization
-			player->shotOrigin = player->position;
+				// Data for bullet initialization
+				player->shotOrigin = player->position;
 
-			// Add cursor position to shooting direction
-			// 0,0 is the center of the screen
-			// x right & y up is positive
-			vec2 relativeScreenPosition = vec2New(screenPosition.x / mgdl_GetScreenWidth(), screenPosition.y / mgdl_GetScreenHeight());
-			relativeScreenPosition.x -= 0.5f;
-			relativeScreenPosition.y -= 0.5f;
-			Log_InfoF("CURSOR X: %.2f Y: %.2f\n", relativeScreenPosition.x, relativeScreenPosition.y);
+				// Add cursor position to shooting direction
+				// 0,0 is the center of the screen
+				// x right & y up is positive
 
-			// Initial direction, without cursor addon
-			vec3 bulletDir = vec3New(player->direction.x, 0.0f, player->direction.y);
+				vec2 relativeScreenPosition = vec2New((cursorPosition.x - screenRect.x) / screenRect.w, (cursorPosition.y - screenRect.y) / screenRect.h);
 
-			// Horizontal addon
-			vec3 bulletRight = vec3CrossProduct(WORLD_UP, vec3Normalize(bulletDir));
-			bulletRight = vec3Multiply(bulletRight, -relativeScreenPosition.x * 2.0f);
-			bulletDir = vec3Add(bulletDir, bulletRight);
+				//vec2 relativeScreenPosition = vec2New(screenPosition.x / mgdl_GetScreenWidth(), screenPosition.y / mgdl_GetScreenHeight());
+				relativeScreenPosition.x -= 0.5f;
+				relativeScreenPosition.y -= 0.5f;
+				Log_InfoF("CURSOR X: %.2f Y: %.2f\n", relativeScreenPosition.x, relativeScreenPosition.y);
 
-			// Vertical addon
-			bulletDir.y -= relativeScreenPosition.y * 20.0f;
-			
-			// Final direction
-			player->shotDirection = bulletDir;
-			Log_Info("BULLET SHOT\n");
+				// Initial direction, without cursor addon
+				vec3 bulletDir = vec3New(player->direction.x, 0.0f, player->direction.y);
+
+				// Horizontal addon
+				vec3 bulletRight = vec3CrossProduct(WORLD_UP, vec3Normalize(bulletDir));
+				bulletRight = vec3Multiply(bulletRight, -relativeScreenPosition.x * 2.0f);
+				bulletDir = vec3Add(bulletDir, bulletRight);
+
+				// Vertical addon
+				bulletDir.y -= relativeScreenPosition.y * 20.0f;
+
+				// Final direction
+				player->shotDirection = bulletDir;
+				Log_Info("BULLET SHOT\n");
+			}
 		}
 	}
 }
@@ -139,4 +146,9 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 bool Player_IsStunned(Player* player)
 {
 	return (player->stunTimer > mgdl_GetElapsedSeconds());
+}
+
+bool IsPointInsideRect(Rect rect, vec2 point)
+{
+	return point.x >= rect.x && point.x <= rect.x + rect.w && point.y >= rect.y && point.y <= rect.y + rect.h;
 }

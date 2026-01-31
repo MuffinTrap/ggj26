@@ -104,12 +104,13 @@ static void DrawMinimap()
 static void DrawDebugMenu()
 {
     mgdl_InitOrthoProjection();
+    glViewport(0, 0, mgdl_GetScreenWidth(), mgdl_GetScreenHeight());
 
     if (showMenu) { debugMenu->windowHeight = mgdl_GetScreenHeight()-8;} else { debugMenu->windowHeight = 64;}
 
     Menu_Start(debugMenu, 8, showMenu ?mgdl_GetScreenHeight()-8 : 64, 256);
         Menu_Toggle(debugMenu, showMenu ? "Hide" : "Show", &showMenu);
-    if (showMenu)
+    /*if (showMenu)
     {
 
         if (render2D.movePlayer)
@@ -200,7 +201,7 @@ static void DrawDebugMenu()
     }
     if (Menu_Button(debugMenu, "Reload map"))
     {
-        MapPlay_ReloadActiveMap();
+        //MapPlay_ReloadActiveMap();
     }
 
     Menu_Slider(debugMenu,"Player count", 0.1f, 4.0f, &playerAmountSlider);
@@ -225,13 +226,14 @@ static void DrawDebugMenu()
             Menu_TextF(debugMenu, "Controller %d", i);
         }
     }
+    */
     /*
     for(int i = 0; i< 10; i++)
     {
         Menu_TextF(debugMenu, "Wall %d x: %d -> %d", i, wallXPoints[i*2], wallXPoints[i*2+1]);
     }
-    */
-    }
+    
+    }*/
     Menu_DrawCursor(debugMenu);
 }
 
@@ -349,7 +351,7 @@ MapPlayResult MapPlay_Frame()
         {
             Gameplay_Update(&players[pi], activeMap);
             Gameplay_UpdateBullets(players, activePlayerAmount, activeMap);
-            Player_UpdateMove(&players[pi], mgdl_GetController(pi), &render2D, &renderGL, activeMap);
+            Player_UpdateMove(&players[pi], mgdl_GetController(pi), &render2D, &renderGL, activeMap, activePlayerAmount);
         }
         // TODO Ask Gameplay if game is over
         if (Gameplay_GetWinner() >= 0)
@@ -406,6 +408,8 @@ MapPlayResult MapPlay_Frame()
             glDisable(GL_DEPTH_TEST);
             glDisable(GL_CULL_FACE);
         glPopMatrix();
+
+        DrawDebugMenu();
 
     return MapPlayLoop;
 }

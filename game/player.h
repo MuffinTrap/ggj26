@@ -52,5 +52,6 @@ typedef struct Player Player;
 
 const float CONTROLLER_DEADZONE = 0.4f;
 
-void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings2D* settings2D, RenderSettingsOpenGL* settingsGL, DukeMap* map);
+void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings2D* settings2D, RenderSettingsOpenGL* settingsGL, DukeMap* map, int amountPlayers);
 bool Player_IsStunned(Player* player);
+bool IsPointInsideRect(Rect rect, vec2 point);
