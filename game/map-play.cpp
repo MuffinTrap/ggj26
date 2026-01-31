@@ -301,7 +301,7 @@ void MapPlay_StartMap(int mapIndex, int playerAmount)
     BuildRender_Init(activeMap, &renderGL);
     MapPlay_ResetPlayers();
     Map_InitPlayers(activeMap, players, activePlayerAmount);
-    Gameplay_Reset();
+    Gameplay_StartMap(activeMap);
 }
 
 Rect MapPlay_GetPlayerScreenRect(int playerIndex, int amountPlayers)

@@ -55,19 +55,21 @@ void Gameplay_Init()
 	sfxHitPlayer = mgdl_LoadSoundWav("assets/blipSelect.wav");
 	sfxHitPlayerWithMask = mgdl_LoadSoundWav("assets/blipSelect.wav");
 	sfxPickupMask = mgdl_LoadSoundWav("assets/blipSelect.wav");
-
-	Gameplay_Reset();
 }
 
-void Gameplay_Reset()
+void Gameplay_StartMap(DukeMap* map)
 {
 	winnerPlayerIndex = -1;
 
 	// TODO: Get treasure spawn from the map
-	treasure.render = true;
-	treasure.position = vec3New(1789.2f, -2048.0f, 525.3f);
-	treasure.sectorNumber = 3;
-	treasure.radius = 32.0f;
+	DSprite* treasureSprite = Map_FindSprite(map, TREASURE_LOTAG, 0);
+	if (treasureSprite)
+	{
+		treasure.render = true;
+		treasure.position = treasureSprite->position;
+		treasure.sectorNumber = treasureSprite->sectnum;
+		treasure.radius = 32.0f;
+	}
 
 	for (int i = 0; i < MAX_BULLET_AMOUNT; ++i)
 	{
