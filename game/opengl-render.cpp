@@ -10,11 +10,16 @@
 
 // OpenGL
 Texture* checkers;
+Texture* tex;
 GLUtesselator* tesselator = nullptr;
 bool tesselationActive = true;
 
 Texture* OpenGLRender_GetTexture(s16 picnum)
 {
+    if (picnum == 99)
+    {
+        return tex;
+    }
     return checkers;
 }
 
@@ -138,6 +143,8 @@ void OpenGLRender_Init()
         gluTessCallback(tesselator, GLU_TESS_ERROR, (_GLUfuncptr)tessError);
         gluTessCallback(tesselator, GLU_TESS_EDGE_FLAG, (_GLUfuncptr)tessEdgeFlag); // this makes tess only submit triangles
     }
+
+    tex = mgdl_LoadTexture("assets/tempBullet.png", Linear);
 
     if (vertexRingBuffer == nullptr)
     {
@@ -309,7 +316,6 @@ void OpenGLRender_DrawFloorOrCeiling(DukeMap* map, Sector* sector, bool floor)
 
 void OpenGLRender_DrawSprite(vec3 position, float width, float height, float spriteAngle, float playerAngle, SpriteAlignment alignment, SpritePivot pivot, s16 picnum)
 {
-
     glEnable(GL_TEXTURE_2D);
 	Texture* spriteTexture = OpenGLRender_GetTexture(picnum);
 	glBindTexture(GL_TEXTURE_2D, spriteTexture->textureId);
@@ -323,18 +329,32 @@ void OpenGLRender_DrawSprite(vec3 position, float width, float height, float spr
 
 	vec3 toRight = vec3Multiply(spriteDir, width/2);
 
-	vec3 bottomRight = vec3Add(position, toRight);
-	vec3 bottomLeft = vec3Subtract(position, toRight);
-	vec3 topLeft = vec3Add(bottomLeft, vec3Multiply(WORLD_UP, height));
-	vec3 topRight = vec3Add(bottomRight, vec3Multiply(WORLD_UP, height));
+    vec3 bottomRight, bottomLeft, topLeft, topRight;
+    if (pivot == Sprite_PivotCenter)
+    {
+        bottomRight = vec3Add(position, toRight);
+        bottomRight = vec3Add(bottomRight, vec3Multiply(WORLD_UP, -height / 2));
+        bottomLeft = vec3Subtract(position, toRight);
+        bottomLeft = vec3Add(bottomLeft, vec3Multiply(WORLD_UP, -height / 2));
+        topLeft = vec3Add(bottomLeft, vec3Multiply(WORLD_UP, height));
+        topRight = vec3Add(bottomRight, vec3Multiply(WORLD_UP, height));
+    }
+    else
+    {
+        bottomRight = vec3Add(position, toRight);
+        bottomLeft = vec3Subtract(position, toRight);
+        topLeft = vec3Add(bottomLeft, vec3Multiply(WORLD_UP, height));
+        topRight = vec3Add(bottomRight, vec3Multiply(WORLD_UP, height));
+    }
+
 	if (alignment == Sprite_FACE)
 	{
 		// These always face the player
-		OpenGLRender_SetColor(Color_Red);
+		//OpenGLRender_SetColor(Color_Red);
 	}
 	else if (alignment == Sprite_FLOOR)
 	{
-		OpenGLRender_SetColor(Color_Green);
+		//OpenGLRender_SetColor(Color_Green);
 
 		// Raise up to avoid Z fighting
 		// TODO position.y += pushOut;
@@ -352,7 +372,7 @@ void OpenGLRender_DrawSprite(vec3 position, float width, float height, float spr
 	}
 	else if (alignment == Sprite_WALL)
 	{
-		OpenGLRender_SetColor(Color_Blue);
+		//OpenGLRender_SetColor(Color_Blue);
 
 		// Push out of wall to avoid Z fight
 		vec3 spriteDir = Vec3XYZRotateY(WORLD_FORWARD, spriteAngle);
@@ -370,7 +390,7 @@ void OpenGLRender_DrawSprite(vec3 position, float width, float height, float spr
 	}
 
     glBegin(GL_QUADS);
-	glColor3f(0.5f, 0.0f, 0.0f);
+	//glColor3f(0.5f, 0.0f, 0.0f);
 	glTexCoord2f(0.0f, 0.0f);
 	glVertex3f(bottomLeft.x, bottomLeft.y, bottomLeft.z);
 	glTexCoord2f(1.0f, 0.0f);

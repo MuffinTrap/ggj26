@@ -122,9 +122,31 @@ void BuildRender_Init(DukeMap* map, RenderSettingsOpenGL* settings3D)
     OpenGLRender_Init();
 }
 
+void BuildRender_DrawTempSprites(DukeMap* map, Player* player, RenderSettingsOpenGL* settings)
+{
+    glColor3f(1.0f, 1.0f, 1.0f);
 
+    // Draw all the sprites from renderer sectors
+    for (int i = 0; i < TEMP_SPRITE_AMOUNT; i++)
+    {
+        DSprite* sprite = &tempSprites[i];
+        if (renderedSectorNames[sprite->sectnum] > 0)
+        {
+            // Keep the texture aspect correct
+            float scaleAspect = settings->scaleXZ / settings->scaleY;
 
+            // TODO xrepeat and yrepeat adjust the aspect
+            // The size comes from the size of the texture somehow
+            float spriteSize = settings->spriteDefaultWidth;
+            float spriteHeight = settings->spriteDefaultWidth * scaleAspect;
 
+            OpenGLRender_DrawSprite(sprite->position, spriteSize, spriteHeight,
+                Math_DukeAngleToRad(sprite->ang), player->angleRad,
+                Sprite_GetAlignment(sprite), Sprite_GetPivot(sprite),
+                sprite->picnum);
+        }
+    }
+}
 
 void BuildRender_DrawSprites(DukeMap* map, Player* player, RenderSettingsOpenGL* settings)
 {
@@ -173,7 +195,10 @@ void BuildRender_Draw3D(Player* player, DukeMap* map, RenderSettingsOpenGL* sett
     glPushMatrix();
     glScalef(settings->scaleXZ, settings->scaleY, settings->scaleXZ);
         BuildRender_DrawSectors(player, map, settings);
+        mgdl_glSetTransparency(true);
         BuildRender_DrawSprites(map, player, settings);
+        BuildRender_DrawTempSprites(map, player, settings);
+        mgdl_glSetTransparency(false);
     glPopMatrix();
 }
 

@@ -1,5 +1,6 @@
 #pragma once
 #include "dukemap.h"
+#include "gameplay.h"
 // Forward defs
 
 struct SectorRender
@@ -53,7 +54,7 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
 void BuildRender_Draw3D(Player* player, DukeMap* map, RenderSettingsOpenGL* settings);
 void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL* settings);
 void BuildRender_DrawSprites(DukeMap* map, Player* player, RenderSettingsOpenGL* settings);
-
+void BuildRender_DrawTempSprites(DukeMap* map, Player* player, RenderSettingsOpenGL* settings);
 
 void BuildRender_TesselationTest();
 

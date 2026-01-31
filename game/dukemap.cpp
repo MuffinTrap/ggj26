@@ -246,7 +246,7 @@ SpriteAlignment Sprite_GetAlignment(DSprite* sprite)
 }
 SpritePivot Sprite_GetPivot(DSprite* sprite)
 {
-    if (Flag_IsSet(sprite->cstat, (1<<7)))
+    if (Flag_IsSet(sprite->cstat, (1 << SPRITE_PIVOT_BIT)))
     {
         return Sprite_PivotCenter;
     }

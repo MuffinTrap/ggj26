@@ -110,6 +110,7 @@ enum SpriteAlignment
 };
 typedef enum SpriteAlignment SpriteAlignment;
 
+#define SPRITE_PIVOT_BIT 7
 enum SpritePivot
 {
     Sprite_PivotCenter, // Center is position

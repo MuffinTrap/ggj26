@@ -124,6 +124,7 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 			relativeScreenPosition.y -= 0.5f;
 			Log_InfoF("CURSOR X: %.2f Y: %.2f\n", relativeScreenPosition.x, relativeScreenPosition.y);
 			bulletDir.y -= relativeScreenPosition.y * 10.0f;
+			// TODO: Add cursor position to horizontal aiming
 
 			player->shotDirection = bulletDir;
 			Log_Info("BULLET SHOT\n");

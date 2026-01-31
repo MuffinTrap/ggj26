@@ -1,14 +1,19 @@
 #include "gameplay.h"
 
+// 0-31 bullets
+// 32 treasure
+DSprite tempSprites[TEMP_SPRITE_AMOUNT];
+
 void Gameplay_Init()
 {
 	for (int i = 0; i < TEMP_SPRITE_AMOUNT; ++i)
 	{
 		tempSprites[i].position = vec3(); // SET ON UPDATE
-		tempSprites[i].cstat = CSTAT_SPRITE_INVISIBLE;
+		tempSprites[i].cstat = Flag_Set(tempSprites[i].cstat, 1 << SPRITE_PIVOT_BIT);
+		tempSprites[i].cstat = Flag_Set(tempSprites[i].cstat, 1 << CSTAT_SPRITE_INVISIBLE);
 		if (i < MAX_BULLET_AMOUNT)
 		{
-			tempSprites[i].picnum = 0; // SET ON SPAWN, BULLET
+			tempSprites[i].picnum = 99; // SET ON SPAWN, BULLET
 		}
 		else if (i >= MAX_BULLET_AMOUNT)
 		{
@@ -65,7 +70,7 @@ void Gameplay_Update(Player* player, DukeMap* map)
 	if (!player->hasTreasure)
 	{
 		// Pick up treasure
-		if (SphereToSphereCollision(player->position, player->radius, treasure.position, treasure.radius))
+		if (Gameplay_SphereToSphereCollision(player->position, player->radius, treasure.position, treasure.radius))
 		{
 			player->hasTreasure = true;
 			treasure.render = false;
@@ -73,7 +78,7 @@ void Gameplay_Update(Player* player, DukeMap* map)
 	}
 	else // Return treasure check
 	{
-		if (SphereToSphereCollision(player->position, player->radius, treasureExit.position, treasureExit.radius))
+		if (Gameplay_SphereToSphereCollision(player->position, player->radius, treasureExit.position, treasureExit.radius))
 		{
 			// TODO: Game ends! This player wins!
 		}
@@ -81,13 +86,13 @@ void Gameplay_Update(Player* player, DukeMap* map)
 	
 	if (treasure.render)
 	{
-		tempSprites[MAX_BULLET_AMOUNT].cstat = CSTAT_SPRITE_NO_FLAGS;
+		tempSprites[MAX_BULLET_AMOUNT].cstat = Flag_Set(tempSprites[MAX_BULLET_AMOUNT].cstat, 1 << CSTAT_SPRITE_INVISIBLE);
 		tempSprites[MAX_BULLET_AMOUNT].position = treasure.position;
 		tempSprites[MAX_BULLET_AMOUNT].sectnum = treasure.sectorNumber;
 	}
 	else
 	{
-		tempSprites[MAX_BULLET_AMOUNT].cstat = CSTAT_SPRITE_INVISIBLE;
+		tempSprites[MAX_BULLET_AMOUNT].cstat = Flag_Unset(tempSprites[MAX_BULLET_AMOUNT].cstat, 1 << CSTAT_SPRITE_INVISIBLE);
 	}
 
 	// Update bullets
@@ -108,11 +113,11 @@ void Gameplay_Update(Player* player, DukeMap* map)
 				player->shotThisFrame = false;
 				Log_Info("BULLET SPAWNED\n");
 			}
-			tempSprites[i].cstat = CSTAT_SPRITE_INVISIBLE;
+			tempSprites[i].cstat = Flag_Set(tempSprites[i].cstat, 1 << CSTAT_SPRITE_INVISIBLE);
 		}
 		else
 		{
-			tempSprites[i].cstat = CSTAT_SPRITE_NO_FLAGS;
+			tempSprites[i].cstat = Flag_Unset(tempSprites[i].cstat, 1 << CSTAT_SPRITE_INVISIBLE);
 			tempSprites[i].position = bullets[i].position;
 			tempSprites[i].sectnum = bullets[i].sectorNumber;
 
@@ -128,7 +133,7 @@ void Gameplay_Update(Player* player, DukeMap* map)
 			MoveResult result = Map_MovePointInMap(map, point, endpoint, bullets[i].sectorNumber, &pointOut, &sectorOut);
 			bullets[i].position = vec3New(pointOut.x, movementEnd.y, pointOut.y);;
 			bullets[i].sectorNumber = sectorOut;
-			Log_InfoF("BULLET UPDATE SECTOR: %i X: %.2f Y: %.2f Z: %.2f TIME: %.2f \n", bullets[i].sectorNumber, bullets[i].position.x, bullets[i].position.y, bullets[i].position.z, bullets[i].timeAlive);
+			//Log_InfoF("BULLET UPDATE SECTOR: %i X: %.2f Y: %.2f Z: %.2f TIME: %.2f \n", bullets[i].sectorNumber, bullets[i].position.x, bullets[i].position.y, bullets[i].position.z, bullets[i].timeAlive);
 			bool hitFloor = bullets[i].position.y < Map_GetSectorFloorHeight(map, bullets[i].sectorNumber);
 			bool hitCeiling = bullets[i].position.y > Map_GetSectorCeilingHeight(map, bullets[i].sectorNumber);
 
@@ -153,7 +158,7 @@ void Gameplay_Update(Player* player, DukeMap* map)
 			{
 				if (bullets[i].playerNumber != j)
 				{
-					if (SphereToSphereCollision(bullets[i].position, bullets[i].radius, player->position, player->radius))
+					if (Gameplay_SphereToSphereCollision(bullets[i].position, bullets[i].radius, player->position, player->radius))
 					{
 						bullets[i].alive = false;
 
@@ -179,7 +184,7 @@ void Gameplay_Update(Player* player, DukeMap* map)
 	}
 }
 
-bool SphereToSphereCollision(vec3 pos1, float radius1, vec3 pos2, float radius2)
+bool Gameplay_SphereToSphereCollision(vec3 pos1, float radius1, vec3 pos2, float radius2)
 {
 	float distanceSquared =
 		pow(pos1.x - pos2.x, 2) +
