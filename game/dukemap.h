@@ -118,6 +118,12 @@ enum SpritePivot
 };
 typedef enum SpritePivot SpritePivot;
 
+enum SpriteLOTAG
+{
+    Sprite_LOTAG_Multiplayer_Start = 90
+};
+typedef enum SpriteLOTAG SpriteLOTAG;
+
 typedef struct DukeMap DukeMap;
 
 #ifdef __cplusplus
@@ -131,6 +137,7 @@ extern "C" {
 void Map_ConvertToGameUnits(DukeMap* map);
 void Map_PrintInfo(DukeMap* map);
 void Map_InitPlayer(DukeMap* map, Player* player);
+void Map_InitPlayers(DukeMap* map, Player* players, int playerAmount);
 
 Sector* Map_GetSector(DukeMap* map, s16 sectorNumber);
 s32 Map_GetSectorFloorHeight(DukeMap* map, s16 sectorNumber);
@@ -146,6 +153,14 @@ vec2 Map_GetWallNormal(DukeMap* map, Wall* w);
 SpriteAlignment Sprite_GetAlignment(DSprite* sprite);
 SpritePivot Sprite_GetPivot(DSprite* sprite);
 DSprite* Map_GetSprite(DukeMap* map, s16 spriteIndex);
+
+/**
+ * @brief Searches for and returns the first sprite with matching tags
+ * @param lotag Lotag of the sprite
+ * @param hitag Hitag of the sprite
+ * @return First matching sprite or nullptr if none found
+ */
+DSprite* Map_FindSprite(DukeMap* map, s16 lotag, s16 hitag);
 
 bool Map_IsPointInsideSectorOG(DukeMap* map, vec2 point, int sectorNumber);
 bool Map_IsPointInsideSectorRay(DukeMap* map, vec2 point, int sectorNumber);
