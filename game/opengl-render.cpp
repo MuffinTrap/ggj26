@@ -174,6 +174,24 @@ void OpenGLRender_Init()
     playerTexture = mgdl_LoadTexture("assets/tempPlayer.png", Linear);
     playerWithMaskTexture = mgdl_LoadTexture("assets/tempPlayerWithMask.png", Linear);
 
+    glEnable(GL_TEXTURE_2D);
+
+    glBindTexture(GL_TEXTURE_2D, bulletTexture->_font->_fontTexture->textureId);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    glBindTexture(GL_TEXTURE_2D, treasureTexture->_font->_fontTexture->textureId);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    glBindTexture(GL_TEXTURE_2D, playerTexture->textureId);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    glBindTexture(GL_TEXTURE_2D, playerWithMaskTexture->textureId);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
     if (vertexRingBuffer == nullptr)
     {
 #ifdef GEKKO
@@ -202,10 +220,6 @@ void DrawQuad(vec2 start, vec2 end, float floorY, float ceilingY, s16 picnum, Re
 
     // TODO Get texture that corresponds to picnum
     glBindTexture(GL_TEXTURE_2D, OpenGLRender_GetTexture(picnum)->textureId);
-
-    // TODO Do this just once when loading textures
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
     glBegin(GL_TRIANGLES);
         // Build Triangles for wall
