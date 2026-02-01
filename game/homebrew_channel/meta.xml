@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <app version="1">
-  <name>Example project</name>
-  <coder>YOU</coder>
+  <name>O ALASA</name>
+  <coder>Majoras Pants</coder>
   <version>1.0</version>
-  <release_date>20061119</release_date>
-  <short_description>mgdl example</short_description>
-  <long_description>Example project of the mgdl library
+  <release_date>2026201</release_date>
+  <short_description>Split-screen FPS</short_description>
+  <long_description>Steal the mask from other robots
    </long_description>
 </app>

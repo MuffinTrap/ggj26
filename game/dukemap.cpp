@@ -65,6 +65,35 @@ void Map_InitPlayer(DukeMap* map, Player* player)
     player->position.y = Map_GetSectorFloorHeight(map, map->startingSector);
 }
 
+void Map_FindIslandSectors(DukeMap* map)
+{
+    for (int i = 0; i < map->sectorAmount; i++)
+    {
+        Sector* S = &map->sectors[i];
+        //Log_InfoF("Sector n: %d Walls: %d first wall %d FloorZ %d CeilingZ %d\n", i, S->wallnum, S->wallptr, S->floory, S->ceilingy);
+        for (int wi = 0; wi < S->wallnum; wi++)
+        {
+            Wall* w = &map->walls[S->wallptr + wi];
+            Wall* w2 = &map->walls[w->point2];
+
+
+            /*
+            Log_InfoF("\tWall n: %d:(%d,%d) - %d:(%d,%d)\n",
+                      S->wallptr+wi, w->x, w->z,
+                      w->point2,    w2->x, w2->z);
+                      */
+
+
+            if (w->point2 == S->wallptr && wi < S->wallnum-1)
+            {
+                Log_InfoF("Sector %d has island\n", i);
+                Log_InfoF("Wall loop: %d - %d\n", S->wallptr+wi, w->point2);
+                S->extra = wi;
+            }
+        }
+    }
+}
+
 void Map_PrintInfo(DukeMap* map)
 {
     Log_InfoF("Duke Map Version:%d Start pos:(%.2f,%.2f,%.2f), Start angle:%d Start Sector:%d\n",
