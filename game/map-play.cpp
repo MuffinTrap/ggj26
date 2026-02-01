@@ -444,13 +444,14 @@ MapPlayResult MapPlay_Frame()
             glAlphaFunc(GL_GREATER, 0.3f);
 
             // Draw crosshair
+#ifdef MGDL_PLATFORM_WII
             vec2 cursorPosition = WiiController_GetCursorPosition(mgdl_GetController(pi));
             vec2 relativeScreenPosition = vec2New((cursorPosition.x - viewPort.x), (cursorPosition.y - viewPort.y));
             if (IsPointInsideRect(viewPort, cursorPosition))
             {
                 Texture_Draw2DAbsolute(crosshairTexture, relativeScreenPosition.x - 32, relativeScreenPosition.y - 32, relativeScreenPosition.x + 32, relativeScreenPosition.y + 32);
             }
-
+#endif
             // Draw mask
             if (players[pi].hasTreasure)
             {
