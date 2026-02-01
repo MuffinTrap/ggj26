@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\example.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\dukemapreader.h">
       <Filter>Source Files</Filter>
     </ClInclude>
@@ -63,9 +60,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\dukemath.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\example.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\main.cpp">

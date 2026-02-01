@@ -595,8 +595,7 @@ MapPlayResult MapPlay_Frame()
         }
         glDisable(GL_ALPHA_TEST);
         
-
-        DrawDebugMenu();
+        //DrawDebugMenu();
 
     return MapPlayLoop;
 }
