@@ -24,8 +24,8 @@
 const int MAX_BULLET_AMOUNT = 32;
 const float BULLET_SPEED = 2048.0f;
 const float BULLET_MAX_TIME_ALIVE = 5.0f;
-const float PLAYER_STUN_DURATION = 3.0f;
-const float PLAYER_STUN_DURATION_WITH_TREASURE = 6.0f;
+const float PLAYER_STUN_DURATION = 1.0f;
+const float PLAYER_STUN_DURATION_WITH_TREASURE = 3.0f;
 
 // 0-31 bullets
 // 32 treasure
