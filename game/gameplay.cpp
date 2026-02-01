@@ -5,7 +5,8 @@ int winnerPlayerIndex = -1;
 
 int shootSfxIndex = 0;
 Sound* sfxShoot[4];
-Sound* sfxHitWall;
+int wallSfxIndex = 0;
+Sound* sfxHitWall[3];
 Sound* sfxHitPlayer;
 Sound* sfxHitPlayerWithMask;
 Sound* sfxPickupMask;
@@ -56,7 +57,9 @@ void Gameplay_Init()
 	sfxShoot[1] = mgdl_LoadSoundWav("assets/shot1.wav");
 	sfxShoot[2] = mgdl_LoadSoundWav("assets/shot2.wav");
 	sfxShoot[3] = mgdl_LoadSoundWav("assets/shot3.wav");
-	sfxHitWall = mgdl_LoadSoundWav("assets/hitWall.wav");
+	sfxHitWall[0] = mgdl_LoadSoundWav("assets/hitWall0.wav");
+	sfxHitWall[1] = mgdl_LoadSoundWav("assets/hitWall1.wav");
+	sfxHitWall[2] = mgdl_LoadSoundWav("assets/hitWall2.wav");
 	sfxHitPlayer = mgdl_LoadSoundWav("assets/hit.wav");
 	sfxHitPlayerWithMask = mgdl_LoadSoundWav("assets/drop.wav");
 	sfxPickupMask = mgdl_LoadSoundWav("assets/getMask.wav");
@@ -211,7 +214,9 @@ void Gameplay_UpdateBullets(Player* players, int playerAmount, DukeMap* map)
 			{
 				Log_InfoF("BULLET HIT %s%s%s\n", (result == Move_HitWall) ? "WALL" : "", hitFloor ? "FLOOR" : "", hitCeiling ? "CEILING" : "");
 				bullets[i].alive = false;
-				Audio_PlaySound(sfxHitWall);
+				Audio_PlaySound(sfxHitWall[wallSfxIndex]);
+				wallSfxIndex++;
+				if (wallSfxIndex >= 3) wallSfxIndex = 0;
 			}
 
 			// Check bullet to player collisions
