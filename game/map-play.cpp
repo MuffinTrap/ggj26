@@ -273,7 +273,7 @@ void MapPlay_Init()
 
     // Load Maps
     allMapsArray = (DukeMap**)mgdl_AllocateGeneralMemory(sizeof(DukeMap**) * MAX_MAP_AMOUNT);
-    allMapsArray[0] = MapPlay_LoadMap("assets/Maps/GGJ26ModernWateringCan.map");
+    allMapsArray[0] = MapPlay_LoadMap("assets/Maps/GGJ26ModernWateringCanNoIslands.map");
     allMapsArray[1] = MapPlay_LoadMap("assets/Maps/GGJ26SmallTest1.map");
     loadedMapAmount = 2;
 

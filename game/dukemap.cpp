@@ -401,7 +401,7 @@ MoveResult Map_MovePointInMap(DukeMap* map, vec2 start, vec2 end, s16 sectorNumb
                     // Slide player along the wall
                     vec2 wstart = vec2New(w->x, w->z);
                     vec2 wend = vec2New(w2->x, w2->z);
-                    vec2 slideMove = Vec2Project( vec2Subtract(hitEnd, start), vec2Subtract(wend, wstart));
+                    vec2 slideMove = Vec2Project( vec2Subtract(end, start), vec2Subtract(wend, wstart));
                     vec2 slideEnd = vec2Add(hitEnd, slideMove);
                     bool stillInsideSector = Map_IsPointInsideSectorOG(map, slideEnd, sectorNumber);
                     if (stillInsideSector)

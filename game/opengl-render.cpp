@@ -163,7 +163,7 @@ void CALLBACK tessVertex(GLvoid* vertex, void* SectorPtr)
 }
 void CALLBACK tessCombine(GLdouble coords[3], GLdouble* vertex_data[4], GLfloat weight[4], GLdouble **dataOut)
 {
-    Log_InfoF("Tesselation combine vertex: %.2f, %.2f\n", coords[0], coords[2]);
+    //Log_InfoF("Tesselation combine vertex: %.2f, %.2f\n", coords[0], coords[2]);
     if (CombineBufferIndexDoubles + 6 >= COMBINE_BUFFER_SIZE_DOUBLES)
     {
         CombineBufferIndexDoubles = 0;
