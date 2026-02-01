@@ -394,7 +394,7 @@ void OpenGLRender_DrawWall(DukeMap* map, Wall* w, float floorY, float ceilingY, 
     else
     {
         // Draw the wall
-        glColor3f(0.5f, 0.5f, 0.5f);
+        //glColor3f(0.5f, 0.5f, 0.5f);
         DrawQuad(start, end, floorY, ceilingY, w->picnum, settings);
     }
 }
