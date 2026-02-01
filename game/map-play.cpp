@@ -33,6 +33,9 @@ static float dukeUnitsPerMetreXZ;
 static float dukeUnitsPerMetreY;
 static float texCoordPerMetre;
 
+Texture* maskTexture;
+Texture* crosshairTexture;
+
 static void InitRenderSettings3D()
 {
     dukeUnitsPerMetreXZ = 7.3f;// NOTE CHECKED
@@ -257,6 +260,10 @@ void MapPlay_Init()
     allMapsArray[2] = MapPlay_LoadMap("assets/Maps/GGJ26Test2.map");
     allMapsArray[3] = MapPlay_LoadMap("assets/Maps/tonnitesti.map");
     loadedMapAmount = 4;
+
+    // Load ui textures
+    maskTexture = mgdl_LoadTexture("assets/tempMask.png", Linear);
+    crosshairTexture = mgdl_LoadTexture("assets/crosshair.png", Linear);
 }
 
 void MapPlay_ResetPlayers()
@@ -416,6 +423,42 @@ MapPlayResult MapPlay_Frame()
             glDisable(GL_DEPTH_TEST);
             glDisable(GL_CULL_FACE);
         glPopMatrix();
+
+        for (int pi = 0; pi < activePlayerAmount; pi++)
+        {
+            Rect viewPort = MapPlay_GetPlayerScreenRect(pi, activePlayerAmount);
+            glViewport(viewPort.x, viewPort.y, viewPort.w, viewPort.h);
+
+            glMatrixMode(GL_PROJECTION);
+            glLoadIdentity();
+            // Y increases up : OpenGL default
+            gluOrtho2D(0.0, (double)viewPort.w, 0.0, (double)viewPort.h);
+
+            glMatrixMode(GL_MODELVIEW);
+            glLoadIdentity();
+            // NOTE: This is from the OpenGL red book. The purpose is to have the vertices
+            // in the middle of the screen pixels
+            glTranslatef(0.375f, 0.375f, 0.0f);
+
+            glEnable(GL_ALPHA_TEST);
+            glAlphaFunc(GL_GREATER, 0.3f);
+
+            // Draw crosshair
+            vec2 cursorPosition = WiiController_GetCursorPosition(mgdl_GetController(pi));
+            vec2 relativeScreenPosition = vec2New((cursorPosition.x - viewPort.x), (cursorPosition.y - viewPort.y));
+            if (IsPointInsideRect(viewPort, cursorPosition))
+            {
+                Texture_Draw2DAbsolute(crosshairTexture, relativeScreenPosition.x - 32, relativeScreenPosition.y - 32, relativeScreenPosition.x + 32, relativeScreenPosition.y + 32);
+            }
+
+            // Draw mask
+            if (players[pi].hasTreasure)
+            {
+                Texture_Draw2DAbsolute(maskTexture, 0, 0, viewPort.w, viewPort.h);
+            }
+        }
+        glDisable(GL_ALPHA_TEST);
+        
 
         DrawDebugMenu();
 
