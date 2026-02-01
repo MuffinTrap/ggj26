@@ -1,5 +1,6 @@
 #include "mainmenu.h"
 #include <mgdl.h>
+#include <mgdl/mgdl-main.h>
 
     static int playerAmount = 1;
     static int mapIndex = 0;
@@ -7,62 +8,64 @@
     static Menu* mapMenu;
     static Font* menuFont;
 
+    static Texture* betaText;
 
 void MainMenu_Init()
 {
-    // menuFont = mgdl_LoadFont()
-    menuFont = DefaultFont_GetDefaultFont();
-    mainMenu = Menu_Create(menuFont, 2, 1.2f);
-    mapMenu = Menu_Create(menuFont, 2, 1.2f);
+
+
+    betaText = mgdl_LoadTexture("assets/betamaze_36x36.png", Nearest);
+
+    menuFont =  Font_LoadSelective(betaText, 36, 36, 7, " \"(),.0123456789:;ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+    mainMenu = Menu_Create(menuFont, 2, 1.0f);
+    //mapMenu = Menu_Create(menuFont, 2, 1.2f);
     // TODO set colors etc
     // color ffbe03
+    Color4f orange = Color_HexToFloats(0xffbe03ff);
+    Color4f black = Color_HexToFloats(0x020202ff);
+    Color4f white = Color_HexToFloats(0xfffcfcfc);
+    mainMenu->bg = orange;
+    mainMenu->text = black;
+    mainMenu->highlight = white;
 
 }
 
 MainMenuResult MainMenu_Frame()
 {
+    Color4f orange = Color_HexToFloats(0xffbe03ff);
+    Color4f black = Color_HexToFloats(0x020202ff);
+    Color4f white = Color_HexToFloats(0xfffcfcfc);
+    Color4f grey = Color_HexToFloats(0xff4c4c4c);
+    mgdl_glClearColor4f(&orange);
     mgdl_InitOrthoProjection();
     glViewport(0, 0, mgdl_GetScreenWidth(), mgdl_GetScreenHeight());
-    Menu_Start(mainMenu, 0, mgdl_GetScreenHeight(), mgdl_GetScreenWidth()/2);
-    Menu_Text(mainMenu, "MAIN MENU");
+    Menu_Start(mainMenu, 36, mgdl_GetScreenHeight()-36, 36 * 2 * 5);
 
-    if (Menu_Button(mainMenu, "1 PLAYER"))
+    mainMenu->text = grey;
+    Menu_TextF(mainMenu, "JAN_%d", playerAmount);
+
+    mainMenu->text = black;
+    if (Menu_Button(mainMenu, "0   "))
     {
         playerAmount = 1;
     }
-   if (Menu_Button(mainMenu, "2 PLAYERS"))
+   if (Menu_Button(mainMenu, "00  "))
     {
         playerAmount = 2;
     }
-    if (Menu_Button(mainMenu, "3 PLAYERS"))
+    if (Menu_Button(mainMenu, "000 "))
     {
         playerAmount = 3;
     }
-    if (Menu_Button(mainMenu, "4 PLAYERS"))
+    if (Menu_Button(mainMenu, "0000"))
     {
         playerAmount = 4;
     }
-    Menu_TextF(mainMenu, "SELECTED %d", playerAmount);
 
-    if (Menu_Button(mainMenu, "START"))
+    if (Menu_Button(mainMenu, "ALASA"))
     {
         return MainMenuStartGame;
     }
-
-    Menu_Start(mapMenu, mgdl_GetScreenWidth()/2, mgdl_GetScreenHeight(), mgdl_GetScreenWidth()/2);
-    if (Menu_Button(mapMenu, "Map 1"))
-    {
-        mapIndex = 0;
-    }
-    if (Menu_Button(mapMenu, "Map 2"))
-    {
-        mapIndex = 1;
-    }
-    if (Menu_Button(mapMenu, "Map 3"))
-    {
-        mapIndex = 2;
-    }
-    Menu_TextF(mapMenu, "SELECTED %d", mapIndex + 1);
 
     Menu_DrawCursor(mainMenu);
 
@@ -76,5 +79,5 @@ int MainMenu_GetSelectedPlayerAmount()
 
 int MainMenu_GetSelectedMapIndex()
 {
-    return mapIndex;
+    return 0;
 }
