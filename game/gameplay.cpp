@@ -4,9 +4,9 @@ DSprite tempSprites[TEMP_SPRITE_AMOUNT];
 int winnerPlayerIndex = -1;
 
 int shootSfxIndex = 0;
-Sound* sfxShoot[4];
+Sound* sfxShoot[8];
 int wallSfxIndex = 0;
-Sound* sfxHitWall[3];
+Sound* sfxHitWall[8];
 Sound* sfxHitPlayer;
 Sound* sfxHitPlayerWithMask;
 Sound* sfxPickupMask;
@@ -57,9 +57,18 @@ void Gameplay_Init()
 	sfxShoot[1] = mgdl_LoadSoundWav("assets/shot1.wav");
 	sfxShoot[2] = mgdl_LoadSoundWav("assets/shot2.wav");
 	sfxShoot[3] = mgdl_LoadSoundWav("assets/shot3.wav");
+	sfxShoot[4] = mgdl_LoadSoundWav("assets/shot4.wav");
+	sfxShoot[5] = mgdl_LoadSoundWav("assets/shot5.wav");
+	sfxShoot[6] = mgdl_LoadSoundWav("assets/shot6.wav");
+	sfxShoot[7] = mgdl_LoadSoundWav("assets/shot7.wav");
 	sfxHitWall[0] = mgdl_LoadSoundWav("assets/hitWall0.wav");
 	sfxHitWall[1] = mgdl_LoadSoundWav("assets/hitWall1.wav");
 	sfxHitWall[2] = mgdl_LoadSoundWav("assets/hitWall2.wav");
+	sfxHitWall[3] = mgdl_LoadSoundWav("assets/hitWall3.wav");
+	sfxHitWall[4] = mgdl_LoadSoundWav("assets/hitWall4.wav");
+	sfxHitWall[5] = mgdl_LoadSoundWav("assets/hitWall5.wav");
+	sfxHitWall[6] = mgdl_LoadSoundWav("assets/hitWall6.wav");
+	sfxHitWall[7] = mgdl_LoadSoundWav("assets/hitWall7.wav");
 	sfxHitPlayer = mgdl_LoadSoundWav("assets/hit.wav");
 	sfxHitPlayerWithMask = mgdl_LoadSoundWav("assets/drop.wav");
 	sfxPickupMask = mgdl_LoadSoundWav("assets/getMask.wav");
@@ -173,7 +182,7 @@ void Gameplay_UpdateBullets(Player* players, int playerAmount, DukeMap* map)
 					players[j].shotThisFrame = false;
 					Audio_PlaySound(sfxShoot[shootSfxIndex]);
 					shootSfxIndex++;
-					if (shootSfxIndex >= 4) shootSfxIndex = 0;
+					if (shootSfxIndex >= 8) shootSfxIndex = 0;
 					Log_Info("BULLET SPAWNED\n");
 				}
 			}
@@ -216,7 +225,7 @@ void Gameplay_UpdateBullets(Player* players, int playerAmount, DukeMap* map)
 				bullets[i].alive = false;
 				Audio_PlaySound(sfxHitWall[wallSfxIndex]);
 				wallSfxIndex++;
-				if (wallSfxIndex >= 3) wallSfxIndex = 0;
+				if (wallSfxIndex >= 8) wallSfxIndex = 0;
 			}
 
 			// Check bullet to player collisions
