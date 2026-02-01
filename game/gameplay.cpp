@@ -3,7 +3,8 @@
 DSprite tempSprites[TEMP_SPRITE_AMOUNT];
 int winnerPlayerIndex = -1;
 
-Sound* sfxShoot;
+int shootSfxIndex = 0;
+Sound* sfxShoot[4];
 Sound* sfxHitWall;
 Sound* sfxHitPlayer;
 Sound* sfxHitPlayerWithMask;
@@ -51,11 +52,14 @@ void Gameplay_Init()
 		tempSprites[i].owner = 9;
 	}
 
-	sfxShoot = mgdl_LoadSoundWav("assets/blipSelect.wav");
-	sfxHitWall = mgdl_LoadSoundWav("assets/blipSelect.wav");
-	sfxHitPlayer = mgdl_LoadSoundWav("assets/blipSelect.wav");
-	sfxHitPlayerWithMask = mgdl_LoadSoundWav("assets/blipSelect.wav");
-	sfxPickupMask = mgdl_LoadSoundWav("assets/blipSelect.wav");
+	sfxShoot[0] = mgdl_LoadSoundWav("assets/shot0.wav");
+	sfxShoot[1] = mgdl_LoadSoundWav("assets/shot1.wav");
+	sfxShoot[2] = mgdl_LoadSoundWav("assets/shot2.wav");
+	sfxShoot[3] = mgdl_LoadSoundWav("assets/shot3.wav");
+	sfxHitWall = mgdl_LoadSoundWav("assets/hitWall.wav");
+	sfxHitPlayer = mgdl_LoadSoundWav("assets/hit.wav");
+	sfxHitPlayerWithMask = mgdl_LoadSoundWav("assets/drop.wav");
+	sfxPickupMask = mgdl_LoadSoundWav("assets/getMask.wav");
 }
 
 void Gameplay_StartMap(DukeMap* map)
@@ -164,7 +168,9 @@ void Gameplay_UpdateBullets(Player* players, int playerAmount, DukeMap* map)
 					bullets[i].sectorNumber = players[j].sectorNumber;
 					bullets[i].playerNumber = players[j].playerNumber;
 					players[j].shotThisFrame = false;
-					Audio_PlaySound(sfxShoot);
+					Audio_PlaySound(sfxShoot[shootSfxIndex]);
+					shootSfxIndex++;
+					if (shootSfxIndex >= 4) shootSfxIndex = 0;
 					Log_Info("BULLET SPAWNED\n");
 				}
 			}

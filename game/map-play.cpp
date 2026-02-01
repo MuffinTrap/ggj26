@@ -262,7 +262,7 @@ void MapPlay_Init()
     loadedMapAmount = 4;
 
     // Load ui textures
-    maskTexture = mgdl_LoadTexture("assets/tempMask.png", Linear);
+    maskTexture = mgdl_LoadTexture("assets/screen_mask_texture.png", Linear);
     crosshairTexture = mgdl_LoadTexture("assets/crosshair.png", Linear);
 }
 

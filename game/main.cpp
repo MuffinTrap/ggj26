@@ -26,6 +26,9 @@ void init()
     MapPlay_Init();
     Gameplay_Init();
 
+    Sound* music = mgdl_LoadSoundMp3("assets/music.mp3");
+    Audio_PlaySound(music);
+
     currentState = Game_MainMenu;
 }
 
