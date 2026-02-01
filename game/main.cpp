@@ -27,14 +27,14 @@ void init()
     Gameplay_Init();
 
     currentState = Game_MainMenu;
+
+    Color4f c = Palette_GetColor4f(Palette_GetDefault(), 0);
+    mgdl_glClearColor4f(&c);
 }
 
 
 void frame()
 {
-    Color4f c = Palette_GetColor4f(Palette_GetDefault(), 0);
-    mgdl_glClearColor4f(&c);
-
     // NOTE Use the mgdl_glClear to assure depth buffer working correctly on Wii
     mgdl_glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 

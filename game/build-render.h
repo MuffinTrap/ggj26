@@ -27,6 +27,13 @@ struct RenderSettings2D
     bool movePlayer;
     bool rotateMap;
     bool centerMapToPlayer;
+
+    int drawPlayersAmount; ///< How many players to draw
+    bool drawSectorNumbers; ///< Draw sector numbers in green if they are rendered
+    bool drawPortals; ///< Draw portal walls
+    bool drawNormals; ///< Draw wall normals
+    bool drawSprites; ///< Draw Sprites
+    bool drawTreasure; ///< Draws treasure sprite regardless of other sprites
 };
 typedef struct RenderSettings2D RenderSettings2D;
 
@@ -37,6 +44,7 @@ struct RenderSettingsOpenGL
     float textureScale;
     float spriteDefaultWidth;
     float spriteDefaultHeight;
+
 };
 typedef struct RenderSettingsOpenGL RenderSettingsOpenGL;
 
