@@ -92,9 +92,14 @@ void Gameplay_Update(Player* player, DukeMap* map)
 	tempSprites[index].position = player->position;
 	tempSprites[index].owner = player->playerNumber;
 	tempSprites[index].cstat = Flag_Unset(tempSprites[index].cstat, 1 << CSTAT_SPRITE_INVISIBLE);
+
 	if (Player_IsStunned(player))
 	{
 		tempSprites[index].picnum = PICNUM_PLAYER_SHOCK;
+	}
+	else if (mgdl_GetElapsedSeconds() < player->shootTimer - player->shootRate * 0.25f)
+	{
+		tempSprites[index].picnum = player->hasTreasure ? PICNUM_PLAYER_SHOOT_WITH_MASK : PICNUM_PLAYER_SHOOT;
 	}
 	else
 	{
