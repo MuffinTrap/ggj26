@@ -139,6 +139,7 @@ extern "C" {
      * @param map The map to convert.
      */
 void Map_ConvertToGameUnits(DukeMap* map);
+void Map_FindIslandSectors(DukeMap* map);
 void Map_PrintInfo(DukeMap* map);
 void Map_InitPlayer(DukeMap* map, Player* player);
 void Map_InitPlayers(DukeMap* map, Player* players, int playerAmount);

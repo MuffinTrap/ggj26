@@ -273,7 +273,7 @@ void MapPlay_Init()
 
     // Load Maps
     allMapsArray = (DukeMap**)mgdl_AllocateGeneralMemory(sizeof(DukeMap**) * MAX_MAP_AMOUNT);
-    allMapsArray[0] = MapPlay_LoadMap("assets/Maps/samulitesti.map");
+    allMapsArray[0] = MapPlay_LoadMap("assets/Maps/GGJ26ModernWateringCan.map");
     allMapsArray[1] = MapPlay_LoadMap("assets/Maps/GGJ26SmallTest1.map");
     loadedMapAmount = 2;
 
@@ -309,7 +309,7 @@ void MapPlay_ResetPlayers()
 DukeMap* MapPlay_LoadMap(const char* mapfile)
 {
     DukeMap* map = ReadMapFromFile(mapfile);
-    Map_PrintInfo(map);
+    Map_FindIslandSectors(map);
     return map;
 }
 
@@ -463,6 +463,8 @@ MapPlayResult MapPlay_Frame()
         WiiController* cameraC = mgdl_GetController(1);
         MoveEditorCamera(cameraC);
     }
+#   ifndef GEKKO
+// Fog just on PC
     if (useFog)
     {
         glEnable(GL_FOG);
@@ -475,6 +477,7 @@ MapPlayResult MapPlay_Frame()
         glFogf(GL_FOG_END, fogFar);
         glEnable(GL_BLEND);
     }
+#endif
 
     // Draw
         glPushMatrix();
@@ -550,10 +553,12 @@ MapPlayResult MapPlay_Frame()
             glDisable(GL_CULL_FACE);
         glPopMatrix();
 
+#       ifndef GEKKO
         if(useFog)
         {
             glDisable(GL_FOG);
         }
+#       endif
         for (int pi = 0; pi < activePlayerAmount; pi++)
         {
             Rect viewPort = MapPlay_GetPlayerScreenRect(pi, activePlayerAmount);

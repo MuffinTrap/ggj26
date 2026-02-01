@@ -454,16 +454,18 @@ void OpenGLRender_DrawFloorOrCeiling(DukeMap* map, Sector* sector, bool floor)
         int startingWall = sector->wallnum-1;
 
         //Log_InfoF("Tesselating sector:  extra %d\n", sector->extra);
-        if (sector->extra < 0)
+        if (true)
         {
-            //startingWall = sector->extra;
+            startingWall = sector->extra;
+            int contourStartPoint = sector->wallptr + sector->wallnum -1;
             // TODO If there are sectors inside sectors we need a much more complex
             // tesselation
             gluTessBeginPolygon(tesselator, sector);
 
             gluTessBeginContour(tesselator);
             //Log_InfoF("Tesselating sector %d start %d/%d\n", sector->lotag, startingWall, sector->wallnum);
-            for (s16 wi = startingWall; wi >= 0; wi--)
+
+            for (s16 wi = sector->wallnum-1; wi >= 0; wi--)
             {
                 Wall* w = Map_GetWallInSectorPtr(map, sector, wi);
 
@@ -477,6 +479,17 @@ void OpenGLRender_DrawFloorOrCeiling(DukeMap* map, Sector* sector, bool floor)
 
                 gluTessVertex(tesselator, &vertexRingBuffer[VertexBufferIndexDoubles], &vertexRingBuffer[VertexBufferIndexDoubles]);
                 VertexBufferIndexDoubles = (VertexBufferIndexDoubles + 3) % VERTEX_BUFFER_SIZE_DOUBLES;
+
+                // TODO
+                /*
+                // Check if contour was closed but sector is not
+                if (wi == startingWall)
+                {
+                    break;
+                    gluTessEndContour(tesselator);
+                    gluTessBeginContour(tesselator);
+                }
+                */
             }
             gluTessEndContour(tesselator);
             gluTessEndPolygon(tesselator);
