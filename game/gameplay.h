@@ -19,7 +19,7 @@
 #define PICNUM_WALL 216
 #define PICNUM_FLOOR 442
 #define PICNUM_CEILING 378
-#define PICNUM_EXIT 1
+#define PICNUM_EXIT 272
 
 const int MAX_BULLET_AMOUNT = 32;
 const float BULLET_SPEED = 2048.0f;
