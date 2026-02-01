@@ -25,6 +25,7 @@ Texture* floorDark;
 Texture* ceiling;
 Texture* ceilingDark;
 Texture* exitTexture;
+Texture* tileTexture;
 
 GLUtesselator* tesselator = nullptr;
 bool tesselationActive = true;
@@ -93,7 +94,7 @@ Texture* OpenGLRender_GetTexture(s16 picnum)
     {
         return exitTexture;
     }
-    return checkers;
+    return tileTexture;
 }
 
 void OpenGLRender_SetColor(DefaultColor oc)
@@ -253,6 +254,7 @@ void OpenGLRender_Init()
     ceiling = mgdl_LoadTexture("assets/378_tile_ceiling_light.png", Linear);
     ceilingDark = mgdl_LoadTexture("assets/379_tile_ceiling_dark.png", Linear);
     exitTexture = mgdl_LoadTexture("assets/exit_door.png", Linear);
+    tileTexture = mgdl_LoadTexture("assets/tile_vent_tunnel.png", Linear);
 
     glEnable(GL_TEXTURE_2D);
 
@@ -309,6 +311,10 @@ void OpenGLRender_Init()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
     glBindTexture(GL_TEXTURE_2D, exitTexture->textureId);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    glBindTexture(GL_TEXTURE_2D, tileTexture->textureId);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
