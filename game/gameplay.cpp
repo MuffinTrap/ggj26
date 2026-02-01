@@ -81,6 +81,8 @@ void Gameplay_StartMap(DukeMap* map)
 		bullets[i].direction = vec3();
 		bullets[i].radius = 128.0f;
 	}
+
+	SetDark(false);
 }
 
 void Gameplay_Update(Player* player, DukeMap* map)
@@ -117,6 +119,7 @@ void Gameplay_Update(Player* player, DukeMap* map)
 			Log_Info("PICK UP TREASURE\n");
 			player->hasTreasure = true;
 			treasure.render = false;
+			SetDark(true);
 			Audio_PlaySound(sfxPickupMask);
 		}
 	}

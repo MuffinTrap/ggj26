@@ -27,3 +27,5 @@ void OpenGLRender_AnimateSprites();
 Texture* OpenGLRender_GetTexture(s16 picnum);
 void OpenGLRender_SetColor(DefaultColor oc);
 void OpenGLRender_DrawDot(vec2 point, float size, DefaultColor color);
+
+void SetDark(bool newDark);

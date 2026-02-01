@@ -17,6 +17,14 @@ Sprite* playerWithMaskTexture;
 Sprite* playerShockTexture;
 Texture* playerShootTexture;
 Texture* playerShootWithMaskTexture;
+
+Texture* wall;
+Texture* wallDark;
+Texture* floorTexture;
+Texture* floorDark;
+Texture* ceiling;
+Texture* ceilingDark;
+
 GLUtesselator* tesselator = nullptr;
 bool tesselationActive = true;
 static RectF uvs;
@@ -26,6 +34,8 @@ float animationTimer = 0;
 
 GLfloat floorNormal[3];
 GLfloat ceilingNormal[3];
+
+static bool dark = false;
 
 Texture* OpenGLRender_GetTexture(s16 picnum)
 {
@@ -65,6 +75,18 @@ Texture* OpenGLRender_GetTexture(s16 picnum)
     else if (picnum == PICNUM_PLAYER_SHOOT_WITH_MASK)
     {
         return playerShootWithMaskTexture;
+    }
+    else if (picnum == PICNUM_WALL)
+    {
+        return dark ? wallDark : wall;
+    }
+    else if (picnum == PICNUM_FLOOR)
+    {
+        return dark ? floorDark : floorTexture;
+    }
+    else if (picnum == PICNUM_CEILING)
+    {
+        return dark ? ceilingDark : ceiling;
     }
     return checkers;
 }
@@ -219,6 +241,13 @@ void OpenGLRender_Init()
     playerShootTexture = mgdl_LoadTexture("assets/player_shoot.png", Linear);
     playerShootWithMaskTexture = mgdl_LoadTexture("assets/player_masked_shoot.png", Linear);
 
+    wall = mgdl_LoadTexture("assets/216_tile_wall_light.png", Linear);
+    wallDark = mgdl_LoadTexture("assets/217_tile_wall_dark.png", Linear);
+    floorTexture = mgdl_LoadTexture("assets/442_tile_floor_light.png", Linear);
+    floorDark = mgdl_LoadTexture("assets/443_tile_floor_dark.png", Linear);
+    ceiling = mgdl_LoadTexture("assets/378_tile_ceiling_light.png", Linear);
+    ceilingDark = mgdl_LoadTexture("assets/379_tile_ceiling_dark.png", Linear);
+
     glEnable(GL_TEXTURE_2D);
 
     glBindTexture(GL_TEXTURE_2D, bulletTexture->_font->_fontTexture->textureId);
@@ -246,6 +275,30 @@ void OpenGLRender_Init()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
     glBindTexture(GL_TEXTURE_2D, playerShootWithMaskTexture->textureId);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    glBindTexture(GL_TEXTURE_2D, wall->textureId);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    glBindTexture(GL_TEXTURE_2D, wallDark->textureId);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    glBindTexture(GL_TEXTURE_2D, floorTexture->textureId);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    glBindTexture(GL_TEXTURE_2D, floorDark->textureId);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    glBindTexture(GL_TEXTURE_2D, ceiling->textureId);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    glBindTexture(GL_TEXTURE_2D, ceilingDark->textureId);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
@@ -535,4 +588,9 @@ void OpenGLRender_DrawDot(vec2 point, float size, DefaultColor color)
 
     glVertex2i(point.x - size,point.y);
     glVertex2i(point.x,point.y - size);
+}
+
+void SetDark(bool newDark)
+{
+    dark = newDark;
 }

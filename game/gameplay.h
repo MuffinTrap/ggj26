@@ -4,6 +4,7 @@
 #include "player.h"
 #include "dukemap.h"
 #include "math.h"
+#include "opengl-render.h"
 
 #define CSTAT_SPRITE_INVISIBLE 15
 
@@ -14,6 +15,10 @@
 #define PICNUM_PLAYER_SHOCK 95
 #define PICNUM_PLAYER_SHOOT 94
 #define PICNUM_PLAYER_SHOOT_WITH_MASK 93
+
+#define PICNUM_WALL 216
+#define PICNUM_FLOOR 442
+#define PICNUM_CEILING 378
 
 const int MAX_BULLET_AMOUNT = 32;
 const float BULLET_SPEED = 2048.0f;
