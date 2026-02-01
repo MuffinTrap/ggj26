@@ -135,7 +135,6 @@
     <ClInclude Include="..\dukemap.h" />
     <ClInclude Include="..\dukemapreader.h" />
     <ClInclude Include="..\dukemath.h" />
-    <ClInclude Include="..\example.h" />
     <ClInclude Include="..\gameplay.h" />
     <ClInclude Include="..\mainmenu.h" />
     <ClInclude Include="..\map-play.h" />
@@ -148,7 +147,6 @@
     <ClCompile Include="..\dukemap.cpp" />
     <ClCompile Include="..\dukemapreader.cpp" />
     <ClCompile Include="..\dukemath.cpp" />
-    <ClCompile Include="..\example.cpp" />
     <ClCompile Include="..\gameplay.cpp" />
     <ClCompile Include="..\main.cpp" />
     <ClCompile Include="..\mainmenu.cpp" />

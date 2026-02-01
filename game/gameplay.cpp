@@ -85,20 +85,20 @@ void Gameplay_StartMap(DukeMap* map)
 		treasure.render = true;
 		treasure.position = treasureSprite->position;
 		treasure.sectorNumber = treasureSprite->sectnum;
-		treasure.radius = 800.0f;
+		treasure.radius = 100.0f;
 	}
 
 	DSprite* p1Spawn = Map_FindSprite(map, SPAWN_LOTAG, 0);
-	if (p1Spawn) treasureSprite->cstat = Flag_Set(treasureSprite->cstat, 1 << CSTAT_SPRITE_INVISIBLE);
+	if (p1Spawn) p1Spawn->cstat = Flag_Set(p1Spawn->cstat, 1 << CSTAT_SPRITE_INVISIBLE);
 
 	DSprite* p2Spawn = Map_FindSprite(map, SPAWN_LOTAG, 1);
-	if (p2Spawn) treasureSprite->cstat = Flag_Set(treasureSprite->cstat, 1 << CSTAT_SPRITE_INVISIBLE);
+	if (p2Spawn) p2Spawn->cstat = Flag_Set(p2Spawn->cstat, 1 << CSTAT_SPRITE_INVISIBLE);
 
 	DSprite* p3Spawn = Map_FindSprite(map, SPAWN_LOTAG, 2);
-	if (p3Spawn) treasureSprite->cstat = Flag_Set(treasureSprite->cstat, 1 << CSTAT_SPRITE_INVISIBLE);
+	if (p3Spawn) p3Spawn->cstat = Flag_Set(p3Spawn->cstat, 1 << CSTAT_SPRITE_INVISIBLE);
 
 	DSprite* p4Spawn = Map_FindSprite(map, SPAWN_LOTAG, 3);
-	if (p4Spawn) treasureSprite->cstat = Flag_Set(treasureSprite->cstat, 1 << CSTAT_SPRITE_INVISIBLE);
+	if (p4Spawn) p4Spawn->cstat = Flag_Set(p4Spawn->cstat, 1 << CSTAT_SPRITE_INVISIBLE);
 
 	for (int i = 0; i < MAX_BULLET_AMOUNT; ++i)
 	{
@@ -277,7 +277,7 @@ bool Gameplay_SphereToSphereCollision(vec3 pos1, float radius1, vec3 pos2, float
 {
 	float distanceSquared =
 		pow(pos1.x - pos2.x, 2) +
-		pow(pos1.y - pos2.y, 2) +
+		//pow(pos1.y - pos2.y, 2) +
 		pow(pos1.z - pos2.z, 2);
 	float radiusSum = radius1 + radius2;
 	return distanceSquared <= (radiusSum * radiusSum);
