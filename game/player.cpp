@@ -96,10 +96,10 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 	// Shooting, when trigger is pressed, cursor is within viewport and shoot timer is ok
 	vec2 cursorPosition = WiiController_GetCursorPosition(controller);
 	Rect screenRect = MapPlay_GetPlayerScreenRect(player->playerNumber, amountPlayers);
+#ifdef MGDL_PLATFORM_WII
 	if (IsPointInsideRect(screenRect, cursorPosition))
 	{
-		// TODO: Draw crosshair
-
+#endif
 		if (WiiController_ButtonHeld(controller, ButtonB))
 		{
 			if (mgdl_GetElapsedSeconds() > player->shootTimer)
@@ -127,6 +127,7 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 				// Initial direction, without cursor addon
 				vec3 bulletDir = vec3New(player->direction.x, 0.0f, player->direction.y);
 
+#ifdef MGDL_PLATFORM_WII
 				// Horizontal addon
 				vec3 bulletRight = vec3CrossProduct(WORLD_UP, vec3Normalize(bulletDir));
 				bulletRight = vec3Multiply(bulletRight, -relativeScreenPosition.x * 2.0f);
@@ -134,13 +135,15 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 
 				// Vertical addon
 				bulletDir.y -= relativeScreenPosition.y * 20.0f;
-
+#endif
 				// Final direction
 				player->shotDirection = bulletDir;
 				Log_Info("BULLET SHOT\n");
 			}
 		}
+#ifdef MGDL_PLATFORM_WII
 	}
+#endif
 }
 
 bool Player_IsStunned(Player* player)

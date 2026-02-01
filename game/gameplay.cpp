@@ -3,8 +3,10 @@
 DSprite tempSprites[TEMP_SPRITE_AMOUNT];
 int winnerPlayerIndex = -1;
 
-Sound* sfxShoot;
-Sound* sfxHitWall;
+int shootSfxIndex = 0;
+Sound* sfxShoot[8];
+int wallSfxIndex = 0;
+Sound* sfxHitWall[8];
 Sound* sfxHitPlayer;
 Sound* sfxHitPlayerWithMask;
 Sound* sfxPickupMask;
@@ -23,6 +25,7 @@ void Gameplay_Init()
 		}
 		else if (i == MAX_BULLET_AMOUNT)
 		{
+			tempSprites[i].cstat = Flag_Unset(tempSprites[i].cstat, 1 << SPRITE_PIVOT_BIT);
 			tempSprites[i].picnum = PICNUM_TREASURE;
 			tempSprites[i].extra = 400.0f;
 		}
@@ -50,11 +53,25 @@ void Gameplay_Init()
 		tempSprites[i].owner = 9;
 	}
 
-	sfxShoot = mgdl_LoadSoundWav("assets/blipSelect.wav");
-	sfxHitWall = mgdl_LoadSoundWav("assets/blipSelect.wav");
-	sfxHitPlayer = mgdl_LoadSoundWav("assets/blipSelect.wav");
-	sfxHitPlayerWithMask = mgdl_LoadSoundWav("assets/blipSelect.wav");
-	sfxPickupMask = mgdl_LoadSoundWav("assets/blipSelect.wav");
+	sfxShoot[0] = mgdl_LoadSoundWav("assets/shot0.wav");
+	sfxShoot[1] = mgdl_LoadSoundWav("assets/shot1.wav");
+	sfxShoot[2] = mgdl_LoadSoundWav("assets/shot2.wav");
+	sfxShoot[3] = mgdl_LoadSoundWav("assets/shot3.wav");
+	sfxShoot[4] = mgdl_LoadSoundWav("assets/shot4.wav");
+	sfxShoot[5] = mgdl_LoadSoundWav("assets/shot5.wav");
+	sfxShoot[6] = mgdl_LoadSoundWav("assets/shot6.wav");
+	sfxShoot[7] = mgdl_LoadSoundWav("assets/shot7.wav");
+	sfxHitWall[0] = mgdl_LoadSoundWav("assets/hitWall0.wav");
+	sfxHitWall[1] = mgdl_LoadSoundWav("assets/hitWall1.wav");
+	sfxHitWall[2] = mgdl_LoadSoundWav("assets/hitWall2.wav");
+	sfxHitWall[3] = mgdl_LoadSoundWav("assets/hitWall3.wav");
+	sfxHitWall[4] = mgdl_LoadSoundWav("assets/hitWall4.wav");
+	sfxHitWall[5] = mgdl_LoadSoundWav("assets/hitWall5.wav");
+	sfxHitWall[6] = mgdl_LoadSoundWav("assets/hitWall6.wav");
+	sfxHitWall[7] = mgdl_LoadSoundWav("assets/hitWall7.wav");
+	sfxHitPlayer = mgdl_LoadSoundWav("assets/hit.wav");
+	sfxHitPlayerWithMask = mgdl_LoadSoundWav("assets/drop.wav");
+	sfxPickupMask = mgdl_LoadSoundWav("assets/getMask.wav");
 }
 
 void Gameplay_StartMap(DukeMap* map)
@@ -68,7 +85,7 @@ void Gameplay_StartMap(DukeMap* map)
 		treasure.render = true;
 		treasure.position = treasureSprite->position;
 		treasure.sectorNumber = treasureSprite->sectnum;
-		treasure.radius = 32.0f;
+		treasure.radius = 800.0f;
 	}
 
 	for (int i = 0; i < MAX_BULLET_AMOUNT; ++i)
@@ -80,6 +97,8 @@ void Gameplay_StartMap(DukeMap* map)
 		bullets[i].direction = vec3();
 		bullets[i].radius = 128.0f;
 	}
+
+	SetDark(false);
 }
 
 void Gameplay_Update(Player* player, DukeMap* map)
@@ -91,9 +110,14 @@ void Gameplay_Update(Player* player, DukeMap* map)
 	tempSprites[index].position = player->position;
 	tempSprites[index].owner = player->playerNumber;
 	tempSprites[index].cstat = Flag_Unset(tempSprites[index].cstat, 1 << CSTAT_SPRITE_INVISIBLE);
+
 	if (Player_IsStunned(player))
 	{
 		tempSprites[index].picnum = PICNUM_PLAYER_SHOCK;
+	}
+	else if (mgdl_GetElapsedSeconds() < player->shootTimer - player->shootRate * 0.25f)
+	{
+		tempSprites[index].picnum = player->hasTreasure ? PICNUM_PLAYER_SHOOT_WITH_MASK : PICNUM_PLAYER_SHOOT;
 	}
 	else
 	{
@@ -111,6 +135,7 @@ void Gameplay_Update(Player* player, DukeMap* map)
 			Log_Info("PICK UP TREASURE\n");
 			player->hasTreasure = true;
 			treasure.render = false;
+			SetDark(true);
 			Audio_PlaySound(sfxPickupMask);
 		}
 	}
@@ -155,7 +180,9 @@ void Gameplay_UpdateBullets(Player* players, int playerAmount, DukeMap* map)
 					bullets[i].sectorNumber = players[j].sectorNumber;
 					bullets[i].playerNumber = players[j].playerNumber;
 					players[j].shotThisFrame = false;
-					Audio_PlaySound(sfxShoot);
+					Audio_PlaySound(sfxShoot[shootSfxIndex]);
+					shootSfxIndex++;
+					if (shootSfxIndex >= 8) shootSfxIndex = 0;
 					Log_Info("BULLET SPAWNED\n");
 				}
 			}
@@ -196,7 +223,9 @@ void Gameplay_UpdateBullets(Player* players, int playerAmount, DukeMap* map)
 			{
 				Log_InfoF("BULLET HIT %s%s%s\n", (result == Move_HitWall) ? "WALL" : "", hitFloor ? "FLOOR" : "", hitCeiling ? "CEILING" : "");
 				bullets[i].alive = false;
-				Audio_PlaySound(sfxHitWall);
+				Audio_PlaySound(sfxHitWall[wallSfxIndex]);
+				wallSfxIndex++;
+				if (wallSfxIndex >= 8) wallSfxIndex = 0;
 			}
 
 			// Check bullet to player collisions
