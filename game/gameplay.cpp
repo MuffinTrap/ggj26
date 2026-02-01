@@ -88,6 +88,18 @@ void Gameplay_StartMap(DukeMap* map)
 		treasure.radius = 800.0f;
 	}
 
+	DSprite* p1Spawn = Map_FindSprite(map, SPAWN_LOTAG, 0);
+	if (p1Spawn) treasureSprite->cstat = Flag_Set(treasureSprite->cstat, 1 << CSTAT_SPRITE_INVISIBLE);
+
+	DSprite* p2Spawn = Map_FindSprite(map, SPAWN_LOTAG, 1);
+	if (p2Spawn) treasureSprite->cstat = Flag_Set(treasureSprite->cstat, 1 << CSTAT_SPRITE_INVISIBLE);
+
+	DSprite* p3Spawn = Map_FindSprite(map, SPAWN_LOTAG, 2);
+	if (p3Spawn) treasureSprite->cstat = Flag_Set(treasureSprite->cstat, 1 << CSTAT_SPRITE_INVISIBLE);
+
+	DSprite* p4Spawn = Map_FindSprite(map, SPAWN_LOTAG, 3);
+	if (p4Spawn) treasureSprite->cstat = Flag_Set(treasureSprite->cstat, 1 << CSTAT_SPRITE_INVISIBLE);
+
 	for (int i = 0; i < MAX_BULLET_AMOUNT; ++i)
 	{
 		bullets[i].sectorNumber = 0;

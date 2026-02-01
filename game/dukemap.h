@@ -126,6 +126,7 @@ typedef enum SpriteLOTAG SpriteLOTAG;
 
 #define LEVEL_END_LOTAG 65535
 #define TREASURE_LOTAG 100
+#define SPAWN_LOTAG 90
 
 typedef struct DukeMap DukeMap;
 
