@@ -10,6 +10,8 @@
 
     static Texture* betaText;
 
+    static Sound* music;
+
 void MainMenu_Init()
 {
 
@@ -28,6 +30,7 @@ void MainMenu_Init()
     mainMenu->text = black;
     mainMenu->highlight = white;
 
+        music = mgdl_LoadSoundMp3("assets/music.mp3");
 }
 
 MainMenuResult MainMenu_Frame()
@@ -39,34 +42,40 @@ MainMenuResult MainMenu_Frame()
     mgdl_glClearColor4f(&orange);
     mgdl_InitOrthoProjection();
     glViewport(0, 0, mgdl_GetScreenWidth(), mgdl_GetScreenHeight());
+
+    mainMenu->font = menuFont;
     Menu_Start(mainMenu, 36, mgdl_GetScreenHeight()-36, 36 * 2 * 5);
 
-    mainMenu->text = grey;
+    //mainMenu->text = grey;
     Menu_TextF(mainMenu, "JAN_%d", playerAmount);
 
-    mainMenu->text = black;
-    if (Menu_Button(mainMenu, "0   "))
+    //mainMenu->text = black;
+    if (Menu_Button(mainMenu, "0   ")|| WiiController_ButtonPress(mgdl_GetController(0), ButtonA))
     {
         playerAmount = 1;
     }
-   if (Menu_Button(mainMenu, "00  "))
+   if (Menu_Button(mainMenu, "00  ")|| WiiController_ButtonPress(mgdl_GetController(1), ButtonA))
     {
         playerAmount = 2;
     }
-    if (Menu_Button(mainMenu, "000 "))
+    if (Menu_Button(mainMenu, "000 ")|| WiiController_ButtonPress(mgdl_GetController(2), ButtonA))
     {
         playerAmount = 3;
     }
-    if (Menu_Button(mainMenu, "0000"))
+    if (Menu_Button(mainMenu, "0000") || WiiController_ButtonPress(mgdl_GetController(3), ButtonA))
     {
         playerAmount = 4;
     }
 
-    if (Menu_Button(mainMenu, "ALASA"))
+    if (Menu_Button(mainMenu, "ALASA") ||WiiController_ButtonPress(mgdl_GetController(3), ButtonB) )
     {
+
+        Audio_PlaySound(music);
+        Log_Info("Start!");
         return MainMenuStartGame;
     }
 
+    mainMenu->font = DefaultFont_GetDefaultFont();
     Menu_DrawCursor(mainMenu);
 
     return MainMenuLoop;
