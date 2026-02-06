@@ -47,6 +47,10 @@ OpenGL piirtäminen
 		Seinän tesselointi: jaa quad aina 4 pienempään kunnes koko on tarpeeksi pieni. Jaa kolmioiksi ja piirrä. Voi jakaa aina kahdella >>1 ja käyttää samaa suuntavektoria joka osoittaa nurkasta quadin keskelle
 	Seinän kuva voi olla tekstuuri tai verteksien piirtämistä : Piirtoalue ja kuvan numero annetaan
 
+#   // Islands
+	Minimap kuvassa piirrä island verteksien numerot poispäin sektorin keskipisteestä
+	niin sisemmän sektorin pisteet näkyvät myös
+
 Seinien, sektorien ja spritejen tiedot
 	Tee omat tiedostot jotka kääntävät cstat ja muut stat arvot enumeiksi
 
