@@ -201,10 +201,10 @@ void BuildRender_Draw3D(Player* player, DukeMap* map, RenderSettingsOpenGL* sett
     glScalef(settings->scaleXZ, settings->scaleY, settings->scaleXZ);
         OpenGLRender_StartDrawingPolygons();
             BuildRender_DrawSectors(player, map, settings);
-            mgdl_glSetTransparency(true);
+            //mgdl_glSetTransparency(true);
             BuildRender_DrawSprites(map, player, settings);
             BuildRender_DrawTempSprites(map, player, settings);
-            mgdl_glSetTransparency(false);
+            //mgdl_glSetTransparency(false);
         OpenGLRender_EndDrawingPolygons();
     glPopMatrix();
 }

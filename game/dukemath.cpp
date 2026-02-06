@@ -61,9 +61,10 @@ vec3 Vec3XYZRotateY(vec3 p, float angle)
 
 	float sin_a = sin(angle);
 	float cos_a = cos(angle);
-	float xt = p.x * cos_a + p.y*sin_a;
-	float zt = p.x *-sin_a + p.y*cos_a;
-    return vec3New(xt, p.y, zt);
+	float xt = p.x * cos_a + p.z*sin_a;
+	float yt = p.y;
+	float zt = p.x *-sin_a + p.z*cos_a;
+    return vec3New(xt, yt, zt);
 }
 
 /*

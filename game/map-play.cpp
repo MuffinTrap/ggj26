@@ -297,6 +297,7 @@ void MapPlay_Init()
 
     // Load Maps
     allMapsArray = (DukeMap**)mgdl_AllocateGeneralMemory(sizeof(DukeMap**) * MAX_MAP_AMOUNT);
+    LoadMapFile("assets/Maps/tonnitesti.map");
     LoadMapFile("assets/Maps/islandtest.map");
     LoadMapFile("assets/Maps/GGJ26ModernWateringCanNoIslands.map");
     LoadMapFile("assets/Maps/GGJ26SmallTest1.map");

@@ -146,6 +146,12 @@ RectF SetPicnum_GetUVoffset(s16 picnum)
             return zeroOffset;
         }
         break;
+        case -1:
+        {
+            SetTexture(checkers->textureId);
+            return zeroOffset;
+        }
+        break;
         default:
 
             SetTexture(tileTexture->textureId);
@@ -444,6 +450,8 @@ void OpenGLRender_Init()
     SetWrap( exitTexture->textureId);
 
     SetWrap( tileTexture->textureId);
+    SetWrap( checkers->textureId);
+
 
 }
 
@@ -621,27 +629,32 @@ void OpenGLRender_DrawSprite(vec3 position, float width, float height, float spr
 
 	if (alignment == Sprite_FACE)
 	{
-		spriteAngle = playerAngle + M_PI_2;
+		spriteAngle = playerAngle + Deg2Rad(180);
 	}
 
-	vec3 spriteDir = Vec3XYZRotateY(WORLD_FORWARD, spriteAngle);
+	vec3 spriteForward = Vec3XYZRotateY(WORLD_FORWARD, spriteAngle);
+	vec3 spriteRight = Vec3XYZRotateY(spriteForward, -M_PI_2);
 
-	vec3 toRight = vec3Multiply(spriteDir, width/2);
+    // This sprite is facing the player,
+    // so sprite right is on the left side when looking
+    // from the player
+	vec3 toRight = vec3Multiply(spriteRight, width/2);
 
+    // These are from player's point of view
     vec3 bottomRight, bottomLeft, topLeft, topRight;
     if (pivot == Sprite_PivotCenter)
     {
-        bottomRight = vec3Add(position, toRight);
+        bottomRight = vec3Subtract(position, toRight);
         bottomRight = vec3Add(bottomRight, vec3Multiply(WORLD_UP, -height / 2));
-        bottomLeft = vec3Subtract(position, toRight);
+        bottomLeft = vec3Add(position, toRight);
         bottomLeft = vec3Add(bottomLeft, vec3Multiply(WORLD_UP, -height / 2));
         topLeft = vec3Add(bottomLeft, vec3Multiply(WORLD_UP, height));
         topRight = vec3Add(bottomRight, vec3Multiply(WORLD_UP, height));
     }
     else
     {
-        bottomRight = vec3Add(position, toRight);
-        bottomLeft = vec3Subtract(position, toRight);
+        bottomRight = vec3Subtract(position, toRight);
+        bottomLeft = vec3Add(position, toRight);
         topLeft = vec3Add(bottomLeft, vec3Multiply(WORLD_UP, height));
         topRight = vec3Add(bottomRight, vec3Multiply(WORLD_UP, height));
     }
@@ -659,15 +672,10 @@ void OpenGLRender_DrawSprite(vec3 position, float width, float height, float spr
 		// TODO position.y += pushOut;
 
 		// Calculate four carpet corners
-		vec3 toLeft = Vec3XYZRotateY(spriteDir, M_PI_2);
-		// bl = pos + left + forward
-		bottomLeft = vec3Add(position, vec3Add( vec3Multiply(toLeft, width/2), vec3Multiply(spriteDir, width/2)));
-		// br = pos - left + forward
-		bottomRight = vec3Add(position, vec3Add( vec3Multiply(toLeft, -width/2), vec3Multiply(spriteDir, width/2)));
-		// tl = pos + left - forward
-		topLeft = vec3Add(position, vec3Add( vec3Multiply(toLeft, width/2), vec3Multiply(spriteDir, -width/2)));
-		// tr = pos - left - forward
-		topRight = vec3Add(position, vec3Add( vec3Multiply(toLeft, -width/2), vec3Multiply(spriteDir, -width/2)));
+		bottomLeft = vec3Add(position, vec3Add( vec3Multiply(spriteRight, -width/2), vec3Multiply(spriteForward, -width/2)));
+		bottomRight = vec3Add(position, vec3Add( vec3Multiply(spriteRight, width/2), vec3Multiply(spriteForward, -width/2)));
+		topLeft = vec3Add(position, vec3Add( vec3Multiply(spriteRight, -width/2), vec3Multiply(spriteForward, width/2)));
+		topRight = vec3Add(position, vec3Add( vec3Multiply(spriteRight, width/2), vec3Multiply(spriteForward, width/2)));
 	}
 	else if (alignment == Sprite_WALL)
 	{
@@ -688,7 +696,7 @@ void OpenGLRender_DrawSprite(vec3 position, float width, float height, float spr
 		topRight = vec3Add(bottomRight, vec3Multiply(WORLD_UP, height));
 	}
 
-	BeginPolygon(spriteDir, SetPicnum_GetUVoffset(picnum), brightnessOffset);
+	BeginPolygon(spriteForward, SetPicnum_GetUVoffset(picnum), BrightnessOffsetToColor(brightnessOffset));
 
 	BufferVertex(bottomLeft.x, bottomLeft.y, bottomLeft.z, 0.0f, 0.0f);
 	BufferVertex(bottomRight.x, bottomRight.y, bottomRight.z, 1.0f, 0.0f);
