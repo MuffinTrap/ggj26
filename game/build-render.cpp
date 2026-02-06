@@ -145,7 +145,7 @@ void BuildRender_DrawTempSprites(DukeMap* map, Player* player, RenderSettingsOpe
             OpenGLRender_DrawSprite(sprite->position, spriteSize, spriteHeight,
                 Math_DukeAngleToRad(sprite->ang), player->angleRad,
                 Sprite_GetAlignment(sprite), Sprite_GetPivot(sprite),
-                sprite->picnum);
+                sprite->picnum, sprite->shade);
         }
     }
 
@@ -190,7 +190,7 @@ void BuildRender_DrawSprites(DukeMap* map, Player* player, RenderSettingsOpenGL*
             OpenGLRender_DrawSprite(sprite->position, spriteSize, spriteHeight,
                                     Math_DukeAngleToRad(sprite->ang), player->angleRad,
                                     al , Sprite_GetPivot(sprite),
-                                    sprite->picnum);
+                                    sprite->picnum, sprite->shade);
         }
     }
 }
@@ -199,11 +199,13 @@ void BuildRender_Draw3D(Player* player, DukeMap* map, RenderSettingsOpenGL* sett
 {
     glPushMatrix();
     glScalef(settings->scaleXZ, settings->scaleY, settings->scaleXZ);
-        BuildRender_DrawSectors(player, map, settings);
-        mgdl_glSetTransparency(true);
-        BuildRender_DrawSprites(map, player, settings);
-        BuildRender_DrawTempSprites(map, player, settings);
-        mgdl_glSetTransparency(false);
+        OpenGLRender_StartDrawingPolygons();
+            BuildRender_DrawSectors(player, map, settings);
+            mgdl_glSetTransparency(true);
+            BuildRender_DrawSprites(map, player, settings);
+            BuildRender_DrawTempSprites(map, player, settings);
+            mgdl_glSetTransparency(false);
+        OpenGLRender_EndDrawingPolygons();
     glPopMatrix();
 }
 
@@ -288,8 +290,10 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
             // endZ.x = end.x * player_sin - end.y * player_cos;
             // endZ.z = end.x * player_cos + end.y * player_sin;
             // Is the wall behind player?
-            if(startZ.y <= 0 && endZ.y <= 0)
+            // Behind is positive Z
+            if(startZ.y >= 0 && endZ.y >= 0)
             {
+                // Wall is behind
                 // Draw next wall
                 continue;
             }
@@ -323,32 +327,29 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
 }
 
 
-void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL* settings3D, RenderSettings2D* settings2D)
+void BuildRender_DrawTopDown(Player* players, DukeMap* map, RenderSettingsOpenGL* settings3D, RenderSettings2D* settings2D)
 {
     Font* df = DefaultFont_GetDefaultFont();
 
-    vec2 playerPos2;
-    if (settings2D->movePlayer)
-    {
-        playerPos2 = vec2New(player->position.x, player->position.z);
-    }
-    else
-    {
-        playerPos2 = settings2D->collisionPoint;
-    }
+
+    vec2 firstPlayerPos2 = vec2New(players[0].position.x, players[0].position.z);
 
     vec2 collision_forward = vec2New(0.0, WORLD_FORWARD.z * settings2D->collisionLength);
 
     collision_forward  = Vec2XZRotateY(collision_forward,  Deg2Rad(settings2D->collisionAngleDeg));
-    vec2 collisionEnd = vec2Add(playerPos2, collision_forward);
+    vec2 collisionEnd = vec2Add(settings2D->collisionPoint, collision_forward);
 
     bool collisionMiss = true;
     vec2 collisionOut;
 
+        Color4f* whiteColor = Color_GetDefaultColor(Color_White);
+        Color4f* greenColor = Color_GetDefaultColor(Color_Green);
+        Color4f* redColor = Color_GetDefaultColor(Color_Red);
+        Color4f portalColor = Color_Create4f(0.5f, 0.1f, 0.1f, 1.0f);
+        Color4f wallColor = Color_Create4f(0.5f, 0.5f, 0.5f, 1.0f);
 
 
-    // WALL NUMBERS
-    ////////////////////
+
     glLineWidth(4.0f);
     // The whole map zoom
     // Put the origo on the center of the screen
@@ -367,13 +368,13 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
 
             if (settings2D->rotateMap)
             {
-                glRotatef(Rad2Deg( (player->angleRad )), 0, 0, WORLD_FORWARD.z);
+                glRotatef(Rad2Deg( (-players[0].angleRad )), 0, 0, WORLD_FORWARD.z);
             }
 
             if (settings2D->centerMapToPlayer)
             {
                 // Keep player at center of screen
-                glTranslatef(-playerPos2.x, -playerPos2.y, 0);
+                glTranslatef(-firstPlayerPos2.x, -firstPlayerPos2.y, 0);
             }
 
 
@@ -384,6 +385,13 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
             OpenGLRender_SetColor(Color_White);
             OpenGLRender_Line2(0, -10, 0 ,10);
             OpenGLRender_Line2(-10, 0, 10, 0);
+
+            // Draw WORLD_FORWARD and WORLD_RIGHT
+            int axisLength = 1024;
+            OpenGLRender_SetColor(Color_Red);
+            OpenGLRender_Line2(0, 0, WORLD_RIGHT.x * axisLength, WORLD_RIGHT.z * axisLength);
+            OpenGLRender_SetColor(Color_Blue);
+            OpenGLRender_Line2(0, 0, WORLD_FORWARD.x * axisLength, WORLD_FORWARD.z * axisLength);
 
             settings2D->collisionInsideSector = -1;
             for(int si = 0; si < map->sectorAmount; si++)
@@ -436,7 +444,7 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
                         }
                         else
                         {
-                            OpenGLRender_SetColor(Color_Green);
+                            OpenGLRender_SetColor4f(portalColor);
                         }
                     }
 
@@ -467,12 +475,11 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
             }
             glEnd();
 
+
             // DRAW WALL NUMBERS and SECTOR NUMBERS
             glPushMatrix();
                 glScalef(1, -1, 1);
 
-            Color4f* wc = Color_GetDefaultColor(Color_White);
-            Color4f* sc = Color_GetDefaultColor(Color_Green);
             int numberSize = 128;
             for(int si = 0; si < map->sectorAmount; si++)
             {
@@ -481,39 +488,55 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
                 // Get the sector info from map
                 Sector* sector = Map_GetSector(map, si);
 
-                int sx = sector->minXZPoint.x + sector->sizeXZ.x/2;
-                int sy = -(sector->minXZPoint.y + sector->sizeXZ.y/2);
-                Draw2D_RectWH(sx, sy, numberSize, numberSize, Color_GetDefaultColor(Color_Black));
-
-                Font_Printf(df, sc, sx, sy, numberSize, "%d", si);
-
-                // Render all walls of the current sector
-                // Discard those that do not face player
-                for (s16 wi = 0; wi < sector->wallnum; wi++)
+                if (settings2D->drawSectorNumbers)
                 {
-                    if (settings2D->drawOneWall >=0 && settings2D->drawOneWall != wi) { continue; }
+                    int sx = sector->minXZPoint.x + sector->sizeXZ.x/2;
+                    int sy = -(sector->minXZPoint.y + sector->sizeXZ.y/2);
+                    Draw2D_RectWH(sx, sy, numberSize, numberSize, Color_GetDefaultColor(Color_Black));
 
-                    Wall* w = Map_GetWallInSector(map, si, wi);
-                    vec2 start = vec2New(w->x, w->z);
-
-                    int tx = start.x - numberSize/2;
-                    int ty = -start.y + numberSize/2;
-
-                    Draw2D_RectWH(tx, ty, numberSize, numberSize, Color_GetDefaultColor(Color_Black));
-
-                    Font_Printf(df, wc, tx, ty, numberSize, "%d", sector->wallptr+wi);
-                    if (settings2D->drawOneWall == wi && settings2D->drawOneSector == si)
+                    if (renderedSectorNames[si])
                     {
+                        // Draw in green if rendered
+                        Font_Printf(df, greenColor, sx, sy, numberSize, "%d", si);
+                    }
+                    else
+                    {
+                        // Draw in white if not rendered
+                        Font_Printf(df, whiteColor, sx, sy, numberSize, "%d", si);
 
-                        if (collisionMiss)
+                    }
+                }
+
+                if (settings2D->drawWallNumbers)
+                {
+                    // Render all walls of the current sector
+                    // Discard those that do not face player
+                    for (s16 wi = 0; wi < sector->wallnum; wi++)
+                    {
+                        if (settings2D->drawOneWall >=0 && settings2D->drawOneWall != wi) { continue; }
+
+                        Wall* w = Map_GetWallInSector(map, si, wi);
+                        vec2 start = vec2New(w->x, w->z);
+
+                        int tx = start.x - numberSize/2;
+                        int ty = -start.y + numberSize/2;
+
+                        Draw2D_RectWH(tx, ty, numberSize, numberSize, Color_GetDefaultColor(Color_Black));
+
+                        Font_Printf(df, whiteColor, tx, ty, numberSize, "%d", sector->wallptr+wi);
+                        if (settings2D->drawOneWall == wi && settings2D->drawOneSector == si)
                         {
-                            Font_Printf(df, wc, start.x, start.y + 64+32, 32, "U: %.2f", collisionOut.y);
-                            Font_Printf(df, wc, start.x, start.y + 64, 32, "T: %.2f", collisionOut.x);
-                        }
-                        else
-                        {
-                            Font_Printf(df, wc, start.x, start.y + 64+32, 32, "Y: %.2f", collisionOut.y);
-                            Font_Printf(df, wc, start.x, start.y + 64, 32, "X: %.2f", collisionOut.x);
+
+                            if (collisionMiss)
+                            {
+                                Font_Printf(df, whiteColor, start.x, start.y + 64+32, 32, "U: %.2f", collisionOut.y);
+                                Font_Printf(df, whiteColor, start.x, start.y + 64, 32, "T: %.2f", collisionOut.x);
+                            }
+                            else
+                            {
+                                Font_Printf(df, whiteColor, start.x, start.y + 64+32, 32, "Y: %.2f", collisionOut.y);
+                                Font_Printf(df, whiteColor, start.x, start.y + 64, 32, "X: %.2f", collisionOut.x);
+                            }
                         }
                     }
                 }
@@ -522,25 +545,24 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
         glPopMatrix(); // WALLS
 
 
-        // DRAW PLAYER
+        // DRAW PLAYERS
         // ////////////
 
     glPushMatrix();
+        for (int pi = 0; pi < settings2D->drawPlayersAmount; pi++)
+        {
+            Player* player = &players[pi];
+            vec2 playerPos2 = vec2New(player->position.x, player->position.z);
 
-        glScalef(settings3D->scaleXZ, settings3D->scaleXZ, 1);
-        glBegin(GL_LINES);
+            glScalef(settings3D->scaleXZ, settings3D->scaleXZ, 1);
+            glBegin(GL_LINES);
 
             vec2 forward = vec2New(WORLD_FORWARD.x, WORLD_FORWARD.z);
             if (settings2D->rotateMap == false)
             {
-                forward = Vec2XZRotateY(forward, player->angleRad + M_PI);
+                forward = Vec2XZRotateY(forward, player->angleRad);
             }
-            else
-            {
-                forward = vec2New(WORLD_FORWARD.x, WORLD_FORWARD.z * -1);
-
-            }
-        DefaultColor pc =  Color_Black;
+            DefaultColor pc =  Color_Black;
 
 
             if (mgdl_GetElapsedFrames() % 30 == 0)
@@ -553,7 +575,7 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
             // //////////////////
             if (settings2D->movePlayer)
             {
-                if (settings2D->centerMapToPlayer)
+                if (settings2D->centerMapToPlayer && pi == 0)
                 {
                     playerPos2 = vec2Zero();
                 }
@@ -584,6 +606,7 @@ void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL*
                 glVertex2i(playerPos2.x,playerPos2.y);
                 glVertex2f(collisionEnd.x, collisionEnd.y);
             }
+        }
 
         glEnd();
         glPopMatrix(); // Player

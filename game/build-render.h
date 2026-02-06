@@ -34,6 +34,7 @@ struct RenderSettings2D
     bool drawNormals; ///< Draw wall normals
     bool drawSprites; ///< Draw Sprites
     bool drawTreasure; ///< Draws treasure sprite regardless of other sprites
+    bool drawWallNumbers;
 };
 typedef struct RenderSettings2D RenderSettings2D;
 
@@ -55,7 +56,7 @@ extern int wallYPoints[20];
 void BuildRender_Init(DukeMap* map, RenderSettingsOpenGL* settings3D);
 /** @brief Draws the map wireframe and player
  */
-void BuildRender_DrawTopDown(Player* player, DukeMap* map, RenderSettingsOpenGL* settings3D, RenderSettings2D* settings2D);
+void BuildRender_DrawTopDown(Player* players, DukeMap* map, RenderSettingsOpenGL* settings3D, RenderSettings2D* settings2D);
 
 /** @brief Draws the map in 3D using OpenGL
  */

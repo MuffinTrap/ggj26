@@ -1,6 +1,8 @@
 
 #include "opengl-render.h"
 #include <mgdl.h>
+#include <mgdl/mgdl-cache.h>
+#include <mgdl/mgdl-draw2d.h>
 #include "dukemap.h"
 #include "build-render.h"
 #include "dukemath.h"
@@ -39,68 +41,126 @@ GLfloat ceilingNormal[3];
 
 static bool dark = false;
 
-Texture* OpenGLRender_GetTexture(s16 picnum)
+
+
+// Vertex buffering and drawing // TODO If normal and color do not change, can
+// they be set just once?
+// 3 position + 2 texture coordinates
+#define FULL_VERTEX_SIZE_FLOATS (3 + 2)
+#define VERTEX_BUFFER_SIZE_VERTICES 64
+#define VERTEX_BUFFER_SIZE_BYTES (FULL_VERTEX_SIZE_FLOATS * sizeof(float) * VERTEX_BUFFER_SIZE_VERTICES)
+static GLfloat* vertexBuffer = nullptr;
+static int vertexBufferIndexVertices = 0;
+
+static RectF polygonUVLimits;
+static RectF zeroOffset;
+
+void OpenGLRender_StartDrawingPolygons()
 {
-    uvs.x = 0.0f;
-    uvs.y = 0.0f;
-    uvs.w = 1.0f;
-    uvs.h = 1.0f;
-    if (picnum == PICNUM_BULLET)
+    glEnableClientState(GL_VERTEX_ARRAY);
+    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+    glVertexPointer(3, GL_FLOAT, sizeof(float) * 5, &vertexBuffer[0]);
+    glTexCoordPointer(2, GL_FLOAT, sizeof(float) * 5, &vertexBuffer[3]);
+
+    glEnable(GL_TEXTURE_2D);
+}
+
+static GLuint lastTextureName = 0; // 0 is not a valid texture name
+static void SetTexture(GLuint glTextureName)
+{
+    if (lastTextureName != glTextureName)
     {
-        uvs = Sprite_GetTextureCoordinates(bulletTexture, animationFrame % 4);
-        return bulletTexture->_font->_fontTexture;
+        glBindTexture(GL_TEXTURE_2D, glTextureName);
+        lastTextureName = glTextureName;
     }
-    else if (picnum == PICNUM_TREASURE)
+}
+
+RectF SetPicnum_GetUVoffset(s16 picnum)
+{
+    switch(picnum)
     {
-        uvs = Sprite_GetTextureCoordinates(treasureTexture, animationFrame % 16);
-        return treasureTexture->_font->_fontTexture;
+        case PICNUM_BULLET:
+        {
+
+            SetTexture(bulletTexture->_font->_fontTexture->textureId);
+            return Sprite_GetTextureCoordinates(bulletTexture, animationFrame % 4);
+        }
+        break;
+        case  PICNUM_TREASURE:
+        {
+            SetTexture(treasureTexture->_font->_fontTexture->textureId);
+            return Sprite_GetTextureCoordinates(treasureTexture, animationFrame % 16);
+        }
+        break;
+        case  PICNUM_PLAYER:
+        {
+            SetTexture(playerTexture->_font->_fontTexture->textureId);
+            return Sprite_GetTextureCoordinates(playerTexture, animationFrame % 4);
+        }
+        break;
+        case  PICNUM_PLAYER_WITH_MASK:
+        {
+            SetTexture(playerWithMaskTexture->_font->_fontTexture->textureId);
+            return Sprite_GetTextureCoordinates(playerWithMaskTexture, animationFrame % 4);
+        }
+        break;
+        case  PICNUM_PLAYER_SHOCK:
+        {
+            SetTexture(playerShockTexture->_font->_fontTexture->textureId);
+            return Sprite_GetTextureCoordinates(playerShockTexture, animationFrame % 4);
+        }
+        break;
+        case  PICNUM_PLAYER_SHOOT:
+        {
+            SetTexture(playerShootTexture->textureId);
+            return zeroOffset;
+        }
+        break;
+        case  PICNUM_PLAYER_SHOOT_WITH_MASK:
+        {
+            SetTexture(playerShootWithMaskTexture->textureId);
+            return zeroOffset;
+        }
+        break;
+        case  PICNUM_WALL:
+        {
+            SetTexture((dark ? wallDark : wall)->textureId);
+            return zeroOffset;
+        }
+        break;
+        case  PICNUM_FLOOR:
+        {
+            SetTexture((dark ? floorDark : floorTexture)->textureId);
+            return zeroOffset;
+        }
+        break;
+        case  PICNUM_CEILING:
+        {
+            SetTexture((dark ? ceilingDark : ceiling)->textureId);
+            return zeroOffset;
+        }
+        break;
+        case  PICNUM_EXIT:
+        {
+            SetTexture(exitTexture->textureId);
+            return zeroOffset;
+        }
+        break;
+        default:
+
+            SetTexture(tileTexture->textureId);
+            return zeroOffset;
     }
-    else if (picnum == PICNUM_PLAYER)
-    {
-        uvs = Sprite_GetTextureCoordinates(playerTexture, animationFrame % 4);
-        return playerTexture->_font->_fontTexture;
-    }
-    else if (picnum == PICNUM_PLAYER_WITH_MASK)
-    {
-        uvs = Sprite_GetTextureCoordinates(playerWithMaskTexture, animationFrame % 4);
-        return playerWithMaskTexture->_font->_fontTexture;
-    }
-    else if (picnum == PICNUM_PLAYER_SHOCK)
-    {
-        uvs = Sprite_GetTextureCoordinates(playerShockTexture, animationFrame % 4);
-        return playerShockTexture->_font->_fontTexture;
-    }
-    else if (picnum == PICNUM_PLAYER_SHOOT)
-    {
-        return playerShootTexture;
-    }
-    else if (picnum == PICNUM_PLAYER_SHOOT_WITH_MASK)
-    {
-        return playerShootWithMaskTexture;
-    }
-    else if (picnum == PICNUM_WALL)
-    {
-        return dark ? wallDark : wall;
-    }
-    else if (picnum == PICNUM_FLOOR)
-    {
-        return dark ? floorDark : floorTexture;
-    }
-    else if (picnum == PICNUM_CEILING)
-    {
-        return dark ? ceilingDark : ceiling;
-    }
-    else if (picnum == PICNUM_EXIT)
-    {
-        return exitTexture;
-    }
-    return tileTexture;
 }
 
 void OpenGLRender_SetColor(DefaultColor oc)
 {
     Color4f* c = Color_GetDefaultColor(oc);
     glColor4fv(&c->red);
+}
+void OpenGLRender_SetColor4f(Color4f color)
+{
+    glColor4fv(&color.red);
 }
 
 void OpenGLRender_Line2(int x1, int z1, int x2, int z2)
@@ -115,37 +175,101 @@ void OpenGLRender_Line3(vec3 start, vec3 end)
 	glVertex3f(end.x, end.y, end.z);
 }
 
+static float BrightnessOffsetToColor(s8 brightnessOffset)
+{
+    static const float brightnessStep = 1.0f/127.0f;
+    return 1.0f + brightnessOffset * brightnessStep;
+}
+
+static void BeginPolygon(const vec3 normal, const RectF uvLimits, const float brightness)
+{
+    polygonUVLimits = uvLimits;
+    glNormal3f(normal.x, normal.y, normal.z);
+    glColor3f(brightness, brightness, brightness);
+    vertexBufferIndexVertices = 0;
+}
+
+static void BufferVertex(const float x, const float y, const float z, const float u, const float v)
+{
+    GLfloat* vertex = &vertexBuffer[vertexBufferIndexVertices * FULL_VERTEX_SIZE_FLOATS];
+    vertex[0] = x;
+    vertex[1] = y;
+    vertex[2] = z;
+
+    vertex[3] = polygonUVLimits.x + u * polygonUVLimits.w;
+    vertex[4] = polygonUVLimits.y + v * polygonUVLimits.h;
+
+    vertexBufferIndexVertices += 1;
+
+    // DANGER what if buffer becomes full?
+    if (vertexBufferIndexVertices >= VERTEX_BUFFER_SIZE_VERTICES)
+    {
+        // Flush all written vertices
+        mgdl_CacheFlushRange(vertexBuffer, vertexBufferIndexVertices * FULL_VERTEX_SIZE_FLOATS * sizeof(float));
+        glDrawArrays(GL_TRIANGLES, 0, vertexBufferIndexVertices);
+        vertexBufferIndexVertices = 0;
+    }
+}
+static void BufferVertexV(const vec3 position, const vec2 textureCoord)
+{
+    BufferVertex(position.x, position.y, position.z, textureCoord.x, textureCoord.y);
+}
+
+static void EndPolygon()
+{
+    // Flush all written vertices
+    mgdl_CacheFlushRange(vertexBuffer, vertexBufferIndexVertices * FULL_VERTEX_SIZE_FLOATS * sizeof(float));
+    glDrawArrays(GL_TRIANGLES, 0, vertexBufferIndexVertices);
+}
+
+void OpenGLRender_EndDrawingPolygons()
+{
+    glDisableClientState(GL_VERTEX_ARRAY);
+    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+
+    glColor3f(1.0f, 1.0f, 1.0f);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glDisable(GL_TEXTURE_2D);
+    lastTextureName = 0;
+}
+
+
 // TESSELATION CALLBACKS
 // /////////////////////
 
-// Ring buffer for tesselation
-#define VERTEX_BUFFER_SIZE_DOUBLES (3*64) // Divisible by three for the ring buffering to work; 3 doubles per vertex
-#define VERTEX_BUFFER_SIZE_BYTES (VERTEX_BUFFER_SIZE_DOUBLES * sizeof(double))
-static GLdouble* vertexRingBuffer = nullptr;
-int VertexBufferIndexDoubles = 0;
+// Ring buffer for tesselation input
+// This buffer needs to hold all the vertices of a sector floor or ceiling
+#define TESSELATION_BUFFER_SIZE_DOUBLES (3*128) // Divisible by three for the ring buffering to work; 3 doubles per vertex
+#define TESSELATION_BUFFER_SIZE_BYTES (TESSELATION_BUFFER_SIZE_DOUBLES * sizeof(double))
+static GLdouble* tesselationBuffer = nullptr;
+int tesselationBufferIndexDoubles = 0;
 
 // Ring buffer for tesselation combine
-#define COMBINE_BUFFER_SIZE_DOUBLES (3*64) // Divisible by three for the ring buffering to work; 3 doubles per vertex
+// This is needed if two vertices are identical, but hopefully it is not needed
+#define COMBINE_BUFFER_SIZE_DOUBLES (3*9) // Divisible by three for the ring buffering to work; 3 doubles per vertex
 #define COMBINE_BUFFER_SIZE_BYTES (COMBINE_BUFFER_SIZE_DOUBLES * sizeof(double))
 static GLdouble* combineRingBuffer = nullptr;
 int CombineBufferIndexDoubles = 0;
+
+// Buffer for drawing vertices of the walls and sprites
 
 #ifndef CALLBACK
 #define CALLBACK
 #endif
 
+// NOTE not used: the code calls StartPolygon and EndPolygon
 void CALLBACK tessBegin(GLenum which)
 {
     //Log_InfoF("Tesselation start mode: %s \n", which == GL_TRIANGLES ? "Triangles" : "Not triangles");
-    glBegin(which);
+    // glBegin(which);
 }
+
+// This puts a new vertex into the buffer
 void CALLBACK tessVertex(GLvoid* vertex, void* SectorPtr)
 {
     const Sector* s = (Sector*)SectorPtr;
-    const GLdouble* coordinates;
-    const GLdouble* normal;
-    coordinates = (GLdouble*)vertex;
-    normal = &coordinates[3];
+    const GLdouble* coordinates = (GLdouble*)vertex;
 
     //Log_InfoF("Tesselation vertex %.2f, %.2f\n", pointer[0], pointer[2]);
     // TODO texture coordinates and colors
@@ -156,9 +280,14 @@ void CALLBACK tessVertex(GLvoid* vertex, void* SectorPtr)
     float tx = xdiff/xrange * s->maxTexCoord.x;
     float tz = zdiff/zrange * s->maxTexCoord.y;
     //Log_InfoF("Tesselation tex coord %.2f, %.2f\n", tx, ty);
-    glTexCoord2f(tx,tz);
-    glNormal3f(normal[0], normal[1], normal[2]);
-    glVertex3dv(coordinates);
+    BufferVertex(
+        (GLfloat)coordinates[0], (GLfloat)coordinates[1], (GLfloat)coordinates[2],
+        tx, tz);
+    /*
+        glTexCoord2f(tx,tz);
+        glNormal3f(normal[0], normal[1], normal[2]);
+        glVertex3dv(coordinates);
+    */
 
 }
 void CALLBACK tessCombine(GLdouble coords[3], GLdouble* vertex_data[4], GLfloat weight[4], GLdouble **dataOut)
@@ -178,7 +307,7 @@ void CALLBACK tessCombine(GLdouble coords[3], GLdouble* vertex_data[4], GLfloat 
     vertex[3] = 0.0f;
     vertex[4] = 0.0f;
     vertex[5] = 0.0f;
-    /*
+    /*  This causes crashes so don't do it
     for (int i = 3; i < 6; i++)
     {
         vertex[i] = weight[0] * vertex_data[0][i] +
@@ -191,12 +320,15 @@ void CALLBACK tessCombine(GLdouble coords[3], GLdouble* vertex_data[4], GLfloat 
     CombineBufferIndexDoubles = (CombineBufferIndexDoubles + 6) % COMBINE_BUFFER_SIZE_DOUBLES;
 }
 
+// NOTE not used
 void CALLBACK tessEnd(void)
 {
     //Log_Info("Tesselation end\n");
+    /*
     glEnd();
     glBindTexture(GL_TEXTURE_2D, 0);
     glDisable(GL_TEXTURE_2D);
+    */
 }
 void CALLBACK tessError(GLenum errorCode)
 {
@@ -213,9 +345,21 @@ void CALLBACK tessEdgeFlag(GLboolean flag)
 #endif
 }
 
+void SetWrap(GLuint textureName)
+{
+    glBindTexture(GL_TEXTURE_2D, textureName);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+}
+
 
 void OpenGLRender_Init()
 {
+
+    zeroOffset.x = 0.0f;
+    zeroOffset.y = 0.0f;
+    zeroOffset.w = 1.0f;
+    zeroOffset.h = 1.0f;
 
     // TODO move to graphics system
     checkers = Texture_GenerateCheckerBoard();
@@ -224,7 +368,7 @@ void OpenGLRender_Init()
         tesselator = gluNewTess();
         mgdl_assert_print(tesselator != nullptr, "No Glut tesselator!");
 
-        gluTessCallback(tesselator, GLU_TESS_BEGIN_DATA, (_GLUfuncptr)tessBegin);
+        gluTessCallback(tesselator, GLU_TESS_BEGIN, (_GLUfuncptr)tessBegin);
         gluTessCallback(tesselator, GLU_TESS_VERTEX_DATA, (_GLUfuncptr)tessVertex);
         gluTessCallback(tesselator, GLU_TESS_END, (_GLUfuncptr)tessEnd);
         gluTessCallback(tesselator, GLU_TESS_ERROR, (_GLUfuncptr)tessError);
@@ -235,8 +379,21 @@ void OpenGLRender_Init()
         floorNormal[1] = 1;
         floorNormal[2] = 0;
         ceilingNormal[0] = 0;
-        ceilingNormal[1] = 1;
+        ceilingNormal[1] = -1;
         ceilingNormal[2] = 0;
+    }
+
+    if (tesselationBuffer == nullptr)
+    {
+        tesselationBuffer = (GLdouble*)mgdl_AllocateGraphicsMemory(TESSELATION_BUFFER_SIZE_BYTES);
+    }
+    if (combineRingBuffer == nullptr)
+    {
+        combineRingBuffer = (GLdouble*)mgdl_AllocateGraphicsMemory(COMBINE_BUFFER_SIZE_BYTES);
+    }
+    if (vertexBuffer == nullptr)
+    {
+        vertexBuffer = (GLfloat*)mgdl_AllocateGraphicsMemory(VERTEX_BUFFER_SIZE_BYTES);
     }
 
     bulletTexture = mgdl_LoadSprite("assets/bullet_spritesheet.png", 64, 64);
@@ -258,85 +415,39 @@ void OpenGLRender_Init()
 
     glEnable(GL_TEXTURE_2D);
 
-    glBindTexture(GL_TEXTURE_2D, bulletTexture->_font->_fontTexture->textureId);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    SetWrap( bulletTexture->_font->_fontTexture->textureId);
 
-    glBindTexture(GL_TEXTURE_2D, treasureTexture->_font->_fontTexture->textureId);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    SetWrap( treasureTexture->_font->_fontTexture->textureId);
 
-    glBindTexture(GL_TEXTURE_2D, playerTexture->_font->_fontTexture->textureId);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    SetWrap( playerTexture->_font->_fontTexture->textureId);
 
-    glBindTexture(GL_TEXTURE_2D, playerWithMaskTexture->_font->_fontTexture->textureId);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    SetWrap( playerWithMaskTexture->_font->_fontTexture->textureId);
 
-    glBindTexture(GL_TEXTURE_2D, playerShockTexture->_font->_fontTexture->textureId);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    SetWrap( playerShockTexture->_font->_fontTexture->textureId);
 
-    glBindTexture(GL_TEXTURE_2D, playerShootTexture->textureId);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    SetWrap( playerShootTexture->textureId);
 
-    glBindTexture(GL_TEXTURE_2D, playerShootWithMaskTexture->textureId);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    SetWrap( playerShootWithMaskTexture->textureId);
 
-    glBindTexture(GL_TEXTURE_2D, wall->textureId);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    SetWrap( wall->textureId);
 
-    glBindTexture(GL_TEXTURE_2D, wallDark->textureId);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    SetWrap( wallDark->textureId);
 
-    glBindTexture(GL_TEXTURE_2D, floorTexture->textureId);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    SetWrap( floorTexture->textureId);
 
-    glBindTexture(GL_TEXTURE_2D, floorDark->textureId);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    SetWrap( floorDark->textureId);
 
-    glBindTexture(GL_TEXTURE_2D, ceiling->textureId);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    SetWrap( ceiling->textureId);
 
-    glBindTexture(GL_TEXTURE_2D, ceilingDark->textureId);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    SetWrap( ceilingDark->textureId);
 
-    glBindTexture(GL_TEXTURE_2D, exitTexture->textureId);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    SetWrap( exitTexture->textureId);
 
-    glBindTexture(GL_TEXTURE_2D, tileTexture->textureId);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    SetWrap( tileTexture->textureId);
 
-    if (vertexRingBuffer == nullptr)
-    {
-#ifdef GEKKO
-        vertexRingBuffer = (GLdouble*)malloc(VERTEX_BUFFER_SIZE_BYTES);
-#else
-        vertexRingBuffer = (GLdouble*)mgdl_AllocateGraphicsMemory(VERTEX_BUFFER_SIZE_BYTES);
-#endif
-    }
-    if (combineRingBuffer == nullptr)
-    {
-#ifdef GEKKO
-        combineRingBuffer = (GLdouble*)malloc(COMBINE_BUFFER_SIZE_BYTES);
-#else
-        combineRingBuffer = (GLdouble*)mgdl_AllocateGraphicsMemory(COMBINE_BUFFER_SIZE_BYTES);
-#endif
-    }
 }
 
-void DrawQuad(vec2 start, vec2 end, float floorY, float ceilingY, s16 picnum, RenderSettingsOpenGL* settings3D)
+void DrawQuad(vec2 start, vec2 end, const vec2 normalXZ, float floorY, float ceilingY, s16 picnum, s8 brightnessOffset, RenderSettingsOpenGL* settings3D)
 {
     // Keep texture aspect 1:1 unless told otherwise
     float width = vec2Length( vec2Subtract(end, start)) * settings3D->scaleXZ;
@@ -348,36 +459,24 @@ void DrawQuad(vec2 start, vec2 end, float floorY, float ceilingY, s16 picnum, Re
     float tex_x2 = aspect * height * settings3D->textureScale;
     float tex_bottom = 0.0f;
     float tex_top = 1.0 * height * settings3D->textureScale;
+    vec3 normal = vec3New(normalXZ.x, 0.0f, normalXZ.y);
 
-    // TODO enable and disable just once
-    glEnable(GL_TEXTURE_2D);
 
-    // TODO Get texture that corresponds to picnum
-    glBindTexture(GL_TEXTURE_2D, OpenGLRender_GetTexture(picnum)->textureId);
 
-    glBegin(GL_TRIANGLES);
+    BeginPolygon(normal, SetPicnum_GetUVoffset(picnum), BrightnessOffsetToColor(brightnessOffset));
+
+
         // Build Triangles for wall
-        glTexCoord2f(tex_x1, tex_bottom); // 0
-        glVertex3f(start.x, floorY, start.y); // 0
+        BufferVertex(start.x, floorY, start.y, tex_x1, tex_bottom); // 0
+        BufferVertex(end.x, floorY, end.y, tex_x2, tex_bottom);
+        BufferVertex(end.x, ceilingY, end.y, tex_x2, tex_top);
 
-        glTexCoord2f(tex_x2, tex_bottom); // 1
-        glVertex3f(end.x, floorY, end.y);   // 1
+        BufferVertex(end.x, ceilingY, end.y, tex_x2, tex_top);
+        BufferVertex(start.x, ceilingY, start.y, tex_x1, tex_top);
+        BufferVertex(start.x, floorY, start.y, tex_x1, tex_bottom);
 
-        glTexCoord2f(tex_x2, tex_top); // 2
-        glVertex3f(end.x, ceilingY, end.y); // 2
+    EndPolygon();
 
-        glTexCoord2f(tex_x2, tex_top); // 2
-        glVertex3f(end.x, ceilingY, end.y);  // 2
-
-        glTexCoord2f(tex_x1, tex_top); // 3
-        glVertex3f(start.x, ceilingY, start.y); // 3
-
-        glTexCoord2f(tex_x1, tex_bottom); // 0
-        glVertex3f(start.x, floorY, start.y); // 0
-
-    glEnd();
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glDisable(GL_TEXTURE_2D);
 }
 
 void OpenGLRender_DrawWall(DukeMap* map, Wall* w, float floorY, float ceilingY, RenderSettingsOpenGL* settings)
@@ -386,6 +485,7 @@ void OpenGLRender_DrawWall(DukeMap* map, Wall* w, float floorY, float ceilingY, 
     vec2 start = vec2New(w->x, w->z);
     Wall* wend = Map_GetWallEnd(map, w);
     vec2 end =  vec2New(wend->x, wend->z);
+    vec2 normalXZ = Map_GetWallNormal(map, w);
     if (w->nextsector >= 0)
     {
         // Create wall that goes down or up to adjacent sector: Note! both sectors dont need to do this. Only lower one
@@ -396,7 +496,7 @@ void OpenGLRender_DrawWall(DukeMap* map, Wall* w, float floorY, float ceilingY, 
         // if this floor height is less than adjacent: Greate wall in between: goes up
         if (floorY < n_floorY)
         {
-            DrawQuad(start, end, floorY, n_floorY, w->picnum, settings);
+            DrawQuad(start, end, normalXZ, floorY, n_floorY, w->picnum, w->shade, settings);
         }
 
         // Ceiling:
@@ -404,14 +504,14 @@ void OpenGLRender_DrawWall(DukeMap* map, Wall* w, float floorY, float ceilingY, 
         if (ceilingY > n_ceilingY)
         {
             Wall* otherWall = Map_GetWall(map, w->nextwall);
-            DrawQuad(start, end, n_ceilingY, ceilingY, otherWall->picnum, settings);
+            DrawQuad(start, end, normalXZ, n_ceilingY, ceilingY, otherWall->picnum, w->shade, settings);
         }
     }
     else
     {
+        // TODO Masked walls
         // Draw the wall
-        //glColor3f(0.5f, 0.5f, 0.5f);
-        DrawQuad(start, end, floorY, ceilingY, w->picnum, settings);
+        DrawQuad(start, end, normalXZ, floorY, ceilingY, w->picnum, w->shade, settings);
     }
 }
 
@@ -420,51 +520,65 @@ void OpenGLRender_DrawFloorOrCeiling(DukeMap* map, Sector* sector, bool floor)
     float ceilingY = sector->ceilingy;
     float floorY = sector->floory;
 
-    GLfloat* normal = floorNormal;
-
     // TODO Get texture from wall or ceiling
     // TODO Are we drawing floor or ceiling???
 
-    glEnable(GL_TEXTURE_2D);
     glPushMatrix();
         // Set floor level to 0.0f
         if (floor)
         {
             glTranslatef(0.0f, floorY, 0.0f);
-            gluTessNormal(tesselator, 0, 1, 0); // All points on XZ plane
-            Texture* floorTexture = OpenGLRender_GetTexture(sector->floorpicnum);
-            glBindTexture(GL_TEXTURE_2D, floorTexture->textureId);
+            gluTessNormal(tesselator, floorNormal[0], floorNormal[1], floorNormal[2]); // All points on XZ plane
+            BeginPolygon( vec3New(floorNormal[0], floorNormal[1], floorNormal[2] ), SetPicnum_GetUVoffset(sector->floorpicnum), BrightnessOffsetToColor(sector->floorshade));
         }
         else
         {
             glTranslatef(0.0f, ceilingY, 0.0f);
-            gluTessNormal(tesselator, 0, -1, 0); // All points on XZ plane
+            gluTessNormal(tesselator, ceilingNormal[0], ceilingNormal[1], ceilingNormal[2]); // All points on XZ plane
 
-            Texture* ceilingTexture = OpenGLRender_GetTexture(sector->ceilingpicnum);
-            glBindTexture(GL_TEXTURE_2D, ceilingTexture->textureId);
-            normal = ceilingNormal;
-
+            BeginPolygon(vec3New(ceilingNormal[0], ceilingNormal[1], ceilingNormal[2]), SetPicnum_GetUVoffset(sector->ceilingpicnum), BrightnessOffsetToColor(sector->ceilingshade));
         }
-        // TODO do this only once
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-
-        // If the Sector extra is not -1, it shows where the first polygon ends
-        int startingWall = sector->wallnum-1;
 
         //Log_InfoF("Tesselating sector:  extra %d\n", sector->extra);
-        if (true)
-        {
-            startingWall = sector->extra;
-            int contourStartPoint = sector->wallptr + sector->wallnum -1;
-            // TODO If there are sectors inside sectors we need a much more complex
+
             // tesselation
+            tesselationBufferIndexDoubles = 0; // Start from beginning
             gluTessBeginPolygon(tesselator, sector);
 
             gluTessBeginContour(tesselator);
+            // This is where the current contour started
+            int contourStartPoint = sector->wallptr + sector->wallnum -1;
+
+            Wall* startWall = Map_GetWall(map, contourStartPoint);
+            int contourEndPoint = startWall->point2;
+            /* Because Mapster saves points in clockwise order, but we render
+            in counter-clockwise, we need to save the point2 of this vertex
+            that is the last point of this contour
+
+            Square sector:
+            0 > 1 > 2 > 3 > 0
+
+            Square sector with a square island:
+            0 > 1 > 2 > 3 > 0   : Outer wall
+            4 > 5 > 6 > 7 > 4   : Island
+
+            Our rendering order is
+            7, 6, 5, 4, 3, 2, 1, 0
+
+            When starting from point 7, the value of point2 is 4
+            Store that to contourEndPoint
+            When we come to point 4, we know that the contour is complete
+            and a new one should begin.
+            If the first point of new contour is > sector's wallptr there is still more
+            islands or the outside wall.
+            If the contourEndPoint is greater than sector's wallptr, we know that the sector is complete and
+            this was the last contour.
+            */
             //Log_InfoF("Tesselating sector %d start %d/%d\n", sector->lotag, startingWall, sector->wallnum);
 
+            // Keep track of global wall index
+            int pointIndex = contourStartPoint;
             for (s16 wi = sector->wallnum-1; wi >= 0; wi--)
             {
                 Wall* w = Map_GetWallInSectorPtr(map, sector, wi);
@@ -473,43 +587,41 @@ void OpenGLRender_DrawFloorOrCeiling(DukeMap* map, Sector* sector, bool floor)
                 // NOTE DANGER Must be counter clockwise
                 //Log_InfoF("Tesselation vertex sent %d:: %.2f, %.2f\n", wi, w->glutVertices[0], w->glutVertices[2]);
                 // TODO Send normal too, but maybe not with every vertex?
-                vertexRingBuffer[VertexBufferIndexDoubles + 0] = w->x;
-                vertexRingBuffer[VertexBufferIndexDoubles + 1] = 0;
-                vertexRingBuffer[VertexBufferIndexDoubles + 2] = w->z;
+                tesselationBuffer[tesselationBufferIndexDoubles + 0] = w->x;
+                tesselationBuffer[tesselationBufferIndexDoubles + 1] = 0;
+                tesselationBuffer[tesselationBufferIndexDoubles + 2] = w->z;
 
-                gluTessVertex(tesselator, &vertexRingBuffer[VertexBufferIndexDoubles], &vertexRingBuffer[VertexBufferIndexDoubles]);
-                VertexBufferIndexDoubles = (VertexBufferIndexDoubles + 3) % VERTEX_BUFFER_SIZE_DOUBLES;
+                gluTessVertex(tesselator,
+                              &tesselationBuffer[tesselationBufferIndexDoubles], &tesselationBuffer[tesselationBufferIndexDoubles]);
 
-                // TODO
-                /*
-                // Check if contour was closed but sector is not
-                if (wi == startingWall)
+                tesselationBufferIndexDoubles = (tesselationBufferIndexDoubles + 3) % TESSELATION_BUFFER_SIZE_DOUBLES;
+
+                if (pointIndex == contourEndPoint)
                 {
-                    break;
                     gluTessEndContour(tesselator);
-                    gluTessBeginContour(tesselator);
-                }
-                */
-            }
-            gluTessEndContour(tesselator);
-            gluTessEndPolygon(tesselator);
-        }
-    glPopMatrix();
-    // First round: floor is false
-    // Second round: floor is true
+                    if (wi > 0 && contourEndPoint > sector->wallptr)
+                    {
+                        gluTessBeginContour(tesselator);
+                        Wall* nextWall = Map_GetWallInSectorPtr(map, sector, (wi - 1));
+                        contourEndPoint = nextWall->point2;
+                    }
 
+                }
+                pointIndex--;
+            }
+            gluTessEndPolygon(tesselator);
+
+            EndPolygon();
+    glPopMatrix();
 }
 
 
-void OpenGLRender_DrawSprite(vec3 position, float width, float height, float spriteAngle, float playerAngle, SpriteAlignment alignment, SpritePivot pivot, s16 picnum)
+void OpenGLRender_DrawSprite(vec3 position, float width, float height, float spriteAngle, float playerAngle, SpriteAlignment alignment, SpritePivot pivot, s16 picnum, s8 brightnessOffset)
 {
-    glEnable(GL_TEXTURE_2D);
-	Texture* spriteTexture = OpenGLRender_GetTexture(picnum);
-	glBindTexture(GL_TEXTURE_2D, spriteTexture->textureId);
 
 	if (alignment == Sprite_FACE)
 	{
-		spriteAngle = playerAngle - M_PI_2;
+		spriteAngle = playerAngle + M_PI_2;
 	}
 
 	vec3 spriteDir = Vec3XYZRotateY(WORLD_FORWARD, spriteAngle);
@@ -576,20 +688,18 @@ void OpenGLRender_DrawSprite(vec3 position, float width, float height, float spr
 		topRight = vec3Add(bottomRight, vec3Multiply(WORLD_UP, height));
 	}
 
-    glBegin(GL_QUADS);
-	//glColor3f(0.5f, 0.0f, 0.0f);
-	glTexCoord2f(uvs.x, uvs.y);
-	glVertex3f(bottomLeft.x, bottomLeft.y, bottomLeft.z);
-	glTexCoord2f(uvs.x + uvs.w, uvs.y);
-	glVertex3f(bottomRight.x, bottomRight.y, bottomRight.z);
-	glTexCoord2f(uvs.x + uvs.w, uvs.y + uvs.h);
-	glVertex3f(topRight.x, topRight.y, topRight.z);
-	glTexCoord2f(uvs.x, uvs.y + uvs.h);
-	glVertex3f(topLeft.x, topLeft.y, topLeft.z);
-	glEnd();
+	BeginPolygon(spriteDir, SetPicnum_GetUVoffset(picnum), brightnessOffset);
 
-	glBindTexture(GL_TEXTURE_2D, 0);
-	glDisable(GL_TEXTURE_2D);
+	BufferVertex(bottomLeft.x, bottomLeft.y, bottomLeft.z, 0.0f, 0.0f);
+	BufferVertex(bottomRight.x, bottomRight.y, bottomRight.z, 1.0f, 0.0f);
+	BufferVertex(topRight.x, topRight.y, topRight.z, 1.0f, 1.0f);
+
+	BufferVertex(topRight.x, topRight.y, topRight.z, 1.0f, 1.0f);
+	BufferVertex(topLeft.x, topLeft.y, topLeft.z, 0.0f, 1.0f);
+	BufferVertex(bottomLeft.x, bottomLeft.y, bottomLeft.z, 0.0f, 0.0f);
+
+    EndPolygon();
+
 }
 
 void OpenGLRender_AnimateSprites()

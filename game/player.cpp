@@ -38,7 +38,7 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 	// Left is 90
 	// right is -90
 	// So when joystick is turned right: it is positive : decrease rotation
-	player->angleRad += turn * turnSpeed * dt;
+	player->angleRad -= turn * turnSpeed * dt;
 
 	vec2 jdir = WiiController_GetNunchukJoystickDirection(controller);
 	if (abs(jdir.x) < CONTROLLER_DEADZONE) jdir.x = 0.0f;
@@ -46,11 +46,11 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 
 	vec2 forward = vec2New(WORLD_FORWARD.x, WORLD_FORWARD.z);
 	player->direction = Vec2XZRotateY(forward, player->angleRad);
-	vec2 strafeDirection = Vec2XZRotateY(forward, player->angleRad - (90.0f * 3.14159f / 180.0f));
+	vec2 strafeDirection = Vec2XZRotateY(forward, player->angleRad - Deg2Rad(90.0f));
 
 	// NOTE  Joystick dir -Y is forward, +Y is backwards
 	// But -Z is forward so...
-	vec2 moveXZ = vec2Multiply(player->direction, jdir.y * moveSpeed3D * dt);
+	vec2 moveXZ = vec2Multiply(player->direction, -jdir.y * moveSpeed3D * dt);
 	vec2 strafe = vec2Multiply(strafeDirection, jdir.x * moveSpeed3D * dt);
 
 	// Store old

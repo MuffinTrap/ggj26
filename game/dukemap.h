@@ -81,7 +81,7 @@ struct DukeMap
 {
     s32 version;
     vec3 startPosition;
-    s16 startAngle; /**< 0 - 2047. 0 : (0,1) 512 = (1,0) 1024: (0, -1) */
+    s16 startAngle;
 
     s16 startingSector;
 

@@ -94,6 +94,7 @@ static void InitRenderSettings2D()
     render2D.drawOneSector = -1;
     render2D.rotateMap= true;
     render2D.centerMapToPlayer= true;
+    render2D.drawPlayersAmount = 1;
     mapZoom = 0.9f;
     ZoomOut = false;
 }
@@ -141,11 +142,23 @@ static void DrawDebugMenu()
     {
         if (render2D.movePlayer)
         {
-            Menu_TextF(debugMenu, "Player3D: (%.1f %.1f %.1f) Dir: %.0f",
+            Menu_TextF(debugMenu, "Player3D: (%.1f %.1f %.1f) Angle: %.0f",
                        players[0].position.x,
                        players[0].position.y,
                        players[0].position.z,
                        Rad2Deg(players[0].angleRad));
+            Menu_TextF(debugMenu, "Player Dir: (%.1f %.1f %.1f)",
+                       players[0].direction.x,
+                       0.0f,
+                       players[0].direction.y);
+            Menu_TextF(debugMenu, "Camera rotations: (%.1f %.1f %.1f)",
+                       glCamera->rotations.x,
+                       glCamera->rotations.y,
+                       glCamera->rotations.z);
+            Menu_TextF(debugMenu, "Camera target dir: (%.1f %.1f %.1f)",
+                       glCamera->target.x - glCamera->position.x,
+                       glCamera->target.y - glCamera->position.y,
+                       glCamera->target.z - glCamera->position.z);
 
             Menu_TextF(debugMenu, "Player Sector: %s %d",
                        players[0].sectorNumber >=0 ? "Inside" : "Outside", players[0].sectorNumber);
@@ -252,6 +265,17 @@ static void DrawDebugMenu()
     Menu_DrawCursor(debugMenu);
 }
 
+static void LoadMapFile(const char* filename)
+{
+    if (loadedMapAmount >= MAX_MAP_AMOUNT)
+    {
+        Log_ErrorF("Tried to load too many maps: %s\n", filename);
+        return;
+    }
+    allMapsArray[loadedMapAmount] = MapPlay_LoadMap(filename);
+    loadedMapAmount += 1;
+}
+
 void MapPlay_Init()
 {
     InitRenderSettings2D();
@@ -273,9 +297,9 @@ void MapPlay_Init()
 
     // Load Maps
     allMapsArray = (DukeMap**)mgdl_AllocateGeneralMemory(sizeof(DukeMap**) * MAX_MAP_AMOUNT);
-    allMapsArray[0] = MapPlay_LoadMap("assets/Maps/GGJ26ModernWateringCanNoIslands.map");
-    allMapsArray[1] = MapPlay_LoadMap("assets/Maps/GGJ26SmallTest1.map");
-    loadedMapAmount = 2;
+    LoadMapFile("assets/Maps/islandtest.map");
+    LoadMapFile("assets/Maps/GGJ26ModernWateringCanNoIslands.map");
+    LoadMapFile("assets/Maps/GGJ26SmallTest1.map");
 
     // Load ui textures
     maskTexture = mgdl_LoadTexture("assets/screen_mask_texture.png", Linear);
@@ -541,7 +565,7 @@ MapPlayResult MapPlay_Frame()
                                     playerposGL.y,
                                     playerposGL.z);
 
-                    Camera_SetRotations(glCamera, player->pitchRad, Rad2Deg(-player->angleRad), 0.0f);
+                    Camera_SetRotations(glCamera, player->pitchRad, Rad2Deg(player->angleRad), 0.0f);
 
                     // Sets GL_MODELVIEW
                     Camera_Apply(glCamera);
@@ -594,8 +618,13 @@ MapPlayResult MapPlay_Frame()
             }
         }
         glDisable(GL_ALPHA_TEST);
+
+        if (drawTopdown)
+        {
+            DrawMinimap();
+        }
         
-        //DrawDebugMenu();
+//        DrawDebugMenu();
 
     return MapPlayLoop;
 }

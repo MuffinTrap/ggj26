@@ -50,22 +50,50 @@ vec2 Vec2Project(vec2 move, vec2 wall)
 
 vec2 Vec2XZRotateY(vec2 p, float angle)
 {
-	float xt = p.x*cos(angle) - p.y*sin(angle);
-	float zt = p.x*sin(angle) + p.y*cos(angle);
+	float sin_a = sin(angle);
+	float cos_a = cos(angle);
+	float xt = p.x * cos_a + p.y*sin_a;
+	float zt = p.x *-sin_a + p.y*cos_a;
     return vec2New(xt, zt);
 }
 vec3 Vec3XYZRotateY(vec3 p, float angle)
 {
-	float xt = p.x*cos(angle) - p.z*sin(angle);
-	float zt = p.x*sin(angle) + p.z*cos(angle);
+
+	float sin_a = sin(angle);
+	float cos_a = cos(angle);
+	float xt = p.x * cos_a + p.y*sin_a;
+	float zt = p.x *-sin_a + p.y*cos_a;
     return vec3New(xt, p.y, zt);
 }
 
-
+/*
+ * Duke angles are [0 , 2047]
+ * Rotating the world forward should give
+ * DA       Direction
+ * 0     : ( 0, 0, 1)
+ * 512   : ( 1, 0, 0)
+ * 1024  : ( 0, 0,-1)
+ * 1536  : (-1, 0, 0)
+ *
+ * World forward is : 0, 0, -1
+ * Rotating that by 0 radians gives the same, so we need to subtract PI from
+ * result
+ * Positive angles rotate counter-clockwise
+ * 0 dukes = 0 degrees
+ * 0 degrees = (0, 0, -1)
+ * 0 degrees -90 degrees = (1, 0, 0)
+ *
+*/
 float Math_DukeAngleToRad(s16 angleInt)
 {
+	// Dukes turn clockwise
+	// Radians turn counter-clockwise
+
+	// How many radians to turn
     float ratio = (float)angleInt / (float)2048;
-    return ratio * M_PI * 2.0f;
+	float radians = -ratio * M_PI * 2.0f;
+	// Adjust by PI
+    return radians - M_PI;
 }
 
 vec3 Vec3DukePosToOpenGL(vec3 dukepos, RenderSettingsOpenGL* settings3D)
