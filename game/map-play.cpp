@@ -95,6 +95,8 @@ static void InitRenderSettings2D()
     render2D.rotateMap= true;
     render2D.centerMapToPlayer= true;
     render2D.drawPlayersAmount = 1;
+    render2D.drawWallNumbers = true;
+    render2D.drawSectorNumbers = true;
     mapZoom = 0.9f;
     ZoomOut = false;
 }
@@ -625,7 +627,7 @@ MapPlayResult MapPlay_Frame()
             DrawMinimap();
         }
         
-//        DrawDebugMenu();
+        DrawDebugMenu();
 
     return MapPlayLoop;
 }

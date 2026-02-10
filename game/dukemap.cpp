@@ -74,8 +74,6 @@ void Map_FindIslandSectors(DukeMap* map)
         for (int wi = 0; wi < S->wallnum; wi++)
         {
             Wall* w = &map->walls[S->wallptr + wi];
-            Wall* w2 = &map->walls[w->point2];
-
 
             /*
             Log_InfoF("\tWall n: %d:(%d,%d) - %d:(%d,%d)\n",
@@ -343,7 +341,6 @@ DSprite* Map_GetSprite(DukeMap* map, s16 spriteIndex)
 
 MoveResult Map_MovePointInMap(DukeMap* map, vec2 start, vec2 end, s16 sectorNumber, vec2* positionOut, s16* sectorOut)
 {
-    Sector* sector = Map_GetSector(map, sectorNumber);
 
     // Keep testing until player is back inside again
     bool insideSector =  Map_IsPointInsideSectorOG(map, end, sectorNumber);
@@ -358,8 +355,8 @@ MoveResult Map_MovePointInMap(DukeMap* map, vec2 start, vec2 end, s16 sectorNumb
          *				if (player->positionOpenGL.z  > ceilingY)
          *				{
          *					player->positionOpenGL.z = ceilingY - player->standingHeight - 1;
-    }
-    */
+        }
+        */
         *positionOut = end;
         *sectorOut = sectorNumber;
         return Move_Ok;
@@ -368,6 +365,7 @@ MoveResult Map_MovePointInMap(DukeMap* map, vec2 start, vec2 end, s16 sectorNumb
     {
         // Find out where player went
         vec2 cross;
+        Sector* sector = Map_GetSector(map, sectorNumber);
         for (s16 wi = 0; wi < sector->wallnum; wi++)
         {
             Wall* w = Map_GetWallInSector(map, sectorNumber, wi);
@@ -388,7 +386,11 @@ MoveResult Map_MovePointInMap(DukeMap* map, vec2 start, vec2 end, s16 sectorNumb
                     }
                     else
                     {
-                        // Find player again
+                        // Player moved to neighbor's neighbor?
+                        // Note push player move start point inside new sector
+                        Wall* otherSide = Map_GetWall(map, w->nextwall);
+                        vec2 normal = Map_GetWallNormal(map, otherSide);
+                        cross = vec2Add(cross, normal);
                         return Map_MovePointInMap(map, cross, end, newSector, positionOut, sectorOut);
                     }
                 }
@@ -419,7 +421,6 @@ MoveResult Map_MovePointInMap(DukeMap* map, vec2 start, vec2 end, s16 sectorNumb
         }
         {
             // DANGER Player has escaped: return to original position
-
             bool stillInsideSector = Map_IsPointInsideSectorOG(map, start, sectorNumber);
             if (stillInsideSector)
             {
@@ -429,11 +430,44 @@ MoveResult Map_MovePointInMap(DukeMap* map, vec2 start, vec2 end, s16 sectorNumb
             }
             else
             {
-                // Put in center of sector
-                *positionOut = vec2Add(sector->minXZPoint, vec2Multiply(sector->sizeXZ, 0.5f));
-                *sectorOut = sectorNumber;
-                return Move_Cancel;
+                s16 playerSector = Map_FindPlayerSector(map, start);
+                if (playerSector < 0)
+                {
+                    // Put in center of sector
+                    *positionOut = vec2Add(sector->minXZPoint, vec2Multiply(sector->sizeXZ, 0.5f));
+                    *sectorOut = sectorNumber;
+                    return Move_Cancel;
+                }
+                else
+                {
+                    *positionOut = start;
+                    *sectorOut = playerSector;
+                    return Move_Cancel;
+                }
             }
         }
+    }
+}
+
+s16 Map_GetSectorNeighbor(DukeMap* map, s16 sectorNumber, s16 wallIndex)
+{
+    Sector* sector = Map_GetSector(map, sectorNumber);
+    if (wallIndex < sector->wallnum)
+    {
+        Wall* w = Map_GetWallInSector(map, sectorNumber, wallIndex);
+        return w->nextsector;
+    }
+    return -1;
+}
+
+s16 Map_FindPlayerSector(DukeMap* map, vec2 playerPosition)
+{
+    for (int si = 0; si < map->sectorAmount; si++)
+    {
+        if (Map_IsPointInsideSectorOG(map, playerPosition, si))
+        {
+            return si;
+        }
+        return -1;
     }
 }

@@ -70,7 +70,7 @@ MainMenuResult MainMenu_Frame()
     if (Menu_Button(mainMenu, "ALASA"))
     {
 
-        Audio_PlaySound(music);
+        //Audio_PlaySound(music);
         Log_Info("Start!");
         return MainMenuStartGame;
     }

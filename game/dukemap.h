@@ -174,6 +174,13 @@ bool Map_FindIntersectionWithWall(DukeMap* map, vec2 moveStart, vec2 moveEnd, Wa
 
 MoveResult Map_MovePointInMap(DukeMap* map, vec2 start, vec2 end, s16 sector, vec2* positionOut, s16* sectorOut);
 
+/**
+* @brief Looks for player recursively from neighbouring sectors, starting from startingSector
+* @returns The sector number where player is or -1 if not inside map
+*/
+s16 Map_FindPlayerSector(DukeMap* map, vec2 position);
+
+s16 Map_GetSectorNeighbor(DukeMap* map, s16 sectorNumber, s16 wallIndex);
 
 #ifdef __cplusplus
 }

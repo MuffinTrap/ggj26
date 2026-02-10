@@ -47,13 +47,15 @@ static bool dark = false;
 // they be set just once?
 // 3 position + 2 texture coordinates
 #define FULL_VERTEX_SIZE_FLOATS (3 + 2)
-#define VERTEX_BUFFER_SIZE_VERTICES 64
+#define VERTEX_BUFFER_SIZE_VERTICES 64 * 3 // This will always contain triangles
 #define VERTEX_BUFFER_SIZE_BYTES (FULL_VERTEX_SIZE_FLOATS * sizeof(float) * VERTEX_BUFFER_SIZE_VERTICES)
 static GLfloat* vertexBuffer = nullptr;
 static int vertexBufferIndexVertices = 0;
 
 static RectF polygonUVLimits;
 static RectF zeroOffset;
+
+static bool UseVertexBufferForTesselation = false;
 
 void OpenGLRender_StartDrawingPolygons()
 {
@@ -267,8 +269,11 @@ int CombineBufferIndexDoubles = 0;
 // NOTE not used: the code calls StartPolygon and EndPolygon
 void CALLBACK tessBegin(GLenum which)
 {
+    if (UseVertexBufferForTesselation == false)
+    {
+        glBegin(which);
+    }
     //Log_InfoF("Tesselation start mode: %s \n", which == GL_TRIANGLES ? "Triangles" : "Not triangles");
-    // glBegin(which);
 }
 
 // This puts a new vertex into the buffer
@@ -286,15 +291,17 @@ void CALLBACK tessVertex(GLvoid* vertex, void* SectorPtr)
     float tx = xdiff/xrange * s->maxTexCoord.x;
     float tz = zdiff/zrange * s->maxTexCoord.y;
     //Log_InfoF("Tesselation tex coord %.2f, %.2f\n", tx, ty);
-    BufferVertex(
-        (GLfloat)coordinates[0], (GLfloat)coordinates[1], (GLfloat)coordinates[2],
-        tx, tz);
-    /*
+    if (UseVertexBufferForTesselation)
+    {
+        BufferVertex(
+            (GLfloat)coordinates[0], (GLfloat)coordinates[1], (GLfloat)coordinates[2],
+            tx, tz);
+    }
+    else
+    {
         glTexCoord2f(tx,tz);
-        glNormal3f(normal[0], normal[1], normal[2]);
-        glVertex3dv(coordinates);
-    */
-
+        glVertex3f((GLfloat)coordinates[0], (GLfloat)coordinates[1], (GLfloat)coordinates[2]);
+    }
 }
 void CALLBACK tessCombine(GLdouble coords[3], GLdouble* vertex_data[4], GLfloat weight[4], GLdouble **dataOut)
 {
@@ -330,11 +337,10 @@ void CALLBACK tessCombine(GLdouble coords[3], GLdouble* vertex_data[4], GLfloat 
 void CALLBACK tessEnd(void)
 {
     //Log_Info("Tesselation end\n");
-    /*
-    glEnd();
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glDisable(GL_TEXTURE_2D);
-    */
+    if (UseVertexBufferForTesselation == false)
+    {
+        glEnd();
+    }
 }
 void CALLBACK tessError(GLenum errorCode)
 {

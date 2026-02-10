@@ -256,7 +256,6 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
 
         bool drawTesselation = true;
         // Draw the floor and ceiling with tesselation
-        // TODO Use gluTesselateion to draw floor and ceiling
         if (drawTesselation)
         {
             bool floor = true;
