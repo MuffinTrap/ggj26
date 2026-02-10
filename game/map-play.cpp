@@ -32,9 +32,9 @@ static bool drawOpenGL;
 
 // FOG test
 static bool useFog = true;
-static GLenum fogMode = GL_LINEAR;
-static float fogNear = 84.0f;
-static float fogFar = 406.0f;
+static GLenum fogMode = GL_EXP2;
+static float fogNear = 0.2f;
+static float fogFar = 100.0f;
 static GLfloat fogCOlor[4];
 static float fogColorValue = 0.0f;
 static float fogDensity = 0.9f;
@@ -44,26 +44,21 @@ static Color4f clearColor; // set this to fog color
 static float playerAmountSlider = 1;
 
 // For drawing the map in 3D
-static float dukeUnitsPerMetreXZ;
-static float dukeUnitsPerMetreY;
+static float dukeUnitsPerMetre;
 static float texCoordPerMetre;
+
+static float fovYAdjustForBuild = 0.0f; // How the fovy degrees used in culling walls differs from camera's
 
 Texture* maskTexture;
 Texture* crosshairTexture;
 
 static void InitRenderSettings3D()
 {
-    dukeUnitsPerMetreXZ = 7.3f;// NOTE CHECKED
-    dukeUnitsPerMetreY = 109.6;// NOTE CHECKED
-    texCoordPerMetre = 100.0f; // NOTE CHECKED
-    renderGL.scaleXZ = 1.0f/dukeUnitsPerMetreXZ;
-    renderGL.scaleY = 1.0f/dukeUnitsPerMetreY;
-    renderGL.textureScale = 1.0/texCoordPerMetre;
-    renderGL.spriteDefaultWidth = 1024;
-    renderGL.spriteDefaultHeight = 8024;
+    dukeUnitsPerMetre = 1024.0f;// NOTE CHECKED
+    texCoordPerMetre = 1.0f; // NOTE CHECKED
 
     glCamera = Camera_CreateDefault();
-    glCamera->nearZ = 0.0001f;
+    glCamera->nearZ = 0.1f;
     glCamera->fovY = 77.7f;
     glCamera->projection = CameraNone;
     Camera_SetMode(glCamera, CameraDirection);
@@ -74,6 +69,16 @@ static void InitRenderSettings3D()
     editorCamera->fovY = 77.7f;
     editorCamera->projection = CameraNone;
     Camera_SetMode(editorCamera, CameraDirection);
+
+    renderGL.scale = 1.0f/dukeUnitsPerMetre;
+    renderGL.textureScale = 1.0/texCoordPerMetre;
+    renderGL.spriteDefaultWidth = 1024;
+    renderGL.spriteDefaultHeight = 8024;
+
+    renderGL.near = glCamera->nearZ;
+    renderGL.far = glCamera->farZ;
+    renderGL.FOVyDegrees = glCamera->fovY;
+    renderGL.aspectRatio = mgdl_GetAspectRatio();
 }
 
 static void InitRenderSettings2D()
@@ -176,7 +181,7 @@ static void DrawDebugMenu()
                        editorCamera->rotations.z);
         }
 
-        Menu_Slider(debugMenu, "Zoom", 0.1f, 6.0f, &mapZoom);
+        Menu_Slider(debugMenu, "Zoom", 0.1f, 1024.0f, &mapZoom);
         Menu_Toggle(debugMenu, "Zoom Out", &ZoomOut);
         if (ZoomOut)
         {
@@ -220,39 +225,37 @@ static void DrawDebugMenu()
         */
         }
 
-        //Menu_Slider(debugMenu, "Scale XZ", 0.1f, 16.0f, &dukeUnitsPerMetreXZ2D);
-        //render2D.scaleXZ =dukeUnitsPerMetreXZ2D;
-        //Menu_TextF(debugMenu, "Scale XZ: %.4f", render2D.scaleXZ);
         Menu_Slider(debugMenu, "X", -100.f, 400.0f, &render2D.mapOffset.x);
         Menu_Slider(debugMenu, "Y", -100.f, 400.0f, &render2D.mapOffset.y);
+        Menu_Slider(debugMenu, "grid unit", -1.0f, 10.0f, &render2D.gridSize);
         Menu_Toggle(debugMenu, "Map", &drawTopdown);
-        //Menu_Toggle(debugMenu, "Map Y Down", &render2D.mapYDown);
 
         Menu_Toggle(debugMenu, "OpenGL", &drawOpenGL);
 
-        //Menu_Slider(debugMenu, "Player Height", 1024, 16 * 1024, &players[0].standingHeight);
+        Menu_Slider(debugMenu, "Player Height", 0, 3 * dukeUnitsPerMetre, &players[0].standingHeight);
 
         //Menu_Slider(debugMenu, "Sprite width", 64, 1024, &renderGL.spriteDefaultWidth);
         //Menu_Slider(debugMenu, "Sprite height", 64, 8024, &renderGL.spriteDefaultHeight);
-        //Menu_Slider(debugMenu, "GL Width scaling", 1, 16, &dukeUnitsPerMetreXZ);
-        //Menu_Slider(debugMenu, "GL Height scaling", 16, 128, &dukeUnitsPerMetreY);
-        // Menu_Slider(debugMenu, "GL Texture scale", 16, 128, &texCoordPerMetre);
-        //Menu_TextF(debugMenu, "Scale XZ: %.2f Y: %.2f", renderGL.scaleXZ, renderGL.scaleY);
-        renderGL.scaleXZ = 1.0f/dukeUnitsPerMetreXZ;
-        renderGL.scaleY = 1.0f/dukeUnitsPerMetreY;
+        Menu_Slider(debugMenu, "GL Width scaling", 1, 1024, &dukeUnitsPerMetre);
+        Menu_Slider(debugMenu, "GL Texture scale", 0.1f, 16, &texCoordPerMetre);
+        Menu_TextF(debugMenu, "Scale XZ: %.2f", renderGL.scale);
+        renderGL.scale = 1.0f/dukeUnitsPerMetre;
         renderGL.textureScale = 1.0/texCoordPerMetre;
 
-        Menu_Slider(debugMenu, "Far Z ", 100, 1000, &glCamera->farZ);
+        Menu_Slider(debugMenu, "Far Z ", 40, 1000, &glCamera->farZ);
         Menu_Toggle(debugMenu, "Editor camera", &useEditorCamera);
-        //Menu_Text(debugMenu, "Camera");
+        Menu_Text(debugMenu, "Camera");
+        Menu_Slider(debugMenu, "fogColor", 0.1f, 1.0f, &fogColorValue);
         //Menu_Slider(debugMenu, "FOV ", 45, 90, &glCamera->fovY);
+        //Menu_Slider(debugMenu, "FOV+-", -10, 10, &fovYAdjustForBuild);
+        //renderGL.FOVyDegrees = glCamera->fovY + fovYAdjustForBuild;
         //Menu_Slider(debugMenu, "Speed", 1, 2048.0f, &player.moveSpeed);
         //Menu_Slider(debugMenu, "V Speed", 1, 512.0f, &player.verticalSpeed);
         //Menu_Slider(debugMenu, "R Speed", 45, 720.0f, &player.turnSpeedDegrees);
         Menu_Toggle(debugMenu, "FOG", &useFog);
-        Menu_Slider(debugMenu, "fogNear", 5.0f, 100.0f, &fogNear);
-        Menu_Slider(debugMenu, "fogFar", 200.0f, 1000.0f, &fogFar);
-        Menu_Slider(debugMenu, "fogDensity", 0.1f, 1.0f, &fogDensity);
+        Menu_Slider(debugMenu, "fogNear", 0.01f, 10.0f, &fogNear);
+        Menu_Slider(debugMenu, "fogFar", 1.0f, 100.0f, &fogFar);
+        Menu_Slider(debugMenu, "fogDensity", 0.1f, 100.0f, &fogDensity);
         Menu_Slider(debugMenu, "fogColor", 0.1f, 1.0f, &fogColorValue);
         fogCOlor[0] = fogColorValue;
         fogCOlor[1] = fogColorValue;
@@ -299,7 +302,7 @@ void MapPlay_Init()
 
     // Load Maps
     allMapsArray = (DukeMap**)mgdl_AllocateGeneralMemory(sizeof(DukeMap**) * MAX_MAP_AMOUNT);
-    LoadMapFile("assets/Maps/tonnitesti.map");
+    LoadMapFile("assets/Maps/laatikko.map");
     LoadMapFile("assets/Maps/islandtest.map");
     LoadMapFile("assets/Maps/GGJ26ModernWateringCanNoIslands.map");
     LoadMapFile("assets/Maps/GGJ26SmallTest1.map");
@@ -317,7 +320,7 @@ void MapPlay_ResetPlayers()
         players[pi].moveSpeed = 2048.0f; // NOTE Set
         players[pi].verticalSpeed = 1400.0f;
         players[pi].fallingSpeed = 32000.0f;
-        players[pi].standingHeight = 6 * 1024.0f; // NOTE Set
+        players[pi].standingHeight = 512.0f; // NOTE Set
         players[pi].kneelingHeight = 4000.0f;
         players[pi].turnSpeedDegrees = 150.0f; // NOTE set
         players[pi].position.y += players[pi].standingHeight;

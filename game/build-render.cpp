@@ -111,8 +111,8 @@ void BuildRender_Init(DukeMap* map, RenderSettingsOpenGL* settings3D)
             maxp.y = max(w->z, maxp.y);
         }
         // Found points : calculate tex coords
-        float width = (maxp.x - minp.x) * settings3D->scaleXZ;
-        float height = (maxp.y - minp.y) * settings3D->scaleXZ;
+        float width = (maxp.x - minp.x) * settings3D->scale;
+        float height = (maxp.y - minp.y) * settings3D->scale;
         float aspect = width/height;
         sector->minXZPoint = minp;
         sector->sizeXZ = vec2Subtract(maxp, minp);
@@ -135,7 +135,7 @@ void BuildRender_DrawTempSprites(DukeMap* map, Player* player, RenderSettingsOpe
             && (player->playerNumber != sprite->owner || sprite->owner > 3))
         {
             // Keep the texture aspect correct
-            float scaleAspect = settings->scaleXZ / settings->scaleY;
+            float scaleAspect = 1.0f;//settings->scaleXZ / settings->scaleY;
 
             // TODO xrepeat and yrepeat adjust the aspect
             // The size comes from the size of the texture somehow
@@ -163,7 +163,7 @@ void BuildRender_DrawSprites(DukeMap* map, Player* player, RenderSettingsOpenGL*
         {
 
             // Keep the texture aspect correct
-            float scaleAspect = settings->scaleXZ / settings->scaleY;
+            float scaleAspect = 1.0f; //settings->scaleXZ / settings->scaleY;
 
             // TODO xrepeat and yrepeat adjust the aspect
             // The size comes from the size of the texture somehow
@@ -198,7 +198,7 @@ void BuildRender_DrawSprites(DukeMap* map, Player* player, RenderSettingsOpenGL*
 void BuildRender_Draw3D(Player* player, DukeMap* map, RenderSettingsOpenGL* settings)
 {
     glPushMatrix();
-    glScalef(settings->scaleXZ, settings->scaleY, settings->scaleXZ);
+    glScalef(settings->scale, settings->scale, settings->scale);
         OpenGLRender_StartDrawingPolygons();
             BuildRender_DrawSectors(player, map, settings);
             //mgdl_glSetTransparency(true);
@@ -217,12 +217,17 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
         renderedSectorNames[i] = 0;
     }
 
+    // Perspective projection
+    float top = settings->near * tan( Deg2Rad(settings->FOVyDegrees/2.0f));
+    float right = top * settings->aspectRatio;
+    float left = -right;
+
     // No items in buffer
     head = renderQueue;
     tail = renderQueue;
 
     vec2 playerPos2 = vec2New(player->position.x, player->position.z);
-    *head = {player->sectorNumber};
+    *head = (SectorRender){player->sectorNumber, left, right};
     renderQueueInserts++;
     // Circular buffer pointer arithmetics
     // Next request is put towards the tail
@@ -296,8 +301,46 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
                 // Draw next wall
                 continue;
             }
-            // TODO Clip tp view frustum and check if
+            // TODO Clip to view frustum and check if
             // inside it
+            bool startVisible = false;
+            bool endVisible = false;
+            if (startZ.y < 0)
+            {
+                startZ.x = ( startZ.x * settings->near)/-startZ.y;
+                if (startZ.x <= request.limitRight)
+                {
+                    // start point is visible: on the left side of right frustum wall
+                    startVisible = true;
+                    // Clip the start point to view cone
+                }
+
+            }
+            if (endZ.y < 0)
+            {
+                endZ.x = (endZ.x * settings->near)/-endZ.y;
+                if (endZ.x >= request.limitLeft)
+                {
+                    // end point is visible
+                    endVisible = true;
+                }
+            }
+            if (startZ.x >= endZ.x)
+            {
+                // Wall faces away from player
+                continue;
+            }
+
+            // End of the wall is too much to left
+            // or start of the wall is too much to right
+            // or end is more left than start
+            // This works because walls are always going clockwise around player
+            if ( (endVisible || startVisible) == false)
+            {
+                // Neither point is visible
+                continue;
+            }
+
 
             // Wall is drawn
             // if it was a portal Add neighbor to queue
@@ -305,14 +348,23 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
             OpenGLRender_DrawWall(map, w, floorY, ceilingY, settings);
             if (w->nextsector >= 0)
             {
-                if  ((head + MAX_PORTAL_QUEUE+1-tail)%MAX_PORTAL_QUEUE)
+                // When drawing walls seen from this portal,
+                // limit the view cone to the wall start and end points
+
+                float newLimitLeft = maxF(request.limitLeft, startZ.x);
+                float newLimitRight = minF(endZ.x, request.limitRight);
+                // Check that there is space left to draw
+                if (newLimitLeft < newLimitRight)
                 {
-                    (*head) = {w->nextsector};
-                    // Move head and loop around buffer
-                    if ( (++head) == renderQueue + MAX_PORTAL_QUEUE)
+                    if  ((head + MAX_PORTAL_QUEUE+1-tail)%MAX_PORTAL_QUEUE)
                     {
-                        head = renderQueue;
-                        renderQueueInserts++;
+                        (*head) = {w->nextsector, newLimitLeft, newLimitRight};
+                        // Move head and loop around buffer
+                        if ( (++head) == renderQueue + MAX_PORTAL_QUEUE)
+                        {
+                            head = renderQueue;
+                            renderQueueInserts++;
+                        }
                     }
                 }
             }
@@ -363,7 +415,7 @@ void BuildRender_DrawTopDown(Player* players, DukeMap* map, RenderSettingsOpenGL
         // The walls zoom
         glPushMatrix();
             // Turn the world around player
-            glScalef(settings3D->scaleXZ, settings3D->scaleXZ, 1);
+            glScalef(settings3D->scale, settings3D->scale, 1);
 
             if (settings2D->rotateMap)
             {
@@ -380,6 +432,29 @@ void BuildRender_DrawTopDown(Player* players, DukeMap* map, RenderSettingsOpenGL
             // DRAW WALLS
             ////////////////////////////
             glBegin(GL_LINES);
+
+
+            // Draw Grid in grey under everything else
+            glColor3f(0.2f, 0.2f, 0.2f);
+            if (settings2D->gridSize > 0)
+            {
+                float antiscale = 1.0f / settings3D->scale;
+                float gz = floorf(settings2D->gridSize) * antiscale;
+                float dx = (-10 * gz);
+                float dy = (-10 * gz);
+                for(int x = 0; x < 20; x++)
+                {
+                    OpenGLRender_Line2(dx + gz * x, dy,
+                                       dx + gz * x, dy + gz * 20);
+                }
+                for (int y = 0; y < 20; y++)
+                {
+                    OpenGLRender_Line2(dx, dy + gz * y,
+                                        dx + gz * 20, dy + gz * y);
+
+                }
+            }
+
             // Draw origo
             OpenGLRender_SetColor(Color_White);
             OpenGLRender_Line2(0, -10, 0 ,10);
@@ -516,9 +591,10 @@ void BuildRender_DrawTopDown(Player* players, DukeMap* map, RenderSettingsOpenGL
 
                         Wall* w = Map_GetWallInSector(map, si, wi);
                         vec2 start = vec2New(w->x, w->z);
+                        vec2 middle = Map_GetWallMiddle(map, w);
 
-                        int tx = start.x - numberSize/2;
-                        int ty = -start.y + numberSize/2;
+                        int tx = middle.x - numberSize/2;
+                        int ty = -middle.y + numberSize/2;
 
                         Draw2D_RectWH(tx, ty, numberSize, numberSize, Color_GetDefaultColor(Color_Black));
 
@@ -553,7 +629,7 @@ void BuildRender_DrawTopDown(Player* players, DukeMap* map, RenderSettingsOpenGL
             Player* player = &players[pi];
             vec2 playerPos2 = vec2New(player->position.x, player->position.z);
 
-            glScalef(settings3D->scaleXZ, settings3D->scaleXZ, 1);
+            glScalef(settings3D->scale, settings3D->scale, 1);
             glBegin(GL_LINES);
 
             vec2 forward = vec2New(WORLD_FORWARD.x, WORLD_FORWARD.z);

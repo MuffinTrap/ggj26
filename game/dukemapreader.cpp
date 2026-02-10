@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <mgdl/ccVector/ccVector.h>
 
+static const int HeightToWidth = 16;
+
 DukeMap* ReadMapFromFile(const char* mapfilename)
 {
     Log_InfoF("Reading map file %s\n", mapfilename);
@@ -17,7 +19,7 @@ DukeMap* ReadMapFromFile(const char* mapfilename)
     DukeMap m;
     m.version = ReadInt32();
     s32 start_x = ReadInt32();
-    s32 start_y = ReadInt32();
+    s32 start_y = ReadInt32() / HeightToWidth;
     s32 start_z = ReadInt32() * -1;
     m.startPosition = vec3New(start_x, start_z, start_y);
 
@@ -31,8 +33,11 @@ DukeMap* ReadMapFromFile(const char* mapfilename)
         Sector* s = &m.sectors[i];
         s->wallptr = ReadInt16();
         s->wallnum = ReadInt16();
-        s->ceilingy = ReadInt32() * -1; // NOTE Y is up, originally was -Z
-        s->floory = ReadInt32() * -1; // NOTE Y is up, originally was -Z
+
+        // NOTE These are changed to have the same unit as width and depth
+
+        s->ceilingy = ReadInt32()/HeightToWidth * -1; // NOTE Y is up, originally was -Z
+        s->floory = ReadInt32()/HeightToWidth * -1; // NOTE Y is up, originally was -Z
         s->ceilingstat = ReadInt16();
         s->floorstat = ReadInt16();
         s->ceilingpicnum = ReadInt16();
@@ -85,8 +90,8 @@ DukeMap* ReadMapFromFile(const char* mapfilename)
 
         s32 x = ReadInt32();
         s32 y = ReadInt32();
-        s32 z = ReadInt32();
-        s->position = vec3New(x, z*-1, y);
+        s32 z = ReadInt32()/ HeightToWidth * -1;
+        s->position = vec3New(x, z, y);
 
         s->cstat = ReadInt16();
         s->picnum = ReadInt16();

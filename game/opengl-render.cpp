@@ -464,8 +464,8 @@ void OpenGLRender_Init()
 void DrawQuad(vec2 start, vec2 end, const vec2 normalXZ, float floorY, float ceilingY, s16 picnum, s8 brightnessOffset, RenderSettingsOpenGL* settings3D)
 {
     // Keep texture aspect 1:1 unless told otherwise
-    float width = vec2Length( vec2Subtract(end, start)) * settings3D->scaleXZ;
-    float height = (ceilingY - floorY) * settings3D->scaleY;
+    float width = vec2Length( vec2Subtract(end, start)) * settings3D->scale;
+    float height = (ceilingY - floorY) * settings3D->scale;
 
     // TODO move to graphics
     float aspect = width/height;
@@ -553,6 +553,29 @@ void OpenGLRender_DrawFloorOrCeiling(DukeMap* map, Sector* sector, bool floor)
             BeginPolygon(vec3New(ceilingNormal[0], ceilingNormal[1], ceilingNormal[2]), SetPicnum_GetUVoffset(sector->ceilingpicnum), BrightnessOffsetToColor(sector->ceilingshade));
         }
 
+        /*
+        if (sector->wallnum <= 4)
+        {
+            // its just a quad
+            if (floor)
+            {
+                for (s16 wi = sector->wallnum-1; wi >= 0; wi--)
+                {
+                    Wall* w = Map_GetWallInSectorPtr(map, sector, wi);
+                }
+            }
+            else
+            {
+                for (s16 wi = 0; wi < sector->wallnum; wi++)
+                {
+                    Wall* w = Map_GetWallInSectorPtr(map, sector, wi);
+                }
+
+            }
+        }
+        else
+        */
+        {
 
         //Log_InfoF("Tesselating sector:  extra %d\n", sector->extra);
 
@@ -624,8 +647,9 @@ void OpenGLRender_DrawFloorOrCeiling(DukeMap* map, Sector* sector, bool floor)
                 pointIndex--;
             }
             gluTessEndPolygon(tesselator);
+        }
 
-            EndPolygon();
+        EndPolygon();
     glPopMatrix();
 }
 

@@ -99,14 +99,9 @@ float Math_DukeAngleToRad(s16 angleInt)
 
 vec3 Vec3DukePosToOpenGL(vec3 dukepos, RenderSettingsOpenGL* settings3D)
 {
-	dukepos.x = dukepos.x * settings3D->scaleXZ;
-	dukepos.y = dukepos.y * settings3D->scaleY;
-	dukepos.z = dukepos.z * settings3D->scaleXZ;
-	return dukepos;
+	return vec3Multiply(dukepos, settings3D->scale);
 }
 vec2 Vec2DukePosToOpenGL(vec2 dukepos, RenderSettingsOpenGL* settings3D)
 {
-	dukepos.x *= settings3D->scaleXZ;
-	dukepos.y *= settings3D->scaleXZ;
-	return dukepos;
+	return vec2Multiply(dukepos, settings3D->scale);
 }

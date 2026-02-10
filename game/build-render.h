@@ -6,6 +6,8 @@
 struct SectorRender
 {
     s16 number;
+    float limitLeft; // Field of view limits or portal limits
+    float limitRight;
 };
 typedef struct SectorRender SectorRender;
 
@@ -35,16 +37,22 @@ struct RenderSettings2D
     bool drawSprites; ///< Draw Sprites
     bool drawTreasure; ///< Draws treasure sprite regardless of other sprites
     bool drawWallNumbers;
+
+    float gridSize; // Grid in OpenGL units
 };
 typedef struct RenderSettings2D RenderSettings2D;
 
 struct RenderSettingsOpenGL
 {
-    float scaleXZ;
-    float scaleY;
+    float scale;
     float textureScale;
     float spriteDefaultWidth;
     float spriteDefaultHeight;
+
+    // Camera information
+    float FOVyDegrees;
+    float near, far;
+    float aspectRatio;
 
 };
 typedef struct RenderSettingsOpenGL RenderSettingsOpenGL;
