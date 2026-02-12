@@ -163,6 +163,8 @@ static void DrawDebugMenu()
 
     Menu_Toggle(debugMenu, showMenu ? "Hide" : "Show", &showMenu);
 
+    Menu_TextF(debugMenu, "Memory GPU %u CPU %u", mgdl_GetAllocatedGraphicsMemoryBytes(), mgdl_GetAllocatedGeneralMemoryBytes());
+
     if (showMenu)
     {
         if (render2D.movePlayer)
@@ -199,7 +201,7 @@ static void DrawDebugMenu()
                        editorCamera->rotations.z);
         }
 
-        Menu_Slider(debugMenu, "Zoom", 0.1f, 1024.0f, &mapZoom);
+        Menu_Slider(debugMenu, "Zoom", 0.1f, 128.0f, &mapZoom);
         Menu_Toggle(debugMenu, "Zoom Out", &ZoomOut);
         if (ZoomOut)
         {
@@ -247,6 +249,7 @@ static void DrawDebugMenu()
         Menu_Slider(debugMenu, "Y", -100.f, 400.0f, &render2D.mapOffset.y);
         Menu_Slider(debugMenu, "grid unit", -1.0f, 10.0f, &render2D.gridSize);
         Menu_Toggle(debugMenu, "Map", &drawTopdown);
+        Menu_Toggle(debugMenu, "Sprites", &render2D.drawSprites);
 
         Menu_Toggle(debugMenu, "OpenGL", &drawOpenGL);
 
@@ -254,28 +257,28 @@ static void DrawDebugMenu()
 
         //Menu_Slider(debugMenu, "Sprite width", 64, 1024, &renderGL.spriteDefaultWidth);
         //Menu_Slider(debugMenu, "Sprite height", 64, 8024, &renderGL.spriteDefaultHeight);
-        Menu_Slider(debugMenu, "GL Width scaling", 1, 1024, &dukeUnitsPerMetre);
-        Menu_Slider(debugMenu, "GL Texture scale", 0.1f, 16, &texCoordPerMetre);
-        Menu_TextF(debugMenu, "Scale XZ: %.2f", renderGL.scale);
+        //Menu_Slider(debugMenu, "GL Width scaling", 1, 1024, &dukeUnitsPerMetre);
+        //Menu_Slider(debugMenu, "GL Texture scale", 0.1f, 16, &texCoordPerMetre);
+        //Menu_TextF(debugMenu, "Scale XZ: %.2f", renderGL.scale);
         renderGL.scale = 1.0f/dukeUnitsPerMetre;
         renderGL.textureScale = 1.0/texCoordPerMetre;
 
-        Menu_Slider(debugMenu, "Far Z ", 40, 1000, &glCamera->farZ);
+        //Menu_Slider(debugMenu, "Far Z ", 40, 1000, &glCamera->farZ);
         Menu_Toggle(debugMenu, "Editor camera", &useEditorCamera);
         Menu_Text(debugMenu, "Camera");
-        Menu_Slider(debugMenu, "fogColor", 0.1f, 1.0f, &fogColorValue);
+        //Menu_Slider(debugMenu, "fogColor", 0.1f, 1.0f, &fogColorValue);
         //Menu_Slider(debugMenu, "FOV ", 45, 90, &glCamera->fovY);
         //Menu_Slider(debugMenu, "FOV+-", -10, 10, &fovYAdjustForBuild);
         //renderGL.FOVyDegrees = glCamera->fovY + fovYAdjustForBuild;
         //Menu_Slider(debugMenu, "Speed", 1, 2048.0f, &player.moveSpeed);
         //Menu_Slider(debugMenu, "V Speed", 1, 512.0f, &player.verticalSpeed);
         //Menu_Slider(debugMenu, "R Speed", 45, 720.0f, &player.turnSpeedDegrees);
-        Menu_Toggle(debugMenu, "FOG", &useFog);
-        Menu_Slider(debugMenu, "Fog mode", 0.01f, 3.0f, &fogModeInt);
-        Menu_Slider(debugMenu, "fogNear", 0.01f, 10.0f, &fogNear);
-        Menu_Slider(debugMenu, "fogFar", 1.0f, 100.0f, &fogFar);
-        Menu_Slider(debugMenu, "fogDensity", 0.0f, 4.0f, &fogDensity);
-        Menu_Slider(debugMenu, "fogColor", 0.1f, 1.0f, &fogColorValue);
+        // Menu_Toggle(debugMenu, "FOG", &useFog);
+        // Menu_Slider(debugMenu, "Fog mode", 0.01f, 3.0f, &fogModeInt);
+        // Menu_Slider(debugMenu, "fogNear", 0.01f, 10.0f, &fogNear);
+        // Menu_Slider(debugMenu, "fogFar", 1.0f, 100.0f, &fogFar);
+        // Menu_Slider(debugMenu, "fogDensity", 0.0f, 4.0f, &fogDensity);
+        // Menu_Slider(debugMenu, "fogColor", 0.1f, 1.0f, &fogColorValue);
         fogCOlor[0] = fogColorValue;
         fogCOlor[1] = fogColorValue;
         fogCOlor[2] = fogColorValue;
@@ -617,6 +620,7 @@ MapPlayResult MapPlay_Frame()
                     // Sets GL_MODELVIEW
                     Camera_Apply(glCamera);
                 }
+                renderGL.aspectRatio = viewPort.w / viewPort.h;
 
                 BuildRender_Draw3D(player, activeMap, &renderGL);
             }

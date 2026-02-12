@@ -48,6 +48,7 @@ static RectF polygonUVLimits;
 static RectF zeroOffset;
 
 static bool UseVertexBufferForTesselation = false;
+static bool useGlutessForFloorsAndCeilings = false;
 
 void OpenGLRender_StartDrawingPolygons()
 {
@@ -216,30 +217,37 @@ void CALLBACK tessBegin(GLenum which)
     //Log_InfoF("Tesselation start mode: %s \n", which == GL_TRIANGLES ? "Triangles" : "Not triangles");
 }
 
+vec2 CalculateFloorOrCeilingUV(const Sector* sector, float x, float z)
+{
+    float xrange = sector->sizeXZ.x;
+    float zrange = sector->sizeXZ.y;
+    float xdiff = x - sector->minXZPoint.x;
+    float zdiff = z - sector->minXZPoint.y;
+    float tx = xdiff/xrange * sector->maxTexCoord.x;
+    float tz = zdiff/zrange * sector->maxTexCoord.y;
+    return vec2New(tx, tz);
+
+}
+
 // This puts a new vertex into the buffer
 void CALLBACK tessVertex(GLvoid* vertex, void* SectorPtr)
 {
     const Sector* s = (Sector*)SectorPtr;
     const GLdouble* coordinates = (GLdouble*)vertex;
+    vec2 uv = CalculateFloorOrCeilingUV(s, (float)coordinates[0], (float)coordinates[2]);
 
     //Log_InfoF("Tesselation vertex %.2f, %.2f\n", pointer[0], pointer[2]);
     // TODO texture coordinates and colors
-    float xrange = s->sizeXZ.x;
-    float zrange = s->sizeXZ.y;
-    float xdiff = coordinates[0] - s->minXZPoint.x;
-    float zdiff = coordinates[2] - s->minXZPoint.y;
-    float tx = xdiff/xrange * s->maxTexCoord.x;
-    float tz = zdiff/zrange * s->maxTexCoord.y;
     //Log_InfoF("Tesselation tex coord %.2f, %.2f\n", tx, ty);
     if (UseVertexBufferForTesselation)
     {
         BufferVertex(
             (GLfloat)coordinates[0], (GLfloat)coordinates[1], (GLfloat)coordinates[2],
-            tx, tz);
+            uv.x, uv.y);
     }
     else
     {
-        glTexCoord2f(tx,tz);
+        glTexCoord2f(uv.x,uv.y);
         glVertex3f((GLfloat)coordinates[0], (GLfloat)coordinates[1], (GLfloat)coordinates[2]);
     }
 }
@@ -309,6 +317,9 @@ void SetWrap(GLuint textureName)
 
 void OpenGLRender_Init()
 {
+#   ifdef GEKKO
+    useGlutessForFloorsAndCeilings = false;
+#   endif
 
     zeroOffset.x = 0.0f;
     zeroOffset.y = 0.0f;
@@ -316,34 +327,37 @@ void OpenGLRender_Init()
     zeroOffset.h = 1.0f;
 
     checkers = Texture_GenerateCheckerBoard();
-    if (tesselator == nullptr)
+    if (useGlutessForFloorsAndCeilings)
     {
-        tesselator = gluNewTess();
-        mgdl_assert_print(tesselator != nullptr, "No Glut tesselator!");
+        if (tesselator == nullptr)
+        {
+            tesselator = gluNewTess();
+            mgdl_assert_print(tesselator != nullptr, "No Glut tesselator!");
 
-        gluTessCallback(tesselator, GLU_TESS_BEGIN, (_GLUfuncptr)tessBegin);
-        gluTessCallback(tesselator, GLU_TESS_VERTEX_DATA, (_GLUfuncptr)tessVertex);
-        gluTessCallback(tesselator, GLU_TESS_END, (_GLUfuncptr)tessEnd);
-        gluTessCallback(tesselator, GLU_TESS_ERROR, (_GLUfuncptr)tessError);
-        gluTessCallback(tesselator, GLU_TESS_EDGE_FLAG, (_GLUfuncptr)tessEdgeFlag); // this makes tess only submit triangles
-        gluTessCallback(tesselator, GLU_TESS_COMBINE, (_GLUfuncptr)tessCombine);
-
-        floorNormal[0] = 0;
-        floorNormal[1] = 1;
-        floorNormal[2] = 0;
-        ceilingNormal[0] = 0;
-        ceilingNormal[1] = -1;
-        ceilingNormal[2] = 0;
+            gluTessCallback(tesselator, GLU_TESS_BEGIN, (_GLUfuncptr)tessBegin);
+            gluTessCallback(tesselator, GLU_TESS_VERTEX_DATA, (_GLUfuncptr)tessVertex);
+            gluTessCallback(tesselator, GLU_TESS_END, (_GLUfuncptr)tessEnd);
+            gluTessCallback(tesselator, GLU_TESS_ERROR, (_GLUfuncptr)tessError);
+            gluTessCallback(tesselator, GLU_TESS_EDGE_FLAG, (_GLUfuncptr)tessEdgeFlag); // this makes tess only submit triangles
+            gluTessCallback(tesselator, GLU_TESS_COMBINE, (_GLUfuncptr)tessCombine);
+            if (tesselationBuffer == nullptr)
+            {
+                tesselationBuffer = (GLdouble*)mgdl_AllocateGraphicsMemory(TESSELATION_BUFFER_SIZE_BYTES);
+            }
+            if (combineRingBuffer == nullptr)
+            {
+                combineRingBuffer = (GLdouble*)mgdl_AllocateGraphicsMemory(COMBINE_BUFFER_SIZE_BYTES);
+            }
+        }
     }
 
-    if (tesselationBuffer == nullptr)
-    {
-        tesselationBuffer = (GLdouble*)mgdl_AllocateGraphicsMemory(TESSELATION_BUFFER_SIZE_BYTES);
-    }
-    if (combineRingBuffer == nullptr)
-    {
-        combineRingBuffer = (GLdouble*)mgdl_AllocateGraphicsMemory(COMBINE_BUFFER_SIZE_BYTES);
-    }
+    floorNormal[0] = 0;
+    floorNormal[1] = 1;
+    floorNormal[2] = 0;
+    ceilingNormal[0] = 0;
+    ceilingNormal[1] = -1;
+    ceilingNormal[2] = 0;
+
     if (vertexBuffer == nullptr)
     {
         vertexBuffer = (GLfloat*)mgdl_AllocateGraphicsMemory(VERTEX_BUFFER_SIZE_BYTES);
@@ -513,6 +527,9 @@ void OpenGLRender_DrawFloorOrCeiling(DukeMap* map, Sector* sector, bool floor)
     float floorY = sector->floory;
 
     glPushMatrix();
+
+    if (useGlutessForFloorsAndCeilings)
+    {
         // Set floor level to 0.0f
         if (floor)
         {
@@ -528,29 +545,6 @@ void OpenGLRender_DrawFloorOrCeiling(DukeMap* map, Sector* sector, bool floor)
             BeginPolygon(vec3New(ceilingNormal[0], ceilingNormal[1], ceilingNormal[2]), SetPicnum_GetUVoffset(sector->ceilingpicnum), BrightnessOffsetToColor(sector->ceilingshade));
         }
 
-        /*
-        if (sector->wallnum <= 4)
-        {
-            // its just a quad
-            if (floor)
-            {
-                for (s16 wi = sector->wallnum-1; wi >= 0; wi--)
-                {
-                    Wall* w = Map_GetWallInSectorPtr(map, sector, wi);
-                }
-            }
-            else
-            {
-                for (s16 wi = 0; wi < sector->wallnum; wi++)
-                {
-                    Wall* w = Map_GetWallInSectorPtr(map, sector, wi);
-                }
-
-            }
-        }
-        else
-        */
-        {
 
         //Log_InfoF("Tesselating sector:  extra %d\n", sector->extra);
 
@@ -625,9 +619,65 @@ void OpenGLRender_DrawFloorOrCeiling(DukeMap* map, Sector* sector, bool floor)
             // flush the vertices before that
             mgdl_CacheFlushRange(tesselationBuffer, TESSELATION_BUFFER_SIZE_BYTES);
             gluTessEndPolygon(tesselator);
-        }
 
         EndPolygon();
+    }
+    else  // No GLUTESS in use, only convex sectors
+    {
+        if (floor)
+        {
+            BeginPolygon( vec3New(floorNormal[0], floorNormal[1], floorNormal[2] ), SetPicnum_GetUVoffset(sector->floorpicnum), BrightnessOffsetToColor(sector->floorshade));
+        }
+        else
+        {
+            BeginPolygon(vec3New(ceilingNormal[0], ceilingNormal[1], ceilingNormal[2]), SetPicnum_GetUVoffset(sector->ceilingpicnum), BrightnessOffsetToColor(sector->ceilingshade));
+        }
+
+        int outerWallStartPoint = sector->wallptr;
+
+        vec2 middle = vec2New(
+            sector->minXZPoint.x + sector->sizeXZ.x/2,
+            sector->minXZPoint.y + sector->sizeXZ.y/2 );
+        vec2 middleUV = CalculateFloorOrCeilingUV(sector, middle.x, middle.y);
+
+        bool outerWallDone = false;
+        // Take pair of vertices and make triangle with center of sector
+        for (s16 wi = 0; wi < sector->wallnum; wi++)
+        {
+            Wall* w1 = Map_GetWallInSectorPtr(map, sector, wi);
+            s16 next;
+            if (w1->point2 == outerWallStartPoint)
+            {
+                // Close the loop
+                next = 0;
+                outerWallDone = true;
+            }
+            else
+            {
+                next = (wi+1) %sector->wallnum;
+            }
+            Wall* w2 = Map_GetWallInSectorPtr(map, sector, next);
+            vec2 uv1 = CalculateFloorOrCeilingUV(sector, w1->x, w1->z);
+            vec2 uv2 = CalculateFloorOrCeilingUV(sector, w2->x, w2->z);
+            if (floor)
+            {
+                BufferVertex( w2->x, floorY, w2->z, uv2.x, uv2.y);
+                BufferVertex( w1->x, floorY, w1->z, uv1.x, uv1.y);
+                BufferVertex( middle.x, floorY, middle.y, middleUV.x, middleUV.y);
+            }
+            else
+            {
+                BufferVertex( w1->x, ceilingY, w1->z, uv1.x, uv1.y);
+                BufferVertex( w2->x, ceilingY, w2->z, uv2.x, uv2.y);
+                BufferVertex( middle.x, ceilingY, middle.y, middleUV.x, middleUV.y);
+            }
+            if (outerWallDone)
+            {
+                break;
+            }
+        }
+        EndPolygon();
+    }
     glPopMatrix();
 }
 

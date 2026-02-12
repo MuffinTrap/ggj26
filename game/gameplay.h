@@ -57,9 +57,6 @@ struct WorldObject
 };
 typedef struct WorldObject WorldObject;
 
-static Bullet bullets[MAX_BULLET_AMOUNT];
-static WorldObject treasure;
-static WorldObject treasureExit;
 
 void Gameplay_Init();
 void Gameplay_StartMap(DukeMap* map);

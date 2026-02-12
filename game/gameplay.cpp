@@ -1,5 +1,7 @@
 #include "gameplay.h"
 
+static Bullet bullets[MAX_BULLET_AMOUNT];
+static WorldObject treasure;
 DSprite tempSprites[TEMP_SPRITE_AMOUNT];
 int winnerPlayerIndex = -1;
 
@@ -115,8 +117,6 @@ void Gameplay_StartMap(DukeMap* map)
 
 void Gameplay_Update(Player* player, DukeMap* map)
 {
-	float dt = mgdl_GetDeltaTime();
-
 	// Update player model
 	int index = MAX_BULLET_AMOUNT + 1 + player->playerNumber;
 	tempSprites[index].position = player->position;

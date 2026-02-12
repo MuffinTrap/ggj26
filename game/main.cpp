@@ -91,7 +91,7 @@ void frame()
             MainMenuResult r = MainMenu_Frame();
             if (r == MainMenuStartGame)
             {
-                Audio_StopSound(music);
+                //Audio_StopSound(music);
                 currentState = Game_MapPlay;
                 MapPlay_StartMap(MainMenu_GetSelectedMapIndex(), MainMenu_GetSelectedPlayerAmount());
             }
