@@ -67,6 +67,11 @@ void Map_InitPlayer(DukeMap* map, Player* player)
 
 void Map_FindIslandSectors(DukeMap* map)
 {
+    if (map == nullptr)
+    {
+        Log_ErrorF("Map_FindIslandSectors got null pointer for map\n");
+        return;
+    }
     for (int i = 0; i < map->sectorAmount; i++)
     {
         Sector* S = &map->sectors[i];

@@ -8,12 +8,35 @@ struct DukeMap;
 struct Sector;
 struct Wall;
 struct Texture;
+struct Sprite;
+
+#define RENDERER_PICNUM_DEFAULT 0
 
 /**
- * @brief This code uses OpenGL to draw a build map
+ * @brief Init the renderer
  */
-
 void OpenGLRender_Init();
+
+void OpenGLRender_Deinit();
+
+/**
+ * @brief Registers a sprite to be used when a picnum is drawn
+ * @details This will store the sprite pointer in array. picnum 0 is the default texture that is used if asked for unregistered picnum.
+ * @param picnum What picnum does this Sprite match.
+ * @param sprite The sprite to use
+ * @returns True if registering succeeded: there was space in array
+ */
+bool OpenGLRender_RegisterSprite(s16 picnum, Sprite* sprite);
+/**
+ * @brief Registers a texture to be used when a picnum is drawn
+ * @details This will create a new Sprite with one frame and store the sprite pointer in array
+ * @param picnum What picnum does this Sprite match
+ * @param texture The texture to use
+ * @returns True if registering succeeded: there was space in array
+ */
+bool OpenGLRender_RegisterTexture(s16 picnum, Texture* texture);
+// Dark version of texture
+bool OpenGLRender_RegisterTexture_DARK(s16 picnum, Texture* texture);
 
 /**
  * @brief Sets up the rendering state for drawing walls, floors, ceilings and sprites

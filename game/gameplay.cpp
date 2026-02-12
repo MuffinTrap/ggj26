@@ -206,8 +206,8 @@ void Gameplay_UpdateBullets(Player* players, int playerAmount, DukeMap* map)
 			tempSprites[i].position = bullets[i].position;
 			tempSprites[i].sectnum = bullets[i].sectorNumber;
 
-			// Update bullets alive (-z forwads, thus negative speed)
-			vec3 movementEnd = vec3Multiply(bullets[i].direction, -BULLET_SPEED * dt);
+			// Update bullets alive
+			vec3 movementEnd = vec3Multiply(bullets[i].direction, BULLET_SPEED * dt);
 			movementEnd = vec3Add(bullets[i].position, movementEnd);
 
 			vec2 point = vec2New(bullets[i].position.x, bullets[i].position.z);

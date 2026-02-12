@@ -32,12 +32,13 @@ static bool drawOpenGL;
 
 // FOG test
 static bool useFog = true;
-static GLenum fogMode = GL_EXP2;
+static GLenum fogMode = GL_EXP;
+static float fogModeInt = 1.1;
 static float fogNear = 0.2f;
 static float fogFar = 100.0f;
 static GLfloat fogCOlor[4];
-static float fogColorValue = 0.0f;
-static float fogDensity = 0.9f;
+static float fogColorValue = 0.1f;
+static float fogDensity = 0.3f;
 
 static Color4f clearColor; // set this to fog color
 
@@ -49,8 +50,25 @@ static float texCoordPerMetre;
 
 static float fovYAdjustForBuild = 0.0f; // How the fovy degrees used in culling walls differs from camera's
 
-Texture* maskTexture;
-Texture* crosshairTexture;
+static Texture* maskTexture;
+static Texture* crosshairTexture;
+
+static Sprite* bulletTexture;
+static Sprite* treasureTexture;
+static Sprite* playerTexture;
+static Sprite* playerWithMaskTexture;
+static Sprite* playerShockTexture;
+static Texture* playerShootTexture;
+static Texture* playerShootWithMaskTexture;
+
+static Texture* wall;
+static Texture* wallDark;
+static Texture* floorTexture;
+static Texture* floorDark;
+static Texture* ceiling;
+static Texture* ceilingDark;
+static Texture* exitTexture;
+static Texture* tileTexture;
 
 static void InitRenderSettings3D()
 {
@@ -64,8 +82,8 @@ static void InitRenderSettings3D()
     Camera_SetMode(glCamera, CameraDirection);
 
     editorCamera = Camera_CreateDefault();
-    editorCamera->nearZ = 0.01f;
-    editorCamera->farZ = 1000.0f;
+    editorCamera->nearZ = 0.001f;
+    editorCamera->farZ = 100.0f;
     editorCamera->fovY = 77.7f;
     editorCamera->projection = CameraNone;
     Camera_SetMode(editorCamera, CameraDirection);
@@ -77,7 +95,7 @@ static void InitRenderSettings3D()
 
     renderGL.near = glCamera->nearZ;
     renderGL.far = glCamera->farZ;
-    renderGL.FOVyDegrees = glCamera->fovY;
+    renderGL.FOVyDegrees = glCamera->fovY + 10.0f; // This is the culling fov
     renderGL.aspectRatio = mgdl_GetAspectRatio();
 }
 
@@ -253,9 +271,10 @@ static void DrawDebugMenu()
         //Menu_Slider(debugMenu, "V Speed", 1, 512.0f, &player.verticalSpeed);
         //Menu_Slider(debugMenu, "R Speed", 45, 720.0f, &player.turnSpeedDegrees);
         Menu_Toggle(debugMenu, "FOG", &useFog);
+        Menu_Slider(debugMenu, "Fog mode", 0.01f, 3.0f, &fogModeInt);
         Menu_Slider(debugMenu, "fogNear", 0.01f, 10.0f, &fogNear);
         Menu_Slider(debugMenu, "fogFar", 1.0f, 100.0f, &fogFar);
-        Menu_Slider(debugMenu, "fogDensity", 0.1f, 100.0f, &fogDensity);
+        Menu_Slider(debugMenu, "fogDensity", 0.0f, 4.0f, &fogDensity);
         Menu_Slider(debugMenu, "fogColor", 0.1f, 1.0f, &fogColorValue);
         fogCOlor[0] = fogColorValue;
         fogCOlor[1] = fogColorValue;
@@ -302,7 +321,7 @@ void MapPlay_Init()
 
     // Load Maps
     allMapsArray = (DukeMap**)mgdl_AllocateGeneralMemory(sizeof(DukeMap**) * MAX_MAP_AMOUNT);
-    LoadMapFile("assets/Maps/laatikko.map");
+    LoadMapFile("assets/Maps/muffin_arena.map");
     LoadMapFile("assets/Maps/islandtest.map");
     LoadMapFile("assets/Maps/GGJ26ModernWateringCanNoIslands.map");
     LoadMapFile("assets/Maps/GGJ26SmallTest1.map");
@@ -310,6 +329,26 @@ void MapPlay_Init()
     // Load ui textures
     maskTexture = mgdl_LoadTexture("assets/screen_mask_texture.png", Linear);
     crosshairTexture = mgdl_LoadTexture("assets/crosshair.png", Linear);
+    // Load map textures and sprites
+
+    OpenGLRender_RegisterTexture(RENDERER_PICNUM_DEFAULT, tileTexture = mgdl_LoadTexture("assets/tile_vent_tunnel.png", Linear));
+
+    OpenGLRender_RegisterSprite(PICNUM_BULLET, mgdl_LoadSprite("assets/bullet_spritesheet.png", 64, 64));
+    OpenGLRender_RegisterSprite(PICNUM_TREASURE, mgdl_LoadSprite("assets/treasure_mask_spritesheet.png", 128, 128));
+    OpenGLRender_RegisterSprite(PICNUM_PLAYER, mgdl_LoadSprite("assets/player_walk.png", 256, 256));
+    OpenGLRender_RegisterSprite(PICNUM_PLAYER_WITH_MASK, mgdl_LoadSprite("assets/player_masked_walk.png", 256, 256));
+    OpenGLRender_RegisterSprite(PICNUM_PLAYER_SHOCK, mgdl_LoadSprite("assets/player_stunned.png", 256, 256));
+    OpenGLRender_RegisterTexture(PICNUM_PLAYER_SHOOT, mgdl_LoadTexture("assets/player_shoot.png", Linear));
+    OpenGLRender_RegisterTexture(PICNUM_PLAYER_SHOOT_WITH_MASK, mgdl_LoadTexture("assets/player_masked_shoot.png", Linear));
+
+    OpenGLRender_RegisterTexture(PICNUM_WALL, mgdl_LoadTexture("assets/216_tile_wall_light.png", Linear));
+    OpenGLRender_RegisterTexture(PICNUM_FLOOR ,mgdl_LoadTexture("assets/442_tile_floor_light.png", Linear));
+    OpenGLRender_RegisterTexture(PICNUM_CEILING ,mgdl_LoadTexture("assets/378_tile_ceiling_light.png", Linear));
+    OpenGLRender_RegisterTexture(PICNUM_EXIT,mgdl_LoadTexture("assets/exit_door.png", Linear));
+
+    OpenGLRender_RegisterTexture_DARK(PICNUM_WALL, mgdl_LoadTexture("assets/217_tile_wall_dark.png", Linear));
+    OpenGLRender_RegisterTexture_DARK(PICNUM_FLOOR, mgdl_LoadTexture("assets/443_tile_floor_dark.png", Linear));
+    OpenGLRender_RegisterTexture_DARK(PICNUM_CEILING, mgdl_LoadTexture("assets/379_tile_ceiling_dark.png", Linear));
 }
 
 void MapPlay_ResetPlayers()
@@ -320,8 +359,8 @@ void MapPlay_ResetPlayers()
         players[pi].moveSpeed = 2048.0f; // NOTE Set
         players[pi].verticalSpeed = 1400.0f;
         players[pi].fallingSpeed = 32000.0f;
-        players[pi].standingHeight = 512.0f; // NOTE Set
-        players[pi].kneelingHeight = 4000.0f;
+        players[pi].standingHeight = 512.0f + 256; // NOTE Set
+        players[pi].kneelingHeight = 256.0f;
         players[pi].turnSpeedDegrees = 150.0f; // NOTE set
         players[pi].position.y += players[pi].standingHeight;
         players[pi].radius = 340.0f;
@@ -493,13 +532,16 @@ MapPlayResult MapPlay_Frame()
         WiiController* cameraC = mgdl_GetController(1);
         MoveEditorCamera(cameraC);
     }
-#   ifndef GEKKO
-// Fog just on PC
     if (useFog)
     {
         glEnable(GL_FOG);
 
-        glFogi(GL_FOG_MODE, fogMode);
+        switch((int)floor(fogModeInt))
+        {
+            case 0: glFogi(GL_FOG_MODE, GL_LINEAR); break;
+            case 1: glFogi(GL_FOG_MODE, GL_EXP); break;
+            case 2: glFogi(GL_FOG_MODE, GL_EXP2); break;
+        }
         glFogfv(GL_FOG_COLOR, fogCOlor);
         glFogf(GL_FOG_DENSITY, fogDensity);
         glHint(GL_FOG_HINT, GL_DONT_CARE);
@@ -507,7 +549,6 @@ MapPlayResult MapPlay_Frame()
         glFogf(GL_FOG_END, fogFar);
         glEnable(GL_BLEND);
     }
-#endif
 
     // Draw
         glPushMatrix();

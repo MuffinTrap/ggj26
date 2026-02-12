@@ -10,7 +10,11 @@
 
     static Texture* betaText;
 
-    static Sound* music;
+    Color4f orange = Color_HexToFloats(0xffbe03ff);
+    Color4f black = Color_HexToFloats(0x020202ff);
+    Color4f white = Color_HexToFloats(0xfffcfcfc);
+    Color4f grey = Color_HexToFloats(0xff4c4c4c);
+    Color4f transpa = Color_HexToFloats(0x00000000);
 
 void MainMenu_Init()
 {
@@ -23,32 +27,33 @@ void MainMenu_Init()
     mapMenu = Menu_Create(menuFont, 2, 1.2f);
     // TODO set colors etc
     // color ffbe03
-    Color4f orange = Color_HexToFloats(0xffbe03ff);
-    Color4f black = Color_HexToFloats(0x020202ff);
-    Color4f white = Color_HexToFloats(0xfffcfcfc);
-    mainMenu->bg = orange;
+    mainMenu->bg = transpa;
     mainMenu->text = black;
     mainMenu->highlight = white;
-
-        music = mgdl_LoadSoundMp3("assets/music.mp3");
 }
 
 MainMenuResult MainMenu_Frame()
 {
-    Color4f orange = Color_HexToFloats(0xffbe03ff);
-    Color4f black = Color_HexToFloats(0x020202ff);
-    Color4f white = Color_HexToFloats(0xfffcfcfc);
-    Color4f grey = Color_HexToFloats(0xff4c4c4c);
     mgdl_glClearColor4f(&orange);
     mgdl_InitOrthoProjection();
     glViewport(0, 0, mgdl_GetScreenWidth(), mgdl_GetScreenHeight());
+    mgdl_glSetTransparency(true);
+    int fontsize = 32;
 
     mainMenu->font = menuFont;
-    Menu_Start(mainMenu, 36, mgdl_GetScreenHeight()-36, 36 * 2 * 5);
+    Menu_Start(mainMenu, fontsize, mgdl_GetScreenHeight()-8, fontsize * 2 * 6);
 
     //mainMenu->text = grey;
-    Menu_TextF(mainMenu, "JAN_%d", playerAmount);
+    int olddx = mainMenu->drawx;
+    int olddy = mainMenu->drawy;
 
+    // Draw player amount to the side
+    mainMenu->drawx = mgdl_GetScreenWidth() - 36 * 3;
+
+    Menu_TextF(mainMenu, "J\nA\nN\n_\n_\n%d", playerAmount);
+
+    mainMenu->drawx = olddx;
+    mainMenu->drawy = olddy;
     //mainMenu->text = black;
     if (Menu_Button(mainMenu, "0   "))
     {
@@ -67,14 +72,15 @@ MainMenuResult MainMenu_Frame()
         playerAmount = 4;
     }
 
+    Menu_Skip(mainMenu, 36 * 2);
     if (Menu_Button(mainMenu, "ALASA"))
     {
 
-        //Audio_PlaySound(music);
         Log_Info("Start!");
         return MainMenuStartGame;
     }
 
+    /*
     Menu_Start(mapMenu, mgdl_GetScreenWidth()/2 + 36, mgdl_GetScreenHeight(), 36 * 2 * 4);
 
     if (Menu_Button(mapMenu, "M 1"))
@@ -89,10 +95,12 @@ MainMenuResult MainMenu_Frame()
     {
         mapIndex = 2;
     }
+    */
 
     mainMenu->font = DefaultFont_GetDefaultFont();
     Menu_DrawCursor(mainMenu);
 
+    mgdl_glSetTransparency(false);
     return MainMenuLoop;
 }
 

@@ -49,7 +49,6 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 	vec2 strafeDirection = Vec2XZRotateY(forward, player->angleRad - Deg2Rad(90.0f));
 
 	// NOTE  Joystick dir -Y is forward, +Y is backwards
-	// But -Z is forward so...
 	vec2 moveXZ = vec2Multiply(player->direction, -jdir.y * moveSpeed3D * dt);
 	vec2 strafe = vec2Multiply(strafeDirection, jdir.x * moveSpeed3D * dt);
 

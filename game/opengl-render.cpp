@@ -11,23 +11,15 @@
 #endif
 
 // OpenGL
-Texture* checkers;
-Sprite* bulletTexture;
-Sprite* treasureTexture;
-Sprite* playerTexture;
-Sprite* playerWithMaskTexture;
-Sprite* playerShockTexture;
-Texture* playerShootTexture;
-Texture* playerShootWithMaskTexture;
 
-Texture* wall;
-Texture* wallDark;
-Texture* floorTexture;
-Texture* floorDark;
-Texture* ceiling;
-Texture* ceilingDark;
-Texture* exitTexture;
-Texture* tileTexture;
+// Arrays for storing sprite pointers and matching picnums to Sprites
+#define RENDERER_SPRITE_ARRAY_SIZE 128
+#define RENDERER_PICNUM_TO_SPRITE_ARRAY_SIZE 2048
+static sizetype nextFreeSpriteSlot = 0;
+static Sprite** spritePtrArray = nullptr;
+static u16* picnumToSpriteArray = nullptr;
+
+Texture* checkers;
 
 GLUtesselator* tesselator = nullptr;
 bool tesselationActive = true;
@@ -39,12 +31,12 @@ float animationTimer = 0;
 GLfloat floorNormal[3];
 GLfloat ceilingNormal[3];
 
+// TODO Alternative textures? Multiple Textures per sprite
+#define RENDERER_PICNUM_TO_SPRITE_ARRAY_DARK_SIZE 2048
+static u16* picnumToSpriteArray_DARK;
 static bool dark = false;
 
-
-
-// Vertex buffering and drawing // TODO If normal and color do not change, can
-// they be set just once?
+// Buffer for drawing vertices of the walls and sprites
 // 3 position + 2 texture coordinates
 #define FULL_VERTEX_SIZE_FLOATS (3 + 2)
 #define VERTEX_BUFFER_SIZE_VERTICES 64 * 3 // This will always contain triangles
@@ -79,86 +71,30 @@ static void SetTexture(GLuint glTextureName)
 
 RectF SetPicnum_GetUVoffset(s16 picnum)
 {
-    switch(picnum)
+    u16 spriteIndex = picnumToSpriteArray[picnum];
+    if (dark)
     {
-        case PICNUM_BULLET:
+        // Not all picnums have dark version
+        u16 darkspriteIndex = picnumToSpriteArray_DARK[picnum];
+        if (darkspriteIndex > 0)
         {
-
-            SetTexture(bulletTexture->_font->_fontTexture->textureId);
-            return Sprite_GetTextureCoordinates(bulletTexture, animationFrame % 4);
+            spriteIndex = darkspriteIndex;
         }
-        break;
-        case  PICNUM_TREASURE:
-        {
-            SetTexture(treasureTexture->_font->_fontTexture->textureId);
-            return Sprite_GetTextureCoordinates(treasureTexture, animationFrame % 16);
-        }
-        break;
-        case  PICNUM_PLAYER:
-        {
-            SetTexture(playerTexture->_font->_fontTexture->textureId);
-            return Sprite_GetTextureCoordinates(playerTexture, animationFrame % 4);
-        }
-        break;
-        case  PICNUM_PLAYER_WITH_MASK:
-        {
-            SetTexture(playerWithMaskTexture->_font->_fontTexture->textureId);
-            return Sprite_GetTextureCoordinates(playerWithMaskTexture, animationFrame % 4);
-        }
-        break;
-        case  PICNUM_PLAYER_SHOCK:
-        {
-            SetTexture(playerShockTexture->_font->_fontTexture->textureId);
-            return Sprite_GetTextureCoordinates(playerShockTexture, animationFrame % 4);
-        }
-        break;
-        case  PICNUM_PLAYER_SHOOT:
-        {
-            SetTexture(playerShootTexture->textureId);
-            return zeroOffset;
-        }
-        break;
-        case  PICNUM_PLAYER_SHOOT_WITH_MASK:
-        {
-            SetTexture(playerShootWithMaskTexture->textureId);
-            return zeroOffset;
-        }
-        break;
-        case  PICNUM_WALL:
-        {
-            SetTexture((dark ? wallDark : wall)->textureId);
-            return zeroOffset;
-        }
-        break;
-        case  PICNUM_FLOOR:
-        {
-            SetTexture((dark ? floorDark : floorTexture)->textureId);
-            return zeroOffset;
-        }
-        break;
-        case  PICNUM_CEILING:
-        {
-            SetTexture((dark ? ceilingDark : ceiling)->textureId);
-            return zeroOffset;
-        }
-        break;
-        case  PICNUM_EXIT:
-        {
-            SetTexture(exitTexture->textureId);
-            return zeroOffset;
-        }
-        break;
-        case -1:
-        {
-            SetTexture(checkers->textureId);
-            return zeroOffset;
-        }
-        break;
-        default:
-
-            SetTexture(tileTexture->textureId);
-            return zeroOffset;
     }
+
+    if (spriteIndex == 0)
+    {
+        Sprite* defaultSprite = spritePtrArray[spriteIndex];
+        if (defaultSprite == nullptr)
+        {
+            Log_Error("No sprite registered for default picnum 0!");
+        }
+        SetTexture(defaultSprite->_font->_fontTexture->textureId);
+        return Sprite_GetTextureCoordinates(defaultSprite, animationFrame % defaultSprite->_font->_characterCount);
+    }
+    Sprite* sprite = spritePtrArray[spriteIndex];
+    SetTexture(sprite->_font->_fontTexture->textureId);
+    return Sprite_GetTextureCoordinates(sprite, animationFrame % sprite->_font->_characterCount);
 }
 
 void OpenGLRender_SetColor(DefaultColor oc)
@@ -183,10 +119,15 @@ void OpenGLRender_Line3(vec3 start, vec3 end)
 	glVertex3f(end.x, end.y, end.z);
 }
 
+/**
+ * @brief Changes Duke shade value to grayscale
+ * brightness. Used to color the vertices
+ * @param brightnessOffset Positive values are darker. 32 is black. -1 is brighter but smaller values have no meaning
+ */
 static float BrightnessOffsetToColor(s8 brightnessOffset)
 {
-    static const float brightnessStep = 1.0f/127.0f;
-    return 1.0f + brightnessOffset * brightnessStep;
+    static const float brightnessStep = 1.0f/32.0f;
+    return clampF( (1.0f - (brightnessOffset * brightnessStep)), 0.0f, 1.0f);
 }
 
 static void BeginPolygon(const vec3 normal, const RectF uvLimits, const float brightness)
@@ -260,7 +201,6 @@ int tesselationBufferIndexDoubles = 0;
 static GLdouble* combineRingBuffer = nullptr;
 int CombineBufferIndexDoubles = 0;
 
-// Buffer for drawing vertices of the walls and sprites
 
 #ifndef CALLBACK
 #define CALLBACK
@@ -359,9 +299,11 @@ void CALLBACK tessEdgeFlag(GLboolean flag)
 
 void SetWrap(GLuint textureName)
 {
+    glEnable(GL_TEXTURE_2D);
     glBindTexture(GL_TEXTURE_2D, textureName);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glDisable(GL_TEXTURE_2D);
 }
 
 
@@ -373,7 +315,6 @@ void OpenGLRender_Init()
     zeroOffset.w = 1.0f;
     zeroOffset.h = 1.0f;
 
-    // TODO move to graphics system
     checkers = Texture_GenerateCheckerBoard();
     if (tesselator == nullptr)
     {
@@ -407,58 +348,96 @@ void OpenGLRender_Init()
     {
         vertexBuffer = (GLfloat*)mgdl_AllocateGraphicsMemory(VERTEX_BUFFER_SIZE_BYTES);
     }
+    if (picnumToSpriteArray == nullptr)
+    {
+        picnumToSpriteArray = (u16*)mgdl_AllocateGeneralMemory(RENDERER_PICNUM_TO_SPRITE_ARRAY_SIZE * sizeof(u16));
+        for (int i = 0; i < RENDERER_PICNUM_TO_SPRITE_ARRAY_SIZE; i++)
+        {
+            picnumToSpriteArray[i] = 0;
+        }
+    }
+    if (picnumToSpriteArray_DARK == nullptr)
+    {
+        picnumToSpriteArray_DARK = (u16*)mgdl_AllocateGeneralMemory(RENDERER_PICNUM_TO_SPRITE_ARRAY_SIZE * sizeof(u16));
+        for (int i = 0; i < RENDERER_PICNUM_TO_SPRITE_ARRAY_SIZE; i++)
+        {
+            picnumToSpriteArray_DARK[i] = 0;
+        }
+    }
+    if (spritePtrArray == nullptr)
+    {
+        nextFreeSpriteSlot = 0;
+        spritePtrArray = (Sprite**)mgdl_AllocateGeneralMemory(RENDERER_SPRITE_ARRAY_SIZE * sizeof(Sprite*));
+        for (int i = 0; i < RENDERER_SPRITE_ARRAY_SIZE; i++)
+        {
+            spritePtrArray[i] = nullptr;
+        }
+    }
 
-    bulletTexture = mgdl_LoadSprite("assets/bullet_spritesheet.png", 64, 64);
-    treasureTexture = mgdl_LoadSprite("assets/treasure_mask_spritesheet.png", 128, 128);
-    playerTexture = mgdl_LoadSprite("assets/player_walk.png", 256, 256);
-    playerWithMaskTexture = mgdl_LoadSprite("assets/player_masked_walk.png", 256, 256);
-    playerShockTexture = mgdl_LoadSprite("assets/player_stunned.png", 256, 256);
-    playerShootTexture = mgdl_LoadTexture("assets/player_shoot.png", Linear);
-    playerShootWithMaskTexture = mgdl_LoadTexture("assets/player_masked_shoot.png", Linear);
+}
 
-    wall = mgdl_LoadTexture("assets/216_tile_wall_light.png", Linear);
-    wallDark = mgdl_LoadTexture("assets/217_tile_wall_dark.png", Linear);
-    floorTexture = mgdl_LoadTexture("assets/442_tile_floor_light.png", Linear);
-    floorDark = mgdl_LoadTexture("assets/443_tile_floor_dark.png", Linear);
-    ceiling = mgdl_LoadTexture("assets/378_tile_ceiling_light.png", Linear);
-    ceilingDark = mgdl_LoadTexture("assets/379_tile_ceiling_dark.png", Linear);
-    exitTexture = mgdl_LoadTexture("assets/exit_door.png", Linear);
-    tileTexture = mgdl_LoadTexture("assets/tile_vent_tunnel.png", Linear);
+void OpenGLRender_Deinit()
+{
+    for (int i = 0; i < RENDERER_PICNUM_TO_SPRITE_ARRAY_SIZE; i++)
+    {
+        if (spritePtrArray[i] != nullptr)
+        {
+            mgdl_FreeGeneralMemory(spritePtrArray[i]);
+        }
+    }
+    mgdl_FreeGeneralMemory(spritePtrArray);
+    mgdl_FreeGeneralMemory(picnumToSpriteArray);
+    mgdl_FreeGeneralMemory(picnumToSpriteArray_DARK);
+}
 
-    glEnable(GL_TEXTURE_2D);
+bool OpenGLRender_RegisterSprite(s16 picnum, Sprite* sprite)
+{
+    if (nextFreeSpriteSlot < RENDERER_SPRITE_ARRAY_SIZE)
+    {
+        spritePtrArray[nextFreeSpriteSlot] = sprite;
+        picnumToSpriteArray[picnum] = nextFreeSpriteSlot;
+        nextFreeSpriteSlot += 1;
+        SetWrap(sprite->_font->_fontTexture->textureId);
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
 
-    SetWrap( bulletTexture->_font->_fontTexture->textureId);
+bool OpenGLRender_RegisterTexture_DARK(s16 picnum, Texture* texture)
+{
+    if (nextFreeSpriteSlot < RENDERER_SPRITE_ARRAY_SIZE)
+    {
+        Font* f = Font_Load(texture, texture->width, texture->height, 0);
+        Sprite* sprite = Sprite_Load(f);
+        spritePtrArray[nextFreeSpriteSlot] = sprite;
+        picnumToSpriteArray_DARK[picnum] = nextFreeSpriteSlot;
+        nextFreeSpriteSlot += 1;
+        SetWrap(sprite->_font->_fontTexture->textureId);
+        return true;
+    }
+    return false;
 
-    SetWrap( treasureTexture->_font->_fontTexture->textureId);
+}
 
-    SetWrap( playerTexture->_font->_fontTexture->textureId);
-
-    SetWrap( playerWithMaskTexture->_font->_fontTexture->textureId);
-
-    SetWrap( playerShockTexture->_font->_fontTexture->textureId);
-
-    SetWrap( playerShootTexture->textureId);
-
-    SetWrap( playerShootWithMaskTexture->textureId);
-
-    SetWrap( wall->textureId);
-
-    SetWrap( wallDark->textureId);
-
-    SetWrap( floorTexture->textureId);
-
-    SetWrap( floorDark->textureId);
-
-    SetWrap( ceiling->textureId);
-
-    SetWrap( ceilingDark->textureId);
-
-    SetWrap( exitTexture->textureId);
-
-    SetWrap( tileTexture->textureId);
-    SetWrap( checkers->textureId);
-
-
+bool OpenGLRender_RegisterTexture(s16 picnum, Texture* texture)
+{   if (nextFreeSpriteSlot < RENDERER_SPRITE_ARRAY_SIZE)
+    {
+        Font* f = Font_Load(texture, texture->width, texture->height, 0);
+        Sprite* sprite = Sprite_Load(f);
+        bool ok = OpenGLRender_RegisterSprite(picnum, sprite);
+        if (ok == false)
+        {
+            free(sprite); // DANGER Should Sprite or mgdl handle this?
+        }
+        return ok;
+    }
+    else
+    {
+        return false;
+    }
 }
 
 void DrawQuad(vec2 start, vec2 end, const vec2 normalXZ, float floorY, float ceilingY, s16 picnum, s8 brightnessOffset, RenderSettingsOpenGL* settings3D)
@@ -467,7 +446,6 @@ void DrawQuad(vec2 start, vec2 end, const vec2 normalXZ, float floorY, float cei
     float width = vec2Length( vec2Subtract(end, start)) * settings3D->scale;
     float height = (ceilingY - floorY) * settings3D->scale;
 
-    // TODO move to graphics
     float aspect = width/height;
     float tex_x1 = 0.0f;
     float tex_x2 = aspect * height * settings3D->textureScale;
@@ -533,9 +511,6 @@ void OpenGLRender_DrawFloorOrCeiling(DukeMap* map, Sector* sector, bool floor)
 {
     float ceilingY = sector->ceilingy;
     float floorY = sector->floory;
-
-    // TODO Get texture from wall or ceiling
-    // TODO Are we drawing floor or ceiling???
 
     glPushMatrix();
         // Set floor level to 0.0f
@@ -646,6 +621,9 @@ void OpenGLRender_DrawFloorOrCeiling(DukeMap* map, Sector* sector, bool floor)
                 }
                 pointIndex--;
             }
+            // Tesselation code starts drawing vertices after glutTessEndPolygon
+            // flush the vertices before that
+            mgdl_CacheFlushRange(tesselationBuffer, TESSELATION_BUFFER_SIZE_BYTES);
             gluTessEndPolygon(tesselator);
         }
 
@@ -657,6 +635,7 @@ void OpenGLRender_DrawFloorOrCeiling(DukeMap* map, Sector* sector, bool floor)
 void OpenGLRender_DrawSprite(vec3 position, float width, float height, float spriteAngle, float playerAngle, SpriteAlignment alignment, SpritePivot pivot, s16 picnum, s8 brightnessOffset)
 {
 
+    static const float pushOut = 1.0f; // In Duke units: 1024 is one meter
 	if (alignment == Sprite_FACE)
 	{
 		spriteAngle = playerAngle + Deg2Rad(180);
@@ -665,66 +644,47 @@ void OpenGLRender_DrawSprite(vec3 position, float width, float height, float spr
 	vec3 spriteForward = Vec3XYZRotateY(WORLD_FORWARD, spriteAngle);
 	vec3 spriteRight = Vec3XYZRotateY(spriteForward, -M_PI_2);
 
-    // This sprite is facing the player,
-    // so sprite right is on the left side when looking
+    // Sprite right is on the left side when looking
     // from the player
 	vec3 toRight = vec3Multiply(spriteRight, width/2);
 
     // These are from player's point of view
     vec3 bottomRight, bottomLeft, topLeft, topRight;
-    if (pivot == Sprite_PivotCenter)
+	if (alignment == Sprite_FLOOR)
     {
-        bottomRight = vec3Subtract(position, toRight);
-        bottomRight = vec3Add(bottomRight, vec3Multiply(WORLD_UP, -height / 2));
-        bottomLeft = vec3Add(position, toRight);
-        bottomLeft = vec3Add(bottomLeft, vec3Multiply(WORLD_UP, -height / 2));
-        topLeft = vec3Add(bottomLeft, vec3Multiply(WORLD_UP, height));
-        topRight = vec3Add(bottomRight, vec3Multiply(WORLD_UP, height));
-    }
-    else
-    {
-        bottomRight = vec3Subtract(position, toRight);
-        bottomLeft = vec3Add(position, toRight);
-        topLeft = vec3Add(bottomLeft, vec3Multiply(WORLD_UP, height));
-        topRight = vec3Add(bottomRight, vec3Multiply(WORLD_UP, height));
-    }
-
-	if (alignment == Sprite_FACE)
-	{
-		// These always face the player
-		//OpenGLRender_SetColor(Color_Red);
-	}
-	else if (alignment == Sprite_FLOOR)
-	{
-		//OpenGLRender_SetColor(Color_Green);
-
 		// Raise up to avoid Z fighting
-		// TODO position.y += pushOut;
+		position.y += pushOut;
 
 		// Calculate four carpet corners
 		bottomLeft = vec3Add(position, vec3Add( vec3Multiply(spriteRight, -width/2), vec3Multiply(spriteForward, -width/2)));
 		bottomRight = vec3Add(position, vec3Add( vec3Multiply(spriteRight, width/2), vec3Multiply(spriteForward, -width/2)));
 		topLeft = vec3Add(position, vec3Add( vec3Multiply(spriteRight, -width/2), vec3Multiply(spriteForward, width/2)));
 		topRight = vec3Add(position, vec3Add( vec3Multiply(spriteRight, width/2), vec3Multiply(spriteForward, width/2)));
-	}
-	else if (alignment == Sprite_WALL)
-	{
-		//OpenGLRender_SetColor(Color_Blue);
-
-		// Push out of wall to avoid Z fight
-		vec3 spriteDir = Vec3XYZRotateY(WORLD_FORWARD, spriteAngle);
-
-		vec3 toRight = vec3Multiply(spriteDir, width/2);
-		vec3 normal = Vec3XYZRotateY(WORLD_FORWARD, spriteAngle);
-		// TODO position = vec3Add(position, vec3Multiply(normal, pushOut));
-
-		// calculate corners // TODO just add to existing ones
-
-		bottomRight = vec3Add(position, toRight);
-		bottomLeft = vec3Subtract(position, toRight);
-		topLeft = vec3Add(bottomLeft, vec3Multiply(WORLD_UP, height));
-		topRight = vec3Add(bottomRight, vec3Multiply(WORLD_UP, height));
-	}
+    }
+    else
+    {
+        if (alignment == Sprite_WALL)
+        {
+            // Push out of wall to avoid Z fight
+            position = vec3Add(position, vec3Multiply(spriteForward, pushOut));
+        }
+        if (pivot == Sprite_PivotCenter)
+        {
+            bottomRight = vec3Subtract(position, toRight);
+            bottomRight = vec3Add(bottomRight, vec3Multiply(WORLD_UP, -height / 2));
+            bottomLeft = vec3Add(position, toRight);
+            bottomLeft = vec3Add(bottomLeft, vec3Multiply(WORLD_UP, -height / 2));
+            topLeft = vec3Add(bottomLeft, vec3Multiply(WORLD_UP, height));
+            topRight = vec3Add(bottomRight, vec3Multiply(WORLD_UP, height));
+        }
+        else
+        {
+            bottomRight = vec3Subtract(position, toRight);
+            bottomLeft = vec3Add(position, toRight);
+            topLeft = vec3Add(bottomLeft, vec3Multiply(WORLD_UP, height));
+            topRight = vec3Add(bottomRight, vec3Multiply(WORLD_UP, height));
+        }
+    }
 
 	BeginPolygon(spriteForward, SetPicnum_GetUVoffset(picnum), BrightnessOffsetToColor(brightnessOffset));
 
@@ -737,7 +697,6 @@ void OpenGLRender_DrawSprite(vec3 position, float width, float height, float spr
 	BufferVertex(bottomLeft.x, bottomLeft.y, bottomLeft.z, 0.0f, 0.0f);
 
     EndPolygon();
-
 }
 
 void OpenGLRender_AnimateSprites()

@@ -10,6 +10,8 @@
 #include "map-play.h"
 
 static GameState currentState;
+static Sound* music;
+bool musicStarted = false;
 
 // Debug Menu
 void init()
@@ -22,6 +24,7 @@ void init()
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
+    OpenGLRender_Init();
     MainMenu_Init();
     MapPlay_Init();
     Gameplay_Init();
@@ -61,15 +64,23 @@ void init()
     }
     */
 
+    music = mgdl_LoadSoundMp3("assets/music.mp3");
     currentState = Game_MainMenu;
 
     Color4f c = Palette_GetColor4f(Palette_GetDefault(), 0);
     mgdl_glClearColor4f(&c);
+
+
 }
 
 
 void frame()
 {
+    if (musicStarted == false)
+    {
+        Audio_PlaySound(music);
+        musicStarted = true;
+    }
     // NOTE Use the mgdl_glClear to assure depth buffer working correctly on Wii
     mgdl_glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
@@ -80,6 +91,7 @@ void frame()
             MainMenuResult r = MainMenu_Frame();
             if (r == MainMenuStartGame)
             {
+                Audio_StopSound(music);
                 currentState = Game_MapPlay;
                 MapPlay_StartMap(MainMenu_GetSelectedMapIndex(), MainMenu_GetSelectedPlayerAmount());
             }

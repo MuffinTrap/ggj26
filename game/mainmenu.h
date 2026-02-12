@@ -18,6 +18,7 @@ MainMenuResult MainMenu_Frame();
 int MainMenu_GetSelectedPlayerAmount();
 int MainMenu_GetSelectedMapIndex();
 
+
 #ifdef __cplusplus
 }
 #endif

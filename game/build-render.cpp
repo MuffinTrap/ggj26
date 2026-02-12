@@ -12,33 +12,10 @@
 #include "player.h"
 #include "opengl-render.h"
 
-
-// TODO move to mgdl util
-#define min(a,b)             (((a) < (b)) ? (a) : (b)) // min: Choose smaller of two scalars.
-#define max(a,b)             (((a) > (b)) ? (a) : (b)) // max: Choose greater of two scalars.
-#define vxs(x0,y0, x1,y1)    ((x0)*(y1) - (x1)*(y0))   // vxs: Vector cross product
 // Overlap:  Determine whether the two number ranges overlap.
 #define Overlap(a0,a1,b0,b1) (min(a0,a1) <= max(b0,b1) && min(b0,b1) <= max(a0,a1))
 // IntersectBox: Determine whether two 2D-boxes intersect.
 #define IntersectBox(x0,y0, x1,y1, x2,y2, x3,y3) (Overlap(x0,x1,x2,x3) && Overlap(y0,y1,y2,y3))
-
-// TODO move to util
-/*
-static int clampInt(int v, int min, int max)
-{
-    if (v<min)
-    {
-        v = min;
-    }
-    else if (v>max)
-    {
-        v = max;
-    }
-    return v;
-}
-*/
-
-
 
 // How many portals can be waiting for drawing
 #define MAX_PORTAL_QUEUE 32
@@ -51,8 +28,6 @@ SectorRender* tail;
 int* renderedSectorNames = nullptr; // NOTE this is related to all sectors in map
 
 static int lastSectorAmount = 0;
-static int W;
-static int H;
 
 SectorRender* BuildRender_GetDrawnSectorNumbers()
 {
@@ -67,34 +42,30 @@ bool BuildRender_WasSectorDrawn(s16 sectornumber)
     return renderedSectorNames[sectornumber] > 0;
 }
 
+// TODO give renderer inteface so can use other render than OpenGL
 void BuildRender_Init(DukeMap* map, RenderSettingsOpenGL* settings3D)
 {
-    H = mgdl_GetScreenHeight();
-    W = mgdl_GetScreenWidth();
     if (renderQueue == nullptr)
     {
-        renderQueue = (SectorRender*)malloc(sizeof(SectorRender) * MAX_PORTAL_QUEUE);
+        renderQueue = (SectorRender*)mgdl_AllocateGeneralMemory(sizeof(SectorRender) * MAX_PORTAL_QUEUE);
     }
 
-    // init again if more is needed
-    // TODO Just init to 4096 ?
+    // init again if more is needed than last time
     if (renderedSectorNames != nullptr)
     {
         if (lastSectorAmount < map->sectorAmount)
         {
-           free(renderedSectorNames);
+           mgdl_FreeGeneralMemory(renderedSectorNames);
            renderedSectorNames= nullptr;
         }
     }
     if (renderedSectorNames == nullptr)
     {
-        renderedSectorNames = (int*)malloc(sizeof(int) * map->sectorAmount);
+        renderedSectorNames = (int*)mgdl_AllocateGeneralMemory(sizeof(int) * map->sectorAmount);
     }
 
     lastSectorAmount = map->sectorAmount;
     renderQueueInserts = 0;
-
-
 
     // Build other data needed by game
     for (int si = 0; si < map->sectorAmount; si++)
@@ -105,10 +76,10 @@ void BuildRender_Init(DukeMap* map, RenderSettingsOpenGL* settings3D)
         for (s16 wi = 0; wi < sector->wallnum; wi++)
         {
             Wall* w = &map->walls[sector->wallptr + wi];
-            minp.x = min(w->x, minp.x);
-            minp.y = min(w->z, minp.y);
-            maxp.x = max(w->x, maxp.x);
-            maxp.y = max(w->z, maxp.y);
+            minp.x = minF(w->x, minp.x);
+            minp.y = minF(w->z, minp.y);
+            maxp.x = maxF(w->x, maxp.x);
+            maxp.y = maxF(w->z, maxp.y);
         }
         // Found points : calculate tex coords
         float width = (maxp.x - minp.x) * settings3D->scale;
@@ -119,7 +90,6 @@ void BuildRender_Init(DukeMap* map, RenderSettingsOpenGL* settings3D)
         sector->maxTexCoord.x = aspect * height * settings3D->textureScale;
         sector->maxTexCoord.y = 1.0 * height * settings3D->textureScale;
     }
-    OpenGLRender_Init();
 }
 
 void BuildRender_DrawTempSprites(DukeMap* map, Player* player, RenderSettingsOpenGL* settings)
@@ -134,11 +104,8 @@ void BuildRender_DrawTempSprites(DukeMap* map, Player* player, RenderSettingsOpe
             && !Flag_IsSet(sprite->cstat, 1 << CSTAT_SPRITE_INVISIBLE)
             && (player->playerNumber != sprite->owner || sprite->owner > 3))
         {
-            // Keep the texture aspect correct
-            float scaleAspect = 1.0f;//settings->scaleXZ / settings->scaleY;
-
-            // TODO xrepeat and yrepeat adjust the aspect
             // The size comes from the size of the texture somehow
+            float scaleAspect = (float)sprite->xrepeat / (float)sprite->yrepeat;
             float spriteSize = sprite->extra;
             float spriteHeight = spriteSize * scaleAspect;
 
@@ -161,35 +128,14 @@ void BuildRender_DrawSprites(DukeMap* map, Player* player, RenderSettingsOpenGL*
         if (renderedSectorNames[sprite->sectnum] > 0
             && !Flag_IsSet(sprite->cstat, 1 << CSTAT_SPRITE_INVISIBLE))
         {
-
-            // Keep the texture aspect correct
-            float scaleAspect = 1.0f; //settings->scaleXZ / settings->scaleY;
-
-            // TODO xrepeat and yrepeat adjust the aspect
+            float scaleAspect = (float)sprite->xrepeat / (float)sprite->yrepeat;
             // The size comes from the size of the texture somehow
             float spriteSize = settings->spriteDefaultWidth;
             float spriteHeight = settings->spriteDefaultWidth * scaleAspect;
 
-            SpriteAlignment al = Sprite_GetAlignment(sprite);
-            /*
-            //float pushOut = 0;
-            switch(al)
-            {
-                case Sprite_FACE: // nop
-                    break;
-                case Sprite_WALL:
-                    pushOut = settings->scaleXZ;
-                    break;
-                case Sprite_FLOOR:
-                    pushOut = settings->scaleY;
-                    break;
-
-            }
-            */
-
             OpenGLRender_DrawSprite(sprite->position, spriteSize, spriteHeight,
                                     Math_DukeAngleToRad(sprite->ang), player->angleRad,
-                                    al , Sprite_GetPivot(sprite),
+                                    Sprite_GetAlignment(sprite), Sprite_GetPivot(sprite),
                                     sprite->picnum, sprite->shade);
         }
     }
@@ -201,10 +147,10 @@ void BuildRender_Draw3D(Player* player, DukeMap* map, RenderSettingsOpenGL* sett
     glScalef(settings->scale, settings->scale, settings->scale);
         OpenGLRender_StartDrawingPolygons();
             BuildRender_DrawSectors(player, map, settings);
-            //mgdl_glSetTransparency(true);
-            BuildRender_DrawSprites(map, player, settings);
-            BuildRender_DrawTempSprites(map, player, settings);
-            //mgdl_glSetTransparency(false);
+            mgdl_glSetAlphaTest(true);
+                BuildRender_DrawSprites(map, player, settings);
+                BuildRender_DrawTempSprites(map, player, settings);
+            mgdl_glSetAlphaTest(false);
         OpenGLRender_EndDrawingPolygons();
     glPopMatrix();
 }
@@ -217,7 +163,8 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
         renderedSectorNames[i] = 0;
     }
 
-    // Perspective projection
+    // Perspective projection values to cull walls that player
+    // does not see
     float top = settings->near * tan( Deg2Rad(settings->FOVyDegrees/2.0f));
     float right = top * settings->aspectRatio;
     float left = -right;
@@ -236,7 +183,6 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
         head = renderQueue;
     }
 
-
     // Draw a sector and put more sectors to queue for drawing
     do {
         // Take last request from buffer: the first one is the head
@@ -246,9 +192,8 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
         {
             tail = renderQueue;
         }
-        // If the number is odd, keep rendering. If number is 32 give up
-        // This tests that the same sector is not drawn too many times?
-        if (renderedSectorNames[request.number] > 0) // DANGER not really sure what this was doing before with 0x21
+        // If this is drawn already, skip it
+        if (renderedSectorNames[request.number] > 0)
         {
             continue;
         }
@@ -259,25 +204,25 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
         float ceilingY = sector->ceilingy;
         float floorY = sector->floory;
 
-        bool drawTesselation = true;
         // Draw the floor and ceiling with tesselation
-        if (drawTesselation)
-        {
-            bool floor = true;
-            do {
+        bool floor = true;
+        do {
+            // Draw only floors and ceilings the player can see
+            if ((floor && player->position.y >= floorY) ||
+                (!floor && player->position.y <= ceilingY))
+            {
                 OpenGLRender_DrawFloorOrCeiling(map, sector, floor);
-                floor = !floor;
-                // First round: floor is false
-                // Second round: floor is true
-            } while(floor == false);
-        }
-
+            }
+            floor = !floor;
+            // First round: floor is false
+            // Second round: floor is true
+        } while(floor == false);
 
         // Render all walls of the current sector
         // Discard those that do not face player
         for (s16 wi = 0; wi < sector->wallnum; wi++)
         {
-            Wall* w = Map_GetWallInSector(map, request.number, wi);
+            Wall* w = Map_GetWallInSectorPtr(map, sector, wi);
             vec2 start = vec2New(w->x, w->z);
             Wall* wend = Map_GetWallEnd(map, w);
             vec2 end =  vec2New(wend->x, wend->z);
@@ -289,10 +234,7 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
             // NOTE negative around player
             startZ = Vec2XZRotateY(startZ, -player->angleRad);
             endZ = Vec2XZRotateY(endZ, -player->angleRad);
-            //startZ.x = start.x * player_sin - start.y * player_cos;
-            //startZ.z = start.x * player_cos + start.y * player_sin;
-            // endZ.x = end.x * player_sin - end.y * player_cos;
-            // endZ.z = end.x * player_cos + end.y * player_sin;
+
             // Is the wall behind player?
             // Behind is positive Z
             if(startZ.y >= 0 && endZ.y >= 0)
@@ -301,7 +243,7 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
                 // Draw next wall
                 continue;
             }
-            // TODO Clip to view frustum and check if
+            // Clip to view frustum and check if
             // inside it
             bool startVisible = false;
             bool endVisible = false;
@@ -312,7 +254,6 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
                 {
                     // start point is visible: on the left side of right frustum wall
                     startVisible = true;
-                    // Clip the start point to view cone
                 }
 
             }
@@ -341,10 +282,9 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
                 continue;
             }
 
-
             // Wall is drawn
             // if it was a portal Add neighbor to queue
-            // if there is neighbor AND AND there is room in QUEUE
+            // if there is neighbor AND there is room in QUEUE
             OpenGLRender_DrawWall(map, w, floorY, ceilingY, settings);
             if (w->nextsector >= 0)
             {
@@ -374,14 +314,14 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
         renderedSectorNames[request.number] += 1;
 
     } while(head != tail); // Render until buffer is empty: if nothing was added, they are the same
-
 }
 
 
 void BuildRender_DrawTopDown(Player* players, DukeMap* map, RenderSettingsOpenGL* settings3D, RenderSettings2D* settings2D)
 {
     Font* df = DefaultFont_GetDefaultFont();
-
+    int H = mgdl_GetScreenHeight();
+    int W = mgdl_GetScreenWidth();
 
     vec2 firstPlayerPos2 = vec2New(players[0].position.x, players[0].position.z);
 
@@ -395,13 +335,9 @@ void BuildRender_DrawTopDown(Player* players, DukeMap* map, RenderSettingsOpenGL
 
         Color4f* whiteColor = Color_GetDefaultColor(Color_White);
         Color4f* greenColor = Color_GetDefaultColor(Color_Green);
-        Color4f* redColor = Color_GetDefaultColor(Color_Red);
         Color4f portalColor = Color_Create4f(0.5f, 0.1f, 0.1f, 1.0f);
-        Color4f wallColor = Color_Create4f(0.5f, 0.5f, 0.5f, 1.0f);
+        Color4f wallColor = Color_Create4f(0.75f, 0.75f, 0.75f, 1.0f);
 
-
-
-    glLineWidth(4.0f);
     // The whole map zoom
     // Put the origo on the center of the screen
     glPushMatrix();
@@ -428,11 +364,7 @@ void BuildRender_DrawTopDown(Player* players, DukeMap* map, RenderSettingsOpenGL
                 glTranslatef(-firstPlayerPos2.x, -firstPlayerPos2.y, 0);
             }
 
-
-            // DRAW WALLS
-            ////////////////////////////
             glBegin(GL_LINES);
-
 
             // Draw Grid in grey under everything else
             glColor3f(0.2f, 0.2f, 0.2f);
@@ -454,6 +386,7 @@ void BuildRender_DrawTopDown(Player* players, DukeMap* map, RenderSettingsOpenGL
 
                 }
             }
+            glLineWidth(4.0f);
 
             // Draw origo
             OpenGLRender_SetColor(Color_White);
@@ -467,6 +400,8 @@ void BuildRender_DrawTopDown(Player* players, DukeMap* map, RenderSettingsOpenGL
             OpenGLRender_SetColor(Color_Blue);
             OpenGLRender_Line2(0, 0, WORLD_FORWARD.x * axisLength, WORLD_FORWARD.z * axisLength);
 
+            // DRAW WALLS
+            ////////////////////////////
             settings2D->collisionInsideSector = -1;
             for(int si = 0; si < map->sectorAmount; si++)
             {
@@ -475,8 +410,6 @@ void BuildRender_DrawTopDown(Player* players, DukeMap* map, RenderSettingsOpenGL
 
                 // Get the sector info from map
                 Sector* sector = Map_GetSector(map, si);
-                // Render all walls of the current sector
-                // Discard those that do not face player
                 for (s16 wi = 0; wi < sector->wallnum; wi++)
                 {
                     if (settings2D->drawOneWall >=0 && settings2D->drawOneWall != wi)
@@ -514,7 +447,7 @@ void BuildRender_DrawTopDown(Player* players, DukeMap* map, RenderSettingsOpenGL
                     {
                         if (w->nextsector < 0)
                         {
-                            OpenGLRender_SetColor(Color_White);
+                            OpenGLRender_SetColor4f(wallColor);
                         }
                         else
                         {
@@ -523,31 +456,54 @@ void BuildRender_DrawTopDown(Player* players, DukeMap* map, RenderSettingsOpenGL
                     }
 
                     OpenGLRender_Line2(start.x, start.y, end.x, end.y);
-                    vec2 m = Map_GetWallMiddle(map, w);
-                    vec2 N = vec2Multiply( Map_GetWallNormal(map, w), 32 );
-                    OpenGLRender_Line2(m.x, m.y, m.x + N.x, m.y + N.y);
+                    if (settings2D->drawNormals)
+                    {
+                        vec2 m = Map_GetWallMiddle(map, w);
+                        vec2 N = vec2Multiply( Map_GetWallNormal(map, w), 32 );
+                        OpenGLRender_Line2(m.x, m.y, m.x + N.x, m.y + N.y);
+                    }
                 }
             }
             glEnd(); // end walls
 
             // DRAW SPRITES
             // //////////////////////
-            glBegin(GL_LINES);
 
-            float spriteSize = 64;
-            DefaultColor spriteColor = Color_Red;
-            OpenGLRender_SetColor(spriteColor);
-            vec2 spriteForward = vec2New(WORLD_FORWARD.x, WORLD_FORWARD.z * -1);
-            for(int spi =  0; spi < map->spriteAmount; spi++)
+            if (settings2D->drawSprites)
             {
-                DSprite* sprite = &map->sprites[spi];
-                vec2 spos2 = vec2New(sprite->position.x, sprite->position.z);
-                OpenGLRender_DrawDot(spos2, spriteSize, spriteColor);
-                vec2 spriteDir = Vec2XZRotateY(spriteForward, Math_DukeAngleToRad(sprite->ang)-M_PI_2);
-                vec2 spriteEnd = vec2Add(spos2, vec2Multiply(spriteDir, settings3D->spriteDefaultWidth/2));
-                OpenGLRender_Line2(spos2.x, spos2.y, spriteEnd.x, spriteEnd.y);
+                glBegin(GL_LINES);
+
+                float spriteSize = 64;
+                DefaultColor spriteColor = Color_Red;
+                OpenGLRender_SetColor(spriteColor);
+                vec2 spriteForward = vec2New(WORLD_FORWARD.x, WORLD_FORWARD.z);
+                float spriteWidth = settings3D->spriteDefaultWidth/2;
+                for(int spi =  0; spi < map->spriteAmount; spi++)
+                {
+                    DSprite* sprite = &map->sprites[spi];
+                    vec2 spos2 = vec2New(sprite->position.x, sprite->position.z);
+                    SpriteAlignment al = Sprite_GetAlignment(sprite);
+
+                    float angle = Math_DukeAngleToRad(sprite->ang);
+                    if (al == Sprite_FACE)
+                    {
+                        angle = players[0].angleRad + Deg2Rad(180);
+                    }
+                    vec2 spriteDir = Vec2XZRotateY(spriteForward, angle);
+
+                    if (al == Sprite_FLOOR)
+                    {
+                        OpenGLRender_DrawDot(spos2, spriteSize, spriteColor);
+                    }
+                    else
+                    {
+                        OpenGLRender_DrawDot(spos2, spriteSize, spriteColor);
+                        vec2 spriteEnd = vec2Add(spos2, vec2Multiply(spriteDir, spriteWidth));
+                        OpenGLRender_Line2(spos2.x, spos2.y, spriteEnd.x, spriteEnd.y);
+                    }
+                }
+                glEnd();
             }
-            glEnd();
 
 
             // DRAW WALL NUMBERS and SECTOR NUMBERS
@@ -566,7 +522,16 @@ void BuildRender_DrawTopDown(Player* players, DukeMap* map, RenderSettingsOpenGL
                 {
                     int sx = sector->minXZPoint.x + sector->sizeXZ.x/2;
                     int sy = -(sector->minXZPoint.y + sector->sizeXZ.y/2);
-                    Draw2D_RectWH(sx, sy, numberSize, numberSize, Color_GetDefaultColor(Color_Black));
+                    int numbers = 1;
+                    if (si >= 10)
+                    {
+                        numbers += 1;
+                        if (si >= 100)
+                        {
+                            numbers += 1;
+                        }
+                    }
+                    Draw2D_RectWH(sx, sy, numberSize * numbers, numberSize, Color_GetDefaultColor(Color_Black));
 
                     if (renderedSectorNames[si])
                     {
@@ -593,12 +558,31 @@ void BuildRender_DrawTopDown(Player* players, DukeMap* map, RenderSettingsOpenGL
                         vec2 start = vec2New(w->x, w->z);
                         vec2 middle = Map_GetWallMiddle(map, w);
 
+                        int mapWi =sector->wallptr+wi;
+
                         int tx = middle.x - numberSize/2;
                         int ty = -middle.y + numberSize/2;
+                        int numbers = 1;
+                        if (mapWi >= 10)
+                        {
+                            numbers += 1;
+                            if (mapWi >= 100)
+                            {
+                                numbers += 1;
+                            }
+                        }
+                        ty -= (numberSize * (numbers-1));
 
-                        Draw2D_RectWH(tx, ty, numberSize, numberSize, Color_GetDefaultColor(Color_Black));
+                        Draw2D_RectWH(tx, ty, numberSize*numbers, numberSize, Color_GetDefaultColor(Color_Black));
 
-                        Font_Printf(df, whiteColor, tx, ty, numberSize, "%d", sector->wallptr+wi);
+                        if (w->nextsector < 0)
+                        {
+                            Font_Printf(df, &wallColor, tx, ty, numberSize, "%d", mapWi);
+                        }
+                        else
+                        {
+                            Font_Printf(df, &portalColor, tx, ty, numberSize, "%d", mapWi);
+                        }
                         if (settings2D->drawOneWall == wi && settings2D->drawOneSector == si)
                         {
 

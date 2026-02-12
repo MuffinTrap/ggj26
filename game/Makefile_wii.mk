@@ -36,8 +36,8 @@ INCLUDES	:=	include
 # options for code generation
 #---------------------------------------------------------------------------------
 CFLAGS	= -Wall -Wextra -DMGDL_PLATFORM_WII -DMGDL_USE_CCVECTOR -std=c++11 $(MACHDEP) $(INCLUDE)
-CFLAGS += -g # Debug
-#CFLAGS += -O3  # Optimize
+#CFLAGS += -g # Debug
+CFLAGS += -O3  # Optimize
 CXXFLAGS	= -Wwrite-strings $(CFLAGS) -DSYNC_PLAYER -DUFBX_REAL_IS_FLOAT
 # Wii specific settings
 CXXFLAGS += -DMGDL_PLATFORM=\"Wii\"
