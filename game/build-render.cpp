@@ -67,6 +67,8 @@ void BuildRender_Init(DukeMap* map, RenderSettingsOpenGL* settings3D)
     lastSectorAmount = map->sectorAmount;
     renderQueueInserts = 0;
 
+    // Buffer the floor and ceiling vertices
+    OpenGLRender_StartCountingFloorBufferSize(map->sectorAmount);
     // Build other data needed by game
     for (int si = 0; si < map->sectorAmount; si++)
     {
@@ -89,7 +91,17 @@ void BuildRender_Init(DukeMap* map, RenderSettingsOpenGL* settings3D)
         sector->sizeXZ = vec2Subtract(maxp, minp);
         sector->maxTexCoord.x = aspect * height * settings3D->textureScale;
         sector->maxTexCoord.y = 1.0 * height * settings3D->textureScale;
+
+        OpenGLRender_DrawFloorOrCeiling(map, sector, si, true);
     }
+    OpenGLRender_StopCountingFloorBufferSize();
+    OpenGLRender_StartFillingFloorBuffer(map->sectorAmount);
+    for (int si = 0; si < map->sectorAmount; si++)
+    {
+        Sector* sector = &map->sectors[si];
+        OpenGLRender_DrawFloorOrCeiling(map, sector, si, true);
+    }
+    OpenGLRender_StopFillingFloorBuffer();
 }
 
 void BuildRender_DrawTempSprites(DukeMap* map, Player* player, RenderSettingsOpenGL* settings)
@@ -146,8 +158,10 @@ void BuildRender_Draw3D(Player* player, DukeMap* map, RenderSettingsOpenGL* sett
     glPushMatrix();
     glScalef(settings->scale, settings->scale, settings->scale);
         OpenGLRender_StartDrawingPolygons();
-            BuildRender_DrawSectors(player, map, settings);
             mgdl_glSetAlphaTest(true);
+                OpenGLRender_StartDrawingFloorsFromBuffer();
+                    BuildRender_DrawSectors(player, map, settings);
+                OpenGLRender_StopDrawingFloorsFromBuffer();
                 BuildRender_DrawSprites(map, player, settings);
                 BuildRender_DrawTempSprites(map, player, settings);
             mgdl_glSetAlphaTest(false);
@@ -174,10 +188,13 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
     tail = renderQueue;
 
     vec2 playerPos2 = vec2New(player->position.x, player->position.z);
+
+    // Put player sector draw request at tail
     *head = (SectorRender){player->sectorNumber, left, right};
     renderQueueInserts++;
+
     // Circular buffer pointer arithmetics
-    // Next request is put towards the tail
+    // Move the head forward or loop around
     if ( ( head += 1) == renderQueue + MAX_PORTAL_QUEUE)
     {
         head = renderQueue;
@@ -185,7 +202,7 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
 
     // Draw a sector and put more sectors to queue for drawing
     do {
-        // Take last request from buffer: the first one is the head
+        // Take next request from buffer:
         SectorRender request = (*tail);
         // Move tail to next one
         if ( ( tail += 1) == renderQueue + MAX_PORTAL_QUEUE)
@@ -211,7 +228,7 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
             if ((floor && player->position.y >= floorY) ||
                 (!floor && player->position.y <= ceilingY))
             {
-                OpenGLRender_DrawFloorOrCeiling(map, sector, floor);
+                OpenGLRender_DrawFloorOrCeiling(map, sector, request.number, floor);
             }
             floor = !floor;
             // First round: floor is false
@@ -296,14 +313,45 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
                 // Check that there is space left to draw
                 if (newLimitLeft < newLimitRight)
                 {
+                    // If there is alread a request for w->nextsector
+                    // combine the limits: otherwise it will be drawn only
+                    // partially and the other requests are skipped
                     if  ((head + MAX_PORTAL_QUEUE+1-tail)%MAX_PORTAL_QUEUE)
                     {
-                        (*head) = {w->nextsector, newLimitLeft, newLimitRight};
-                        // Move head and loop around buffer
-                        if ( (++head) == renderQueue + MAX_PORTAL_QUEUE)
+                        bool combinedWithPreviousRequest = false;
+                        // Start from newest request
+                        SectorRender* lookBack = (head-1);
+                        // Look back until you are at tail : the current request
+                        while(lookBack->number != request.number)
                         {
-                            head = renderQueue;
-                            renderQueueInserts++;
+                            if (lookBack->number == w->nextsector)
+                            {
+                                lookBack->limitLeft = minF(lookBack->limitLeft, newLimitLeft);
+                                lookBack->limitRight = maxF(lookBack->limitRight, newLimitRight);
+                                combinedWithPreviousRequest = true;
+                                break;
+                            }
+                            if (lookBack == renderQueue)
+                            {
+                                // At the beginning: jump to end
+                                lookBack = renderQueue + MAX_PORTAL_QUEUE - 1;
+                            }
+                            else
+                            {
+                                // Go further back
+                                lookBack -= 1;
+                            }
+                        }
+                        if (combinedWithPreviousRequest == false)
+                        {
+                            // The w->nextsector was not yet requested, add it to queue
+                            (*head) = {w->nextsector, newLimitLeft, newLimitRight};
+                            // Move head and loop around buffer
+                            if ( (++head) == renderQueue + MAX_PORTAL_QUEUE)
+                            {
+                                head = renderQueue;
+                                renderQueueInserts++;
+                            }
                         }
                     }
                 }
