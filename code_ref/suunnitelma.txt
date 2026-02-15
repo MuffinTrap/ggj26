@@ -9,6 +9,9 @@ Kartan mitat on dukeissa
 # Käytä 2D piirtämistä laskemaan mitkä sektorit pitää piirtää [testaa]
     Yhdistä rajat jos monta piirtopyyntöä samasta sektorista
     Varmista että ei skippaa sektoreita rajojen takia
+    Tallenna ja piirrä rajat ja pyynnöt viivoina ruuduille
+    Ongelma: saaren piirtäminen tekee pyynnön meren piirtämisestä uudestaan, joka johtaa loputtomaan luuppiin ellei piirtomäärää rajoiteta
+    Jos jokaisen sektorin voi piirtää vain kerran, voi käydä niin että kaksi sektoria päätyy pyytämään saman sektorin, mutta vain ensimmäinen piirretään
 
 # glutess piirtää lattiat ja seinät
     # piirrä lattiat etukäteen muistiin
@@ -83,6 +86,7 @@ Kartan mitat on dukeissa
 #	Pelaajan törmääminen kenttään erikseen updatesta
 
 "Kameran animointi blenderissä"
+    Lataa kentästä tehty OBJ tiedosto blenderiin
     Tee kameran liikkeistä animaatio
     Tallenna fbx tiedostona
     Lue ufbx:n avulla animaation tiedot

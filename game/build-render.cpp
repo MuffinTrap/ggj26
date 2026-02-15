@@ -25,7 +25,8 @@ s16 renderQueueInserts = 0;
 SectorRender* head;
 SectorRender* tail;
 
-int* renderedSectorNames = nullptr; // NOTE this is related to all sectors in map
+#define MAX_SECTOR_DRAW_TIMES 4
+int* sectorDrawTimes = nullptr; // NOTE How many times each should be drawn. Additional times come from requests
 
 static int lastSectorAmount = 0;
 
@@ -39,7 +40,7 @@ s16 BuildRender_GetDrawnSectorAmount()
 }
 bool BuildRender_WasSectorDrawn(s16 sectornumber)
 {
-    return renderedSectorNames[sectornumber] > 0;
+    return sectorDrawTimes[sectornumber] > 0;
 }
 
 // TODO give renderer inteface so can use other render than OpenGL
@@ -51,17 +52,17 @@ void BuildRender_Init(DukeMap* map, RenderSettingsOpenGL* settings3D)
     }
 
     // init again if more is needed than last time
-    if (renderedSectorNames != nullptr)
+    if (sectorDrawTimes != nullptr)
     {
         if (lastSectorAmount < map->sectorAmount)
         {
-           mgdl_FreeGeneralMemory(renderedSectorNames);
-           renderedSectorNames= nullptr;
+           mgdl_FreeGeneralMemory(sectorDrawTimes);
+           sectorDrawTimes= nullptr;
         }
     }
-    if (renderedSectorNames == nullptr)
+    if (sectorDrawTimes == nullptr)
     {
-        renderedSectorNames = (int*)mgdl_AllocateGeneralMemory(sizeof(int) * map->sectorAmount);
+        sectorDrawTimes = (int*)mgdl_AllocateGeneralMemory(sizeof(int) * map->sectorAmount);
     }
 
     lastSectorAmount = map->sectorAmount;
@@ -112,7 +113,7 @@ void BuildRender_DrawTempSprites(DukeMap* map, Player* player, RenderSettingsOpe
     for (int i = 0; i < TEMP_SPRITE_AMOUNT; i++)
     {
         DSprite* sprite = &tempSprites[i];
-        if (renderedSectorNames[sprite->sectnum] > 0
+        if (BuildRender_WasSectorDrawn(sprite->sectnum)
             && !Flag_IsSet(sprite->cstat, 1 << CSTAT_SPRITE_INVISIBLE)
             && (player->playerNumber != sprite->owner || sprite->owner > 3))
         {
@@ -137,7 +138,7 @@ void BuildRender_DrawSprites(DukeMap* map, Player* player, RenderSettingsOpenGL*
     for (int si = 0; si < map->spriteAmount; si++)
     {
         DSprite* sprite = &map->sprites[si];
-        if (renderedSectorNames[sprite->sectnum] > 0
+        if (BuildRender_WasSectorDrawn(sprite->sectnum)
             && !Flag_IsSet(sprite->cstat, 1 << CSTAT_SPRITE_INVISIBLE))
         {
             float scaleAspect = (float)sprite->xrepeat / (float)sprite->yrepeat;
@@ -170,11 +171,12 @@ void BuildRender_Draw3D(Player* player, DukeMap* map, RenderSettingsOpenGL* sett
 }
 
 
+
 void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL* settings)
 {
     for (int i = 0; i < map->sectorAmount ; i++)
     {
-        renderedSectorNames[i] = 0;
+        sectorDrawTimes[i] = 0;
     }
     for (int i = 0; i < MAX_PORTAL_QUEUE; i++)
     {
@@ -209,14 +211,15 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
         // Take next request from buffer:
         SectorRender request = (*tail);
         // Mark as done in queue
-        tail->number = tail->number * -1 - 1; // Change 0 to -1 etc...
+
+        //tail->number = tail->number * -1 - 1; // Change 0 to -1 etc...
         // Move tail to next one
         if ( ( tail += 1) == renderQueue + MAX_PORTAL_QUEUE)
         {
             tail = renderQueue;
         }
-        // If this is drawn already, skip it
-        if (renderedSectorNames[request.number] > 1)
+        // If this is drawn for maximum amount of times, skip it
+        if (sectorDrawTimes[request.number] >= MAX_SECTOR_DRAW_TIMES)
         {
             continue;
         }
@@ -290,11 +293,6 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
                     endVisible = true;
                 }
             }
-            if (startZ.x >= endZ.x)
-            {
-                // Wall faces away from player
-                continue;
-            }
 
             // End of the wall is too much to left
             // or start of the wall is too much to right
@@ -306,8 +304,36 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
                 continue;
             }
 
-            // Wall is drawn
-            // if it was a portal Add neighbor to queue
+            // If the player sees the whole wall, but it faces away
+            // OR player is very close to long wall so that start is more right
+            // than end.
+            if (Map_IsPointInsideWall(map, playerPos2, w) == false)
+            {
+                continue;
+
+            }
+            // Calculate new limits
+            float newLimitLeft = maxF(request.limitLeft, startZ.x);
+            float newLimitRight = minF(endZ.x, request.limitRight);
+
+
+            // Special case where wall is long and other point is behind player
+            // Line based renderer would clip the wall to player vision edge
+            // This is only done if drawing player's sector
+            if (newLimitLeft > newLimitRight && request.number == player->sectorNumber)
+            {
+                if (endVisible == false)
+                {
+                    // Clip to right side of view
+                    newLimitRight = right;
+                }
+                else if (startVisible == false)
+                {
+                    newLimitLeft = left;
+                }
+            }
+
+            //if it was a portal Add neighbor to queue
             // if there is neighbor AND there is room in QUEUE
             OpenGLRender_DrawWall(map, w, floorY, ceilingY, settings);
             if (w->nextsector >= 0)
@@ -315,9 +341,8 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
                 // When drawing walls seen from this portal,
                 // limit the view cone to the wall start and end points
 
-                float newLimitLeft = maxF(request.limitLeft, startZ.x);
-                float newLimitRight = minF(endZ.x, request.limitRight);
                 // Check that there is space left to draw
+                // TODO how much is one pixel? The difference must be at least that
                 if (newLimitLeft < newLimitRight)
                 {
                     // If there is alread a request for w->nextsector
@@ -325,30 +350,76 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
                     // partially and the other requests are skipped
                     if  ((head + MAX_PORTAL_QUEUE+1-tail)%MAX_PORTAL_QUEUE)
                     {
-                        bool combinedWithPreviousRequest = false;
-                        // Start from oldest request. This request is tail-1
+                        bool addRequest = false;
+                        bool passedHead = false;
+                        int steps = 0; // Safety measure
+                        // Start from first request. Current request is tail-1
                         SectorRender* lookAhead = (tail);
-                        // Look ahead through the buffer until unused request
-                        while(lookAhead->number >= 0)
+                        // Look through the buffer until at tail-1
+                        while(lookAhead != (tail-1) && steps < MAX_PORTAL_QUEUE)
                         {
+                            // Check when going past requests and start to wrap around
+                            if (lookAhead == head)
+                            {
+                                passedHead = true;
+                            }
+                            if (passedHead)
+                            {
+                                if (sectorDrawTimes[w->nextsector] == 0)
+                                {
+                                    // There was no request for it and
+                                    // The nextsector has newer been drawn, do it now
+                                    addRequest = true;
+                                    break;
+                                }
+                            }
                             if (lookAhead->number == w->nextsector)
                             {
-                                lookAhead->limitLeft = minF(lookAhead->limitLeft, newLimitLeft);
-                                lookAhead->limitRight = maxF(lookAhead->limitRight, newLimitRight);
+                                if (!passedHead)
+                                {
+                                    // This request is waiting, increase it's limits if
+                                    // they were smaller than new ones
+                                    lookAhead->limitLeft = minF(lookAhead->limitLeft, newLimitLeft);
+                                    lookAhead->limitRight = maxF(lookAhead->limitRight, newLimitRight);
+                                    // No need to add, since it is already waiting
+                                    addRequest = false;
+                                }
+                                else
+                                {
+                                    // This is a request that has been processed.
+                                    // Resubmit if new limits are bigger
+                                    if (lookAhead->limitLeft > newLimitLeft || lookAhead->limitRight < newLimitRight)
+                                    {
+                                        // If they were, add the request again
+                                        lookAhead->limitLeft = minF(lookAhead->limitLeft, newLimitLeft);
+                                        lookAhead->limitRight = maxF(lookAhead->limitRight, newLimitRight);
+                                        // If has passed draw limit, decrease times by one
+                                        if (sectorDrawTimes[w->nextsector] >= MAX_SECTOR_DRAW_TIMES)
+                                        {
+                                            sectorDrawTimes -= 1;
+                                        }
+                                        addRequest = true;
+                                    }
+
+                                }
                                 //Log_InfoF("Combined sector request: S %d |%.2f - %.2f|\n", w->nextsector, newLimitLeft, newLimitRight);
-                                combinedWithPreviousRequest = true;
+
+                                // Stop looking
                                 break;
                             }
+                            steps += 1;
                             lookAhead += 1;
+
                             if (lookAhead  == renderQueue + MAX_PORTAL_QUEUE)
                             {
                                 // At the end, loop to start
                                 lookAhead = renderQueue;
                             }
                         }
-                        if (combinedWithPreviousRequest == false)
+
+                        if (addRequest == true)
                         {
-                            // The w->nextsector was not yet requested, add it to queue
+                            // The w->nextsector needs to be drawn: for first time or again
                             (*head) = {w->nextsector, newLimitLeft, newLimitRight};
                             // Move head and loop around buffer
                             if ( (++head) == renderQueue + MAX_PORTAL_QUEUE)
@@ -364,7 +435,7 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
         } // All walls of the sector have been drawn; head has moved forward
 
         // Mark the sector as drawn
-        renderedSectorNames[request.number] += 1;
+        sectorDrawTimes[request.number] += 1;
 
     } while(head != tail); // Render until buffer is empty: if nothing was added, they are the same
 }
@@ -372,10 +443,8 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
 void BuildRender_DrawSectorRequests(RenderSettingsOpenGL* settings3D)
 {
 
-        Color4f* whiteColor = Color_GetDefaultColor(Color_White);
-        Color4f* greenColor = Color_GetDefaultColor(Color_Green);
-        Color4f portalColor = Color_Create4f(0.5f, 0.1f, 0.1f, 1.0f);
-        Color4f wallColor = Color_Create4f(0.75f, 0.75f, 0.75f, 1.0f);
+        Color4f blueColor = Color_Create4f(0.1f, 0.1f, 0.5f, 1.0f);
+        Color4f yellowColor = Color_Create4f(0.1f, 0.5f, 0.5f, 1.0f);
     Font* df = DefaultFont_GetDefaultFont();
     int H = mgdl_GetScreenHeight();
     int W = mgdl_GetScreenWidth();
@@ -385,13 +454,13 @@ void BuildRender_DrawSectorRequests(RenderSettingsOpenGL* settings3D)
         SectorRender* r = &renderQueue[i];
         if (r->number > -4096)
         {
-            int number = (r->number + 1) * -1;
+            int number = r->number;
             if (i % 2 == 0) {
-                OpenGLRender_SetColor4f(wallColor);
+                OpenGLRender_SetColor4f(blueColor);
             }
             else
             {
-                OpenGLRender_SetColor4f(portalColor);
+                OpenGLRender_SetColor4f(yellowColor);
             }
             glBegin(GL_LINES);
                 int lineleft = W/2 + (r->limitLeft/settings3D->near) * W/2;
@@ -402,7 +471,7 @@ void BuildRender_DrawSectorRequests(RenderSettingsOpenGL* settings3D)
                 OpenGLRender_Line2(lineleft, lineY, lineright, lineY);
             glEnd();
 
-            Font_Printf(df, (i%2==0) ? &wallColor : &portalColor, lineleft + (lineright-lineleft)/2, lineY, 16, "%d", number);
+            Font_Printf(df, (i%2==0) ? &blueColor : &yellowColor, lineleft + (lineright-lineleft)/2, lineY, 16, "%d", number);
         }
         if (i>=renderQueueInserts)
         {
@@ -628,9 +697,9 @@ void BuildRender_DrawTopDown(Player* players, DukeMap* map, RenderSettingsOpenGL
                     }
                     Draw2D_RectWH(sx, sy, numberSize * numbers, numberSize, Color_GetDefaultColor(Color_Black));
 
-                    if (renderedSectorNames[si])
+                    if (sectorDrawTimes[si] > 0)
                     {
-                        // Draw in green if rendered
+                        // Draw in green if rendered at least once
                         Font_Printf(df, greenColor, sx, sy, numberSize, "%d", si);
                     }
                     else
