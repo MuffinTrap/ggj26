@@ -80,7 +80,6 @@ MainMenuResult MainMenu_Frame()
         return MainMenuStartGame;
     }
 
-    /*
     Menu_Start(mapMenu, mgdl_GetScreenWidth()/2 + 36, mgdl_GetScreenHeight(), 36 * 2 * 4);
 
     if (Menu_Button(mapMenu, "M 1"))
@@ -95,7 +94,6 @@ MainMenuResult MainMenu_Frame()
     {
         mapIndex = 2;
     }
-    */
 
     mainMenu->font = DefaultFont_GetDefaultFont();
     Menu_DrawCursor(mainMenu);

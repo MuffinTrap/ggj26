@@ -69,6 +69,7 @@ void init()
 
     Color4f c = Palette_GetColor4f(Palette_GetDefault(), 0);
     mgdl_glClearColor4f(&c);
+    Log_SaveLines(256);
 
 
 }
@@ -134,7 +135,7 @@ int main()
         FlagNone
         // | FlagGameHandlesHOME
          //| FlagFullScreen
-         | FlagSplashScreen
+        // | FlagSplashScreen
          // | FlagPauseUntilA
     );
 

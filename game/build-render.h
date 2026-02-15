@@ -75,6 +75,8 @@ void BuildRender_DrawTempSprites(DukeMap* map, Player* player, RenderSettingsOpe
 
 void BuildRender_TesselationTest();
 
+void BuildRender_DrawSectorRequests(RenderSettingsOpenGL* settings3D);
+
 SectorRender* BuildRender_GetDrawnSectorNumbers();
 s16 BuildRender_GetDrawnSectorAmount();
 bool BuildRender_WasSectorDrawn(s16 sectornumber);

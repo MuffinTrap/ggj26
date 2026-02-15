@@ -152,6 +152,21 @@ static void DrawMinimap()
     glPopMatrix();
 }
 
+static void DrawRequestsDebug()
+{
+
+    glPushMatrix();
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        /////////// 2D drawing mode
+        // Y increases down :
+        mgdl_InitOrthoProjection();
+
+            glTranslatef(0.375f, 0.375f, 0.0f);
+            BuildRender_DrawSectorRequests(&renderGL);
+    glPopMatrix();
+}
+
 static void DrawDebugMenu()
 {
     mgdl_InitOrthoProjection();
@@ -163,7 +178,7 @@ static void DrawDebugMenu()
 
     Menu_Toggle(debugMenu, showMenu ? "Hide" : "Show", &showMenu);
 
-    Menu_TextF(debugMenu, "Memory GPU %u CPU %u", mgdl_GetAllocatedGraphicsMemoryBytes(), mgdl_GetAllocatedGeneralMemoryBytes());
+    // Menu_TextF(debugMenu, "Memory GPU %u CPU %u", mgdl_GetAllocatedGraphicsMemoryBytes(), mgdl_GetAllocatedGeneralMemoryBytes());
 
     if (showMenu)
     {
@@ -201,6 +216,7 @@ static void DrawDebugMenu()
                        editorCamera->rotations.z);
         }
 
+        Menu_Toggle(debugMenu, "Map", &drawTopdown);
         Menu_Slider(debugMenu, "Zoom", 0.1f, 128.0f, &mapZoom);
         Menu_Toggle(debugMenu, "Zoom Out", &ZoomOut);
         if (ZoomOut)
@@ -212,9 +228,15 @@ static void DrawDebugMenu()
             render2D.mapZoom = mapZoom;
         }
 
+
         Menu_Toggle(debugMenu, "Rotate on Player", &render2D.rotateMap);
         Menu_Toggle(debugMenu, "Center on Player", &render2D.centerMapToPlayer);
 
+        Menu_Toggle(debugMenu, "Sprites", &render2D.drawSprites);
+        Menu_Toggle(debugMenu, "Wall #", &render2D.drawWallNumbers);
+        Menu_Toggle(debugMenu, "Sector #", &render2D.drawSectorNumbers);
+
+        /*
         if (render2D.movePlayer == false)
         {
             Menu_TextF(debugMenu, "Draw sect: %d", render2D.drawOneSector);
@@ -224,36 +246,35 @@ static void DrawDebugMenu()
 
             Menu_TextF(debugMenu, "Collision point: (%.1f %.1f) Dir: %.0f", render2D.collisionPoint.x, render2D.collisionPoint.y, render2D.collisionAngleDeg);
             Menu_TextF(debugMenu, "Sector: %s %d", render2D.collisionInsideSector >= 0 ? "Inside" : "Outside", render2D.collisionInsideSector);
-            /*
-             *    if (Menu_Button(debugMenu, "Draw Wall -"))
-             *    {
-             *    render2D.drawOneWall--;
-        }
-        if (Menu_Button(debugMenu, "Draw Wall +"))
-        {
-        render2D.drawOneWall++;
-        }
-        Menu_TextF(debugMenu, "Draw wall: %d", render2D.drawOneWall);
-        if (Menu_Button(debugMenu, "Draw Sector -"))
-        {
-        render2D.drawOneSector--;
-        }
-        if (Menu_Button(debugMenu, "Draw Sector +"))
-        {
-        render2D.drawOneSector++;
+             if (Menu_Button(debugMenu, "Draw Wall -"))
+             {
+             render2D.drawOneWall--;
+            }
+            if (Menu_Button(debugMenu, "Draw Wall +"))
+            {
+            render2D.drawOneWall++;
+            }
+            Menu_TextF(debugMenu, "Draw wall: %d", render2D.drawOneWall);
+            if (Menu_Button(debugMenu, "Draw Sector -"))
+            {
+            render2D.drawOneSector--;
+            }
+            if (Menu_Button(debugMenu, "Draw Sector +"))
+            {
+            render2D.drawOneSector++;
+            }
         }
         */
-        }
 
+        /*
         Menu_Slider(debugMenu, "X", -100.f, 400.0f, &render2D.mapOffset.x);
         Menu_Slider(debugMenu, "Y", -100.f, 400.0f, &render2D.mapOffset.y);
         Menu_Slider(debugMenu, "grid unit", -1.0f, 10.0f, &render2D.gridSize);
-        Menu_Toggle(debugMenu, "Map", &drawTopdown);
-        Menu_Toggle(debugMenu, "Sprites", &render2D.drawSprites);
 
         Menu_Toggle(debugMenu, "OpenGL", &drawOpenGL);
 
         Menu_Slider(debugMenu, "Player Height", 0, 3 * dukeUnitsPerMetre, &players[0].standingHeight);
+        */
 
         //Menu_Slider(debugMenu, "Sprite width", 64, 1024, &renderGL.spriteDefaultWidth);
         //Menu_Slider(debugMenu, "Sprite height", 64, 8024, &renderGL.spriteDefaultHeight);
@@ -267,9 +288,9 @@ static void DrawDebugMenu()
         Menu_Toggle(debugMenu, "Editor camera", &useEditorCamera);
         Menu_Text(debugMenu, "Camera");
         //Menu_Slider(debugMenu, "fogColor", 0.1f, 1.0f, &fogColorValue);
-        //Menu_Slider(debugMenu, "FOV ", 45, 90, &glCamera->fovY);
-        //Menu_Slider(debugMenu, "FOV+-", -10, 10, &fovYAdjustForBuild);
-        //renderGL.FOVyDegrees = glCamera->fovY + fovYAdjustForBuild;
+        Menu_Slider(debugMenu, "FOV ", 45, 90, &glCamera->fovY);
+        Menu_Slider(debugMenu, "FOV+-", -10, 10, &fovYAdjustForBuild);
+        renderGL.FOVyDegrees = glCamera->fovY + fovYAdjustForBuild;
         //Menu_Slider(debugMenu, "Speed", 1, 2048.0f, &player.moveSpeed);
         //Menu_Slider(debugMenu, "V Speed", 1, 512.0f, &player.verticalSpeed);
         //Menu_Slider(debugMenu, "R Speed", 45, 720.0f, &player.turnSpeedDegrees);
@@ -287,6 +308,12 @@ static void DrawDebugMenu()
         clearColor.green = fogCOlor[1];
         clearColor.blue = fogCOlor[2];
         clearColor.alpha = 1;
+
+        int amount = 32;
+        for(int i = amount; i >= 0; i--)
+        {
+            Menu_Text(debugMenu, Log_GetLastLine(i));
+        }
     }
 
     Menu_DrawCursor(debugMenu);
@@ -326,8 +353,8 @@ void MapPlay_Init()
     allMapsArray = (DukeMap**)mgdl_AllocateGeneralMemory(sizeof(DukeMap**) * MAX_MAP_AMOUNT);
     LoadMapFile("assets/Maps/islandtest.map");
     LoadMapFile("assets/Maps/muffin_arena.map");
+    LoadMapFile("assets/Maps/laatikko.map");
     LoadMapFile("assets/Maps/GGJ26ModernWateringCanNoIslands.map");
-    LoadMapFile("assets/Maps/GGJ26SmallTest1.map");
 
     // Load ui textures
     maskTexture = mgdl_LoadTexture("assets/screen_mask_texture.png", Linear);
@@ -620,9 +647,11 @@ MapPlayResult MapPlay_Frame()
                     // Sets GL_MODELVIEW
                     Camera_Apply(glCamera);
                 }
-                renderGL.aspectRatio = viewPort.w / viewPort.h;
+                renderGL.aspectRatio = (float)viewPort.w / (float)viewPort.h;
+
 
                 BuildRender_Draw3D(player, activeMap, &renderGL);
+
             }
             glDisable(GL_DEPTH_TEST);
             glDisable(GL_CULL_FACE);
@@ -669,6 +698,8 @@ MapPlayResult MapPlay_Frame()
             }
         }
         glDisable(GL_ALPHA_TEST);
+
+        DrawRequestsDebug();
 
         if (drawTopdown)
         {

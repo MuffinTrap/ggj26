@@ -6,15 +6,21 @@ Kartan mitat on dukeissa
 
 # Säädin FOV varten ok
 
-Käytä 2D piirtämistä laskemaan mitkä sektorit pitää piirtää [testaa]
+# Käytä 2D piirtämistä laskemaan mitkä sektorit pitää piirtää [testaa]
+    Yhdistä rajat jos monta piirtopyyntöä samasta sektorista
+    Varmista että ei skippaa sektoreita rajojen takia
 
 # glutess piirtää lattiat ja seinät
+    # piirrä lattiat etukäteen muistiin
+    tallenna lattioiden indeksit
+    
 
 # Pelaajan nopeudet ja koko metreissä
 
 # Funktiot: Onko piste sektorin sisällä?
 		 Menikö pelaajan liike seinän läpi? : Intersection
 		 Ohjaa pelaajan liike seinää pitkin: vector reflection
+  bool Bugi:    Portaalista ei aina pääse läpi
 
 # Piirrä vain yksi seinä tai kaikki
 # Valitse liikutetaanko pelaajaa vai testi pistettä
@@ -30,37 +36,56 @@ Käytä 2D piirtämistä laskemaan mitkä sektorit pitää piirtää [testaa]
 
 
 
-
-
-OpenGL piirtäminen
+"Kentän piirtäminen"
 # Piirrä portaat ja holvikaaret
+    Ota huomiooon slope arvo
 	Laske tiling offsetit ja muut kun laitetaan tekstuurikoordinaatti
 #	Laske seinien normaalit
 #	Piirrä katon ja lattian tekstuurit
-	Clippaa pelaajan view frustumin kanssa
-	Tallenna koko sektori verteksibufferiin **ei ehkä tarvi**
-	Jos kenttä muuttuu pitää bufferi päivittää
-	Laita kaikki verteksit bufferiin ja piirrä sieltä glDrawArrays
-	Erota piirtäminen omaan systeemiin
-		Mitä piirretään
-		Miten piirretään : käytä verteksibufferia ja kun se on täynnä käytä glDrawArrays
+#	Clippaa pelaajan view frustumin kanssa
+    piirrä seinät etukäteen muistiin
+    käytä samoja indeksejä kaikille seinille
+    tee subdivision funktiot suorakulmioille ja kolmioille
 		Seinän tesselointi: jaa quad aina 4 pienempään kunnes koko on tarpeeksi pieni. Jaa kolmioiksi ja piirrä. Voi jakaa aina kahdella >>1 ja käyttää samaa suuntavektoria joka osoittaa nurkasta quadin keskelle
+    käytä subdivision jos seinä on lähellä pelaajaa tai kolmiot tosi isoja
+    Tallenna monta erilaista indeksibufferia eri subdivision asteille
+#	Laita kaikki verteksit bufferiin ja piirrä sieltä glDrawArrays
+#	Erota piirtäminen omaan systeemiin
+#		Mitä piirretään
+#		Miten piirretään : käytä verteksibufferia ja kun se on täynnä käytä glDrawArrays
 	Seinän kuva voi olla tekstuuri tai verteksien piirtämistä : Piirtoalue ja kuvan numero annetaan
 
-#   // Islands
+    
+
+"Kentän tallennus OBJ tiedostoon"
+    Piirrä koko kenttä buffereihin
+    Kirjoita bufferit obj muotoon
+
+"Saarekkeet - sisäkkäiset sektorit"
 	Minimap kuvassa piirrä island verteksien numerot poispäin sektorin keskipisteestä
 	niin sisemmän sektorin pisteet näkyvät myös
 
-Seinien, sektorien ja spritejen tiedot
+"Seinien, sektorien ja spritejen tiedot"
 	Tee omat tiedostot jotka kääntävät cstat ja muut stat arvot enumeiksi
+    Ota huomioon masked walls : eli portaalit joissa on myös tekstuuri
+    
+"Skybox"
+    Määritä picnum jota ei piirretä
+    Piirrä skybox ennen muuta piirtämistä ilman että kirjoitetaan depth arvoja
 
-Pelaaja
+"Pelaaja""
 	Pelaajan tila, crouch, swim, fall, walk
 # 	Pidä pelaaja lattian korkeudelle + pelaajan korkeus
+#
 	Strafe nopeus ja kontrollit
 #	Pelaaja liukuu pitkin seinää
 # 	Pelaaja tippuu automaattisesti
 #	Pelaajan törmääminen kenttään erikseen updatesta
+
+"Kameran animointi blenderissä"
+    Tee kameran liikkeistä animaatio
+    Tallenna fbx tiedostona
+    Lue ufbx:n avulla animaation tiedot
 
 
 

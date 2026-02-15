@@ -176,6 +176,10 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
     {
         renderedSectorNames[i] = 0;
     }
+    for (int i = 0; i < MAX_PORTAL_QUEUE; i++)
+    {
+        renderQueue[i].number = -8012; // Max sector number is 4096
+    }
 
     // Perspective projection values to cull walls that player
     // does not see
@@ -204,19 +208,22 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
     do {
         // Take next request from buffer:
         SectorRender request = (*tail);
+        // Mark as done in queue
+        tail->number = tail->number * -1 - 1; // Change 0 to -1 etc...
         // Move tail to next one
         if ( ( tail += 1) == renderQueue + MAX_PORTAL_QUEUE)
         {
             tail = renderQueue;
         }
         // If this is drawn already, skip it
-        if (renderedSectorNames[request.number] > 0)
+        if (renderedSectorNames[request.number] > 1)
         {
             continue;
         }
 
         // Get the sector info from map
         Sector* sector = Map_GetSector(map, request.number);
+        //Log_InfoF("Draw sector %d\n", request.number);
 
         float ceilingY = sector->ceilingy;
         float floorY = sector->floory;
@@ -319,27 +326,24 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
                     if  ((head + MAX_PORTAL_QUEUE+1-tail)%MAX_PORTAL_QUEUE)
                     {
                         bool combinedWithPreviousRequest = false;
-                        // Start from newest request
-                        SectorRender* lookBack = (head-1);
-                        // Look back until you are at tail : the current request
-                        while(lookBack->number != request.number)
+                        // Start from oldest request. This request is tail-1
+                        SectorRender* lookAhead = (tail);
+                        // Look ahead through the buffer until unused request
+                        while(lookAhead->number >= 0)
                         {
-                            if (lookBack->number == w->nextsector)
+                            if (lookAhead->number == w->nextsector)
                             {
-                                lookBack->limitLeft = minF(lookBack->limitLeft, newLimitLeft);
-                                lookBack->limitRight = maxF(lookBack->limitRight, newLimitRight);
+                                lookAhead->limitLeft = minF(lookAhead->limitLeft, newLimitLeft);
+                                lookAhead->limitRight = maxF(lookAhead->limitRight, newLimitRight);
+                                //Log_InfoF("Combined sector request: S %d |%.2f - %.2f|\n", w->nextsector, newLimitLeft, newLimitRight);
                                 combinedWithPreviousRequest = true;
                                 break;
                             }
-                            if (lookBack == renderQueue)
+                            lookAhead += 1;
+                            if (lookAhead  == renderQueue + MAX_PORTAL_QUEUE)
                             {
-                                // At the beginning: jump to end
-                                lookBack = renderQueue + MAX_PORTAL_QUEUE - 1;
-                            }
-                            else
-                            {
-                                // Go further back
-                                lookBack -= 1;
+                                // At the end, loop to start
+                                lookAhead = renderQueue;
                             }
                         }
                         if (combinedWithPreviousRequest == false)
@@ -352,6 +356,7 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
                                 head = renderQueue;
                                 renderQueueInserts++;
                             }
+                            //Log_InfoF("Sector request: S %d |%.2f , %.2f|\n", w->nextsector, newLimitLeft, newLimitRight);
                         }
                     }
                 }
@@ -362,6 +367,48 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
         renderedSectorNames[request.number] += 1;
 
     } while(head != tail); // Render until buffer is empty: if nothing was added, they are the same
+}
+
+void BuildRender_DrawSectorRequests(RenderSettingsOpenGL* settings3D)
+{
+
+        Color4f* whiteColor = Color_GetDefaultColor(Color_White);
+        Color4f* greenColor = Color_GetDefaultColor(Color_Green);
+        Color4f portalColor = Color_Create4f(0.5f, 0.1f, 0.1f, 1.0f);
+        Color4f wallColor = Color_Create4f(0.75f, 0.75f, 0.75f, 1.0f);
+    Font* df = DefaultFont_GetDefaultFont();
+    int H = mgdl_GetScreenHeight();
+    int W = mgdl_GetScreenWidth();
+
+    for (int i = 0; i < MAX_PORTAL_QUEUE; i++)
+    {
+        SectorRender* r = &renderQueue[i];
+        if (r->number > -4096)
+        {
+            int number = (r->number + 1) * -1;
+            if (i % 2 == 0) {
+                OpenGLRender_SetColor4f(wallColor);
+            }
+            else
+            {
+                OpenGLRender_SetColor4f(portalColor);
+            }
+            glBegin(GL_LINES);
+                int lineleft = W/2 + (r->limitLeft/settings3D->near) * W/2;
+                int lineright = W/2 + (r->limitRight/settings3D->near) * W/2;
+                int lineY = 16 + (i * 18);
+                OpenGLRender_Line2(lineleft, H, lineleft, 0);
+                OpenGLRender_Line2(lineright, H, lineright, 0);
+                OpenGLRender_Line2(lineleft, lineY, lineright, lineY);
+            glEnd();
+
+            Font_Printf(df, (i%2==0) ? &wallColor : &portalColor, lineleft + (lineright-lineleft)/2, lineY, 16, "%d", number);
+        }
+        if (i>=renderQueueInserts)
+        {
+            break;
+        }
+    }
 }
 
 
