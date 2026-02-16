@@ -79,7 +79,7 @@ void frame()
 {
     if (musicStarted == false)
     {
-        Audio_PlaySound(music);
+        //Audio_PlaySound(music);
         musicStarted = true;
     }
     // NOTE Use the mgdl_glClear to assure depth buffer working correctly on Wii

@@ -57,24 +57,30 @@ struct RenderSettingsOpenGL
 };
 typedef struct RenderSettingsOpenGL RenderSettingsOpenGL;
 
-extern int wallXPoints[20];
-extern int wallYPoints[20];
-
-
+/**
+ * @brief Loads a given map and prepares to draw it. Can be called multiple times
+ */
 void BuildRender_Init(DukeMap* map, RenderSettingsOpenGL* settings3D);
-/** @brief Draws the map wireframe and player
+
+/** @brief Draws the map wireframe and player(s) and other information defined in the settings
  */
 void BuildRender_DrawTopDown(Player* players, DukeMap* map, RenderSettingsOpenGL* settings3D, RenderSettings2D* settings2D);
 
-/** @brief Draws the map in 3D using OpenGL
+/** @brief Draws the map in 3D using OpenGL, using the functions below
+ * @param player The player whose point of view is used
+ * @param map The map.
+ * @param settings Rendering settings
  */
 void BuildRender_Draw3D(Player* player, DukeMap* map, RenderSettingsOpenGL* settings);
-void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL* settings);
+
+void BuildRender_DrawSectorWalls(Player* player, DukeMap* map, RenderSettingsOpenGL* settings);
+void BuildRender_DrawSectorFloorsAndCeilings(Player* player, DukeMap* map, RenderSettingsOpenGL* settings);
 void BuildRender_DrawSprites(DukeMap* map, Player* player, RenderSettingsOpenGL* settings);
 void BuildRender_DrawTempSprites(DukeMap* map, Player* player, RenderSettingsOpenGL* settings);
 
-void BuildRender_TesselationTest();
-
+/**
+ * @brief Visualize how the sectors and portals are drawn
+ */
 void BuildRender_DrawSectorRequests(RenderSettingsOpenGL* settings3D);
 
 SectorRender* BuildRender_GetDrawnSectorNumbers();

@@ -19,16 +19,16 @@
 
 // How many portals can be waiting for drawing
 #define MAX_PORTAL_QUEUE 32
-SectorRender* renderQueue = nullptr; // Circular buffer of render requests
-s16 renderQueueInserts = 0;
+static SectorRender* renderQueue = nullptr; // Circular buffer of render requests
+static s16 renderQueueInserts = 0;
 // These point to renderQueue
-SectorRender* head;
-SectorRender* tail;
+static SectorRender* head;
+static SectorRender* tail;
 
 #define MAX_SECTOR_DRAW_TIMES 4
-int* sectorDrawTimes = nullptr; // NOTE How many times each should be drawn. Additional times come from requests
+static int* sectorDrawTimes = nullptr; // NOTE How many times each should be drawn. Additional times come from requests
 
-static int lastSectorAmount = 0;
+static int lastSectorAmount = 0; // How many sectors were in the last map loaded
 
 SectorRender* BuildRender_GetDrawnSectorNumbers()
 {
@@ -68,8 +68,6 @@ void BuildRender_Init(DukeMap* map, RenderSettingsOpenGL* settings3D)
     lastSectorAmount = map->sectorAmount;
     renderQueueInserts = 0;
 
-    // Buffer the floor and ceiling vertices
-    OpenGLRender_StartCountingFloorBufferSize(map->sectorAmount);
     // Build other data needed by game
     for (int si = 0; si < map->sectorAmount; si++)
     {
@@ -93,16 +91,15 @@ void BuildRender_Init(DukeMap* map, RenderSettingsOpenGL* settings3D)
         sector->maxTexCoord.x = aspect * height * settings3D->textureScale;
         sector->maxTexCoord.y = 1.0 * height * settings3D->textureScale;
 
-        OpenGLRender_DrawFloorOrCeiling(map, sector, si, true);
     }
-    OpenGLRender_StopCountingFloorBufferSize();
-    OpenGLRender_StartFillingFloorBuffer(map->sectorAmount);
+
+    // Buffer the floor and ceiling vertices: The uvs need to be calculated first
+    OpenGLRender_StartCountingFloorBufferSize(map->sectorAmount, map->wallAmount);
     for (int si = 0; si < map->sectorAmount; si++)
     {
-        Sector* sector = &map->sectors[si];
-        OpenGLRender_DrawFloorOrCeiling(map, sector, si, true);
+        OpenGLRender_TesselateFloor(map, si);
     }
-    OpenGLRender_StopFillingFloorBuffer();
+    OpenGLRender_StopCountingFloorBufferSize();
 }
 
 void BuildRender_DrawTempSprites(DukeMap* map, Player* player, RenderSettingsOpenGL* settings)
@@ -129,7 +126,6 @@ void BuildRender_DrawTempSprites(DukeMap* map, Player* player, RenderSettingsOpe
         }
     }
 
-    OpenGLRender_AnimateSprites();
 }
 
 void BuildRender_DrawSprites(DukeMap* map, Player* player, RenderSettingsOpenGL* settings)
@@ -160,19 +156,21 @@ void BuildRender_Draw3D(Player* player, DukeMap* map, RenderSettingsOpenGL* sett
     glScalef(settings->scale, settings->scale, settings->scale);
         OpenGLRender_StartDrawingPolygons();
             mgdl_glSetAlphaTest(true);
-                OpenGLRender_StartDrawingFloorsFromBuffer();
-                    BuildRender_DrawSectors(player, map, settings);
-                OpenGLRender_StopDrawingFloorsFromBuffer();
+                BuildRender_DrawSectorWalls(player, map, settings);
+                BuildRender_DrawSectorFloorsAndCeilings(player, map, settings);
                 BuildRender_DrawSprites(map, player, settings);
                 BuildRender_DrawTempSprites(map, player, settings);
             mgdl_glSetAlphaTest(false);
         OpenGLRender_EndDrawingPolygons();
     glPopMatrix();
+
+
+    OpenGLRender_AnimateSprites();
 }
 
 
 
-void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL* settings)
+void BuildRender_DrawSectorWalls(Player* player, DukeMap* map, RenderSettingsOpenGL* settings)
 {
     for (int i = 0; i < map->sectorAmount ; i++)
     {
@@ -212,7 +210,6 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
         SectorRender request = (*tail);
         // Mark as done in queue
 
-        //tail->number = tail->number * -1 - 1; // Change 0 to -1 etc...
         // Move tail to next one
         if ( ( tail += 1) == renderQueue + MAX_PORTAL_QUEUE)
         {
@@ -228,22 +225,8 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
         Sector* sector = Map_GetSector(map, request.number);
         //Log_InfoF("Draw sector %d\n", request.number);
 
-        float ceilingY = sector->ceilingy;
-        float floorY = sector->floory;
-
-        // Draw the floor and ceiling with tesselation
-        bool floor = true;
-        do {
-            // Draw only floors and ceilings the player can see
-            if ((floor && player->position.y >= floorY) ||
-                (!floor && player->position.y <= ceilingY))
-            {
-                OpenGLRender_DrawFloorOrCeiling(map, sector, request.number, floor);
-            }
-            floor = !floor;
-            // First round: floor is false
-            // Second round: floor is true
-        } while(floor == false);
+        const float ceilingY = sector->ceilingy;
+        const float floorY = sector->floory;
 
         // Render all walls of the current sector
         // Discard those that do not face player
@@ -317,21 +300,29 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
             float newLimitRight = minF(endZ.x, request.limitRight);
 
 
-            // Special case where wall is long and other point is behind player
-            // Line based renderer would clip the wall to player vision edge
-            // This is only done if drawing player's sector
-            if (newLimitLeft > newLimitRight && request.number == player->sectorNumber)
+            if (newLimitLeft > newLimitRight)
             {
-                if (endVisible == false)
+                // Special case where wall is long and other point is behind player
+                // Line based renderer would clip the wall to player vision edge
+                // This is only done if drawing player's sector
+                if (request.number == player->sectorNumber)
                 {
-                    // Clip to right side of view
-                    newLimitRight = right;
+                    if (endVisible == false)
+                    {
+                        // Clip to right side of view
+                        newLimitRight = right;
+                    }
+                    else if (startVisible == false)
+                    {
+                        newLimitLeft = left;
+                    }
                 }
-                else if (startVisible == false)
+                else
                 {
-                    newLimitLeft = left;
+                    continue;
                 }
             }
+
 
             //if it was a portal Add neighbor to queue
             // if there is neighbor AND there is room in QUEUE
@@ -345,7 +336,7 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
                 // TODO how much is one pixel? The difference must be at least that
                 if (newLimitLeft < newLimitRight)
                 {
-                    // If there is alread a request for w->nextsector
+                    // If there is already a request for w->nextsector
                     // combine the limits: otherwise it will be drawn only
                     // partially and the other requests are skipped
                     if  ((head + MAX_PORTAL_QUEUE+1-tail)%MAX_PORTAL_QUEUE)
@@ -353,16 +344,14 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
                         bool addRequest = false;
                         bool passedHead = false;
                         int steps = 0; // Safety measure
+
                         // Start from first request. Current request is tail-1
                         SectorRender* lookAhead = (tail);
+
                         // Look through the buffer until at tail-1
                         while(lookAhead != (tail-1) && steps < MAX_PORTAL_QUEUE)
                         {
                             // Check when going past requests and start to wrap around
-                            if (lookAhead == head)
-                            {
-                                passedHead = true;
-                            }
                             if (passedHead)
                             {
                                 if (sectorDrawTimes[w->nextsector] == 0)
@@ -373,6 +362,11 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
                                     break;
                                 }
                             }
+                            else if (lookAhead == head)
+                            {
+                                passedHead = true;
+                            }
+
                             if (lookAhead->number == w->nextsector)
                             {
                                 if (!passedHead)
@@ -440,11 +434,44 @@ void BuildRender_DrawSectors(Player* player, DukeMap* map, RenderSettingsOpenGL*
     } while(head != tail); // Render until buffer is empty: if nothing was added, they are the same
 }
 
+void BuildRender_DrawSectorFloorsAndCeilings(Player* player, DukeMap* map, RenderSettingsOpenGL* settings)
+{
+    // Go through all sectors
+    // Draw walls and ceilings of those
+    // that had any walls drawn
+    OpenGLRender_StartDrawingFloorsFromBuffer();
+    for(int i = 0; i < map->sectorAmount; i++)
+    {
+        if (sectorDrawTimes[i] > 0)
+        {
+            // Get the sector info from map
+            Sector* sector = Map_GetSector(map, i);
+            //Log_InfoF("Draw sector %d\n", request.number);
+
+            float ceilingY = sector->ceilingy;
+            float floorY = sector->floory;
+            // Draw the floor and ceiling with tesselation
+            bool floor = true;
+            do {
+                // Draw only floors and ceilings the player can see
+                if ((floor && player->position.y >= floorY) ||
+                    (!floor && player->position.y <= ceilingY))
+                {
+                    OpenGLRender_DrawFloorOrCeiling(map, i, floor);
+                }
+                floor = !floor;
+                // First round: floor is false
+                // Second round: floor is true
+            } while(floor == false);
+        }
+    }
+}
+
+
 void BuildRender_DrawSectorRequests(RenderSettingsOpenGL* settings3D)
 {
-
-        Color4f blueColor = Color_Create4f(0.1f, 0.1f, 0.5f, 1.0f);
-        Color4f yellowColor = Color_Create4f(0.1f, 0.5f, 0.5f, 1.0f);
+    Color4f blueColor = Color_Create4f(0.1f, 0.1f, 0.5f, 1.0f);
+    Color4f yellowColor = Color_Create4f(0.1f, 0.5f, 0.5f, 1.0f);
     Font* df = DefaultFont_GetDefaultFont();
     int H = mgdl_GetScreenHeight();
     int W = mgdl_GetScreenWidth();
@@ -463,12 +490,12 @@ void BuildRender_DrawSectorRequests(RenderSettingsOpenGL* settings3D)
                 OpenGLRender_SetColor4f(yellowColor);
             }
             glBegin(GL_LINES);
-                int lineleft = W/2 + (r->limitLeft/settings3D->near) * W/2;
-                int lineright = W/2 + (r->limitRight/settings3D->near) * W/2;
-                int lineY = 16 + (i * 18);
-                OpenGLRender_Line2(lineleft, H, lineleft, 0);
-                OpenGLRender_Line2(lineright, H, lineright, 0);
-                OpenGLRender_Line2(lineleft, lineY, lineright, lineY);
+            int lineleft = W/2 + (r->limitLeft/settings3D->near) * W/2;
+            int lineright = W/2 + (r->limitRight/settings3D->near) * W/2;
+            int lineY = 16 + (i * 18);
+            OpenGLRender_Line2(lineleft, H, lineleft, 0);
+            OpenGLRender_Line2(lineright, H, lineright, 0);
+            OpenGLRender_Line2(lineleft, lineY, lineright, lineY);
             glEnd();
 
             Font_Printf(df, (i%2==0) ? &blueColor : &yellowColor, lineleft + (lineright-lineleft)/2, lineY, 16, "%d", number);

@@ -75,8 +75,6 @@ MainMenuResult MainMenu_Frame()
     Menu_Skip(mainMenu, 36 * 2);
     if (Menu_Button(mainMenu, "ALASA"))
     {
-
-        Log_Info("Start!");
         return MainMenuStartGame;
     }
 

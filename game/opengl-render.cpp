@@ -6,23 +6,23 @@
 #include "dukemap.h"
 #include "build-render.h"
 #include "dukemath.h"
-#ifdef MGDL_PLATFORM_WINDOWS
-#define _GLUfuncptr void(*)()
-#endif
+#include "tesselator.h"
 
-// OpenGL
+// Used to set normals when drawing floors and ceilings
+static GLfloat floorNormal[3];
+static GLfloat ceilingNormal[3];
 
 // Store floor vertices of each sector to buffer
-// Ring buffer for tesselation input
-// This buffer needs to hold all the vertices of a sector floor or ceiling
-static OpenGLRender_FloorDrawMode activeFloorDrawMode;
-static u16 floorBufferSizeVertices = 0;
-static const u16 FLOOR_BUFFER_VERTEX_SIZE = 5;
+// This buffer needs to hold all the vertices of every floor
 static GLfloat* floorBuffer = nullptr; // All vertices of all floors: 3 position 2 uv
-static u16* floorStartIndices = nullptr; // Buffer indices of each sector
-static s16 bufferedSectorAmount = 0;
-u32 floorBufferVertexIndex = 0;
-u16 floorCounter = 0;
+static const u16 FLOOR_BUFFER_VERTEX_SIZE = 5; ///< How many floats per vertex
+static u16 floorBufferSizeVertices = 0;
+
+static GLushort* floorIndexBuffer = nullptr; // All indices of all floors
+static u32 floorIndexBufferSize = 0;
+
+static Tesselator_BufferIndices* floorStartIndices = nullptr; // Buffer end indices of each floor in vertex and index buffers: NOTE First floor starts at indices (0,0)
+static s16 bufferedSectorAmount = 0; // How many floors are in the buffers
 
 // Arrays for storing sprite pointers and matching picnums to Sprites
 #define RENDERER_SPRITE_ARRAY_SIZE 128
@@ -31,17 +31,15 @@ static sizetype nextFreeSpriteSlot = 0;
 static Sprite** spritePtrArray = nullptr;
 static u16* picnumToSpriteArray = nullptr;
 
+// Default texture
 Texture* checkers;
 
-GLUtesselator* tesselator = nullptr;
-bool tesselationActive = true;
-static RectF uvs;
+
+// Animation variables for animating sprites
 int animationFrame = 0;
 float animationRate = 0.05f;
 float animationTimer = 0;
 
-GLfloat floorNormal[3];
-GLfloat ceilingNormal[3];
 
 // TODO Alternative textures? Multiple Textures per sprite
 #define RENDERER_PICNUM_TO_SPRITE_ARRAY_DARK_SIZE 2048
@@ -51,36 +49,37 @@ static bool dark = false;
 // Buffer for drawing vertices of the walls and sprites
 // 3 position + 2 texture coordinates
 #define FULL_VERTEX_SIZE_FLOATS (3 + 2)
-#define VERTEX_BUFFER_SIZE_VERTICES 64 * 3 // This will always contain triangles
+#define VERTEX_BUFFER_SIZE_VERTICES 16 // This will always contain a quad
 #define VERTEX_BUFFER_SIZE_BYTES (FULL_VERTEX_SIZE_FLOATS * sizeof(float) * VERTEX_BUFFER_SIZE_VERTICES)
 static GLfloat* vertexBuffer = nullptr;
+#define VERTEX_INDEX_BUFFER_SIZE_INDICES 6
 static int vertexBufferIndexVertices = 0;
+static GLushort vertexIndexBuffer[VERTEX_INDEX_BUFFER_SIZE_INDICES];
 
+// What uv limits are active
+static RectF uvs;
 static RectF polygonUVLimits;
 static RectF zeroOffset;
 
-static bool UseVertexBufferForTesselation = false;
-static bool useGlutessForFloorsAndCeilings = true;
-
+/**
+ * @brief Sets OpenGL to draw from vertexBuffer
+ */
 static void ActivateVertexBuffer()
 {
     glVertexPointer(3, GL_FLOAT, sizeof(float) * 5, &vertexBuffer[0]);
     glTexCoordPointer(2, GL_FLOAT, sizeof(float) * 5, &vertexBuffer[3]);
 }
 
-static void ActivateFloorBuffer()
+
+/**
+ * @brief Sets OpenGL to draw from floorbuffer at given index
+ */
+static void ActivateFloorBuffer(u32 index)
 {
-    glVertexPointer(3, GL_FLOAT, sizeof(float) * 5, &floorBuffer[0]);
-    glTexCoordPointer(2, GL_FLOAT, sizeof(float) * 5, &floorBuffer[3]);
+    glVertexPointer(3, GL_FLOAT, sizeof(float) * 5, &floorBuffer[index]);
+    glTexCoordPointer(2, GL_FLOAT, sizeof(float) * 5, &floorBuffer[index + 3]);
 }
 
-void OpenGLRender_StartDrawingPolygons()
-{
-    glEnableClientState(GL_VERTEX_ARRAY);
-    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-
-    glEnable(GL_TEXTURE_2D);
-}
 
 static GLuint lastTextureName = 0; // 0 is not a valid texture name
 static void SetTexture(GLuint glTextureName)
@@ -153,27 +152,28 @@ static float BrightnessOffsetToColor(s8 brightnessOffset)
     return clampF( (1.0f - (brightnessOffset * brightnessStep)), 0.0f, 1.0f);
 }
 
-static void BeginPolygon(const vec3 normal, const RectF uvLimits, const float brightness)
+/**
+ * @brief Sets up opengl state to draw a polygon from vertex buffer
+ */
+static void BeginVertexBufferPolygon(const vec3 normal, const RectF uvLimits, const float brightness)
 {
     polygonUVLimits = uvLimits;
     glNormal3f(normal.x, normal.y, normal.z);
     glColor3f(brightness, brightness, brightness);
     vertexBufferIndexVertices = 0;
 }
-
-static void BufferFloorVertex(const float x, const float y, const float z, const float u, const float v)
+static void EndVertexBufferPolygon()
 {
-    GLfloat* vertex = &floorBuffer[floorBufferVertexIndex * FLOOR_BUFFER_VERTEX_SIZE];
-    vertex[0] = x;
-    vertex[1] = y;
-    vertex[2] = z;
-
-    vertex[3] = polygonUVLimits.x + u * polygonUVLimits.w;
-    vertex[4] = polygonUVLimits.y + v * polygonUVLimits.h;
-
-    floorBufferVertexIndex += 1;
+    // Flush all written vertices
+    mgdl_CacheFlushRange(vertexBuffer, VERTEX_BUFFER_SIZE_VERTICES * FULL_VERTEX_SIZE_FLOATS * sizeof(float));
+    glDrawElements(GL_TRIANGLES, VERTEX_INDEX_BUFFER_SIZE_INDICES, GL_UNSIGNED_SHORT, vertexIndexBuffer);
+    //glDrawArrays(GL_TRIANGLES, 0, vertexBufferIndexVertices);
 }
 
+
+/**
+ * @brief Stores a vertex to vertexbuffer
+ */
 static void BufferVertex(const float x, const float y, const float z, const float u, const float v)
 {
     GLfloat* vertex = &vertexBuffer[vertexBufferIndexVertices * FULL_VERTEX_SIZE_FLOATS];
@@ -186,25 +186,25 @@ static void BufferVertex(const float x, const float y, const float z, const floa
 
     vertexBufferIndexVertices += 1;
 
-    // DANGER what if buffer becomes full?
+    // if buffer becomes full, render the contents and start from beginning
     if (vertexBufferIndexVertices >= VERTEX_BUFFER_SIZE_VERTICES)
     {
         // Flush all written vertices
-        mgdl_CacheFlushRange(vertexBuffer, vertexBufferIndexVertices * FULL_VERTEX_SIZE_FLOATS * sizeof(float));
-        glDrawArrays(GL_TRIANGLES, 0, vertexBufferIndexVertices);
+        EndVertexBufferPolygon();
         vertexBufferIndexVertices = 0;
     }
 }
+
 static void BufferVertexV(const vec3 position, const vec2 textureCoord)
 {
     BufferVertex(position.x, position.y, position.z, textureCoord.x, textureCoord.y);
 }
 
-static void EndPolygon()
+void OpenGLRender_StartDrawingPolygons()
 {
-    // Flush all written vertices
-    mgdl_CacheFlushRange(vertexBuffer, vertexBufferIndexVertices * FULL_VERTEX_SIZE_FLOATS * sizeof(float));
-    glDrawArrays(GL_TRIANGLES, 0, vertexBufferIndexVertices);
+    glEnableClientState(GL_VERTEX_ARRAY);
+    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+    glEnable(GL_TEXTURE_2D);
 }
 
 void OpenGLRender_EndDrawingPolygons()
@@ -219,48 +219,10 @@ void OpenGLRender_EndDrawingPolygons()
     lastTextureName = 0;
 }
 
-
-// TESSELATION CALLBACKS
-// /////////////////////
-
-// Ring buffer for tesselation input
-// This buffer needs to hold all the vertices of a sector floor or ceiling
-#define TESSELATION_BUFFER_SIZE_DOUBLES (3*128) // Divisible by three for the ring buffering to work; 3 doubles per vertex
-#define TESSELATION_BUFFER_SIZE_BYTES (TESSELATION_BUFFER_SIZE_DOUBLES * sizeof(double))
-static GLdouble* tesselationBuffer = nullptr;
-int tesselationBufferIndexDoubles = 0;
-
-// Ring buffer for tesselation combine
-// This is needed if two vertices are identical, but hopefully it is not needed
-#define COMBINE_BUFFER_SIZE_DOUBLES (3*9) // Divisible by three for the ring buffering to work; 3 doubles per vertex
-#define COMBINE_BUFFER_SIZE_BYTES (COMBINE_BUFFER_SIZE_DOUBLES * sizeof(double))
-static GLdouble* combineRingBuffer = nullptr;
-int CombineBufferIndexDoubles = 0;
-
-
-#ifndef CALLBACK
-#define CALLBACK
-#endif
-
-// NOTE not used: the code calls StartPolygon and EndPolygon
-void CALLBACK tessBegin(GLenum which)
-{
-    //Log_InfoF("Tesselation start mode: %s \n", which == GL_TRIANGLES ? "Triangles" : "Not triangles");
-    switch (activeFloorDrawMode)
-    {
-        case FloorDraw_Count:
-            break;
-        case FloorDraw_Buffer: break;
-        case FloorDraw_Render:
-            if (UseVertexBufferForTesselation == false)
-            {
-                glBegin(which);
-            }
-            break;
-    }
-}
-
-vec2 CalculateFloorOrCeilingUV(const Sector* sector, float x, float z)
+/**
+ * @brief Calculate the uv coordinates of a floor or ceiling vertex in a sector
+ */
+static vec2 CalculateFloorOrCeilingUV(const Sector* sector, float x, float z)
 {
     float xrange = sector->sizeXZ.x;
     float zrange = sector->sizeXZ.y;
@@ -269,114 +231,6 @@ vec2 CalculateFloorOrCeilingUV(const Sector* sector, float x, float z)
     float tx = xdiff/xrange * sector->maxTexCoord.x;
     float tz = zdiff/zrange * sector->maxTexCoord.y;
     return vec2New(tx, tz);
-
-}
-
-// This puts a new vertex into the buffer
-void CALLBACK tessVertex(GLvoid* vertex, void* SectorPtr)
-{
-    const GLdouble* coordinates = (GLdouble*)vertex;
-    const Sector* s = (Sector*)SectorPtr;
-    switch (activeFloorDrawMode)
-    {
-        case FloorDraw_Count:
-            // move the index forward
-            floorBufferVertexIndex += 1;
-            break;
-        case FloorDraw_Buffer:
-        {
-            vec2 uv = CalculateFloorOrCeilingUV(s, (float)coordinates[0], (float)coordinates[2]);
-            BufferFloorVertex(
-            (GLfloat)coordinates[0], (GLfloat)coordinates[1], (GLfloat)coordinates[2],
-            uv.x, uv.y);
-        }
-            break;
-        case FloorDraw_Render:
-        {
-            vec2 uv = CalculateFloorOrCeilingUV(s, (float)coordinates[0], (float)coordinates[2]);
-            //Log_InfoF("Tesselation vertex %.2f, %.2f\n", pointer[0], pointer[2]);
-            // TODO texture coordinates and colors
-            //Log_InfoF("Tesselation tex coord %.2f, %.2f\n", tx, ty);
-            if (UseVertexBufferForTesselation)
-            {
-                BufferVertex(
-                    (GLfloat)coordinates[0], (GLfloat)coordinates[1], (GLfloat)coordinates[2],
-                    uv.x, uv.y);
-            }
-            else
-            {
-                glTexCoord2f(uv.x,uv.y);
-                glVertex3f((GLfloat)coordinates[0], (GLfloat)coordinates[1], (GLfloat)coordinates[2]);
-            }
-        }
-        break;
-    }
-}
-void CALLBACK tessCombine(GLdouble coords[3], GLdouble* vertex_data[4], GLfloat weight[4], GLdouble **dataOut)
-{
-    //Log_InfoF("Tesselation combine vertex: %.2f, %.2f\n", coords[0], coords[2]);
-    if (CombineBufferIndexDoubles + 6 >= COMBINE_BUFFER_SIZE_DOUBLES)
-    {
-        CombineBufferIndexDoubles = 0;
-    }
-    // Reads 6 doubles
-    GLdouble* vertex = &combineRingBuffer[CombineBufferIndexDoubles];
-
-    // Coordinates of the combined vertex
-    vertex[0] = coords[0];
-    vertex[1] = coords[1];
-    vertex[2] = coords[2];
-    vertex[3] = 0.0f;
-    vertex[4] = 0.0f;
-    vertex[5] = 0.0f;
-    /*  This causes crashes so don't do it
-    for (int i = 3; i < 6; i++)
-    {
-        vertex[i] = weight[0] * vertex_data[0][i] +
-                    weight[1] * vertex_data[1][i] +
-                    weight[2] * vertex_data[2][i] +
-                    weight[3] * vertex_data[3][i];
-    }
-    */
-    *dataOut = vertex;
-    CombineBufferIndexDoubles = (CombineBufferIndexDoubles + 6) % COMBINE_BUFFER_SIZE_DOUBLES;
-}
-
-void CALLBACK tessEnd(void)
-{
-    //Log_Info("Tesselation end\n");
-    switch (activeFloorDrawMode)
-    {
-        case FloorDraw_Count:
-            // One floor is ready
-            // The next one starts from current index
-            floorCounter += 1;
-            floorStartIndices[floorCounter] = floorBufferVertexIndex;
-            break;
-        case FloorDraw_Buffer: break;
-        case FloorDraw_Render:
-
-            if (UseVertexBufferForTesselation == false)
-            {
-                glEnd();
-            }
-            break;
-    }
-
-}
-void CALLBACK tessError(GLenum errorCode)
-{
-    const GLubyte* str;
-    str = gluErrorString(errorCode);
-    Log_ErrorF("Tesselation error: %s\n", str);
-    tesselationActive = false;
-}
-
-void CALLBACK tessEdgeFlag(GLboolean flag)
-{
-#ifndef GEKKO
-   glEdgeFlag(flag);
-#endif
 }
 
 void SetWrap(GLuint textureName)
@@ -388,38 +242,12 @@ void SetWrap(GLuint textureName)
     glDisable(GL_TEXTURE_2D);
 }
 
-
 void OpenGLRender_Init()
 {
     zeroOffset.x = 0.0f;
     zeroOffset.y = 0.0f;
     zeroOffset.w = 1.0f;
     zeroOffset.h = 1.0f;
-
-    checkers = Texture_GenerateCheckerBoard();
-    if (useGlutessForFloorsAndCeilings)
-    {
-        if (tesselator == nullptr)
-        {
-            tesselator = gluNewTess();
-            mgdl_assert_print(tesselator != nullptr, "No Glut tesselator!");
-
-            gluTessCallback(tesselator, GLU_TESS_BEGIN, (_GLUfuncptr)tessBegin);
-            gluTessCallback(tesselator, GLU_TESS_VERTEX_DATA, (_GLUfuncptr)tessVertex);
-            gluTessCallback(tesselator, GLU_TESS_END, (_GLUfuncptr)tessEnd);
-            gluTessCallback(tesselator, GLU_TESS_ERROR, (_GLUfuncptr)tessError);
-            gluTessCallback(tesselator, GLU_TESS_EDGE_FLAG, (_GLUfuncptr)tessEdgeFlag); // this makes tess only submit triangles
-            gluTessCallback(tesselator, GLU_TESS_COMBINE, (_GLUfuncptr)tessCombine);
-            if (tesselationBuffer == nullptr)
-            {
-                tesselationBuffer = (GLdouble*)mgdl_AllocateGraphicsMemory(TESSELATION_BUFFER_SIZE_BYTES);
-            }
-            if (combineRingBuffer == nullptr)
-            {
-                combineRingBuffer = (GLdouble*)mgdl_AllocateGraphicsMemory(COMBINE_BUFFER_SIZE_BYTES);
-            }
-        }
-    }
 
     floorNormal[0] = 0;
     floorNormal[1] = 1;
@@ -428,10 +256,19 @@ void OpenGLRender_Init()
     ceilingNormal[1] = -1;
     ceilingNormal[2] = 0;
 
+    checkers = Texture_GenerateCheckerBoard();
+
     if (vertexBuffer == nullptr)
     {
         vertexBuffer = (GLfloat*)mgdl_AllocateGraphicsMemory(VERTEX_BUFFER_SIZE_BYTES);
     }
+    vertexIndexBuffer[0] = 0;
+    vertexIndexBuffer[1] = 1;
+    vertexIndexBuffer[2] = 2;
+    vertexIndexBuffer[3] = 2;
+    vertexIndexBuffer[4] = 3;
+    vertexIndexBuffer[5] = 0;
+
     if (picnumToSpriteArray == nullptr)
     {
         picnumToSpriteArray = (u16*)mgdl_AllocateGeneralMemory(RENDERER_PICNUM_TO_SPRITE_ARRAY_SIZE * sizeof(u16));
@@ -457,7 +294,6 @@ void OpenGLRender_Init()
             spritePtrArray[i] = nullptr;
         }
     }
-
 }
 
 void OpenGLRender_Deinit()
@@ -539,24 +375,20 @@ void DrawQuad(vec2 start, vec2 end, const vec2 normalXZ, float floorY, float cei
 
     ActivateVertexBuffer();
 
-    BeginPolygon(normal, SetPicnum_GetUVoffset(picnum), BrightnessOffsetToColor(brightnessOffset));
+    BeginVertexBufferPolygon(normal, SetPicnum_GetUVoffset(picnum), BrightnessOffsetToColor(brightnessOffset));
 
         // Build Triangles for wall
         BufferVertex(start.x, floorY, start.y, tex_x1, tex_bottom); // 0
         BufferVertex(end.x, floorY, end.y, tex_x2, tex_bottom);
         BufferVertex(end.x, ceilingY, end.y, tex_x2, tex_top);
-
-        BufferVertex(end.x, ceilingY, end.y, tex_x2, tex_top);
         BufferVertex(start.x, ceilingY, start.y, tex_x1, tex_top);
-        BufferVertex(start.x, floorY, start.y, tex_x1, tex_bottom);
 
-    EndPolygon();
+    EndVertexBufferPolygon();
 
 }
 
 void OpenGLRender_DrawWall(DukeMap* map, Wall* w, float floorY, float ceilingY, RenderSettingsOpenGL* settings)
 {
-
     vec2 start = vec2New(w->x, w->z);
     Wall* wend = Map_GetWallEnd(map, w);
     vec2 end =  vec2New(wend->x, wend->z);
@@ -590,8 +422,10 @@ void OpenGLRender_DrawWall(DukeMap* map, Wall* w, float floorY, float ceilingY, 
     }
 }
 
-void OpenGLRender_DrawFloorOrCeiling(DukeMap* map, Sector* sector, s16 sectorIndex, bool floor)
+
+void OpenGLRender_DrawFloorOrCeiling(DukeMap* map, s16 sectorIndex, bool floor)
 {
+    Sector* sector = Map_GetSector(map, sectorIndex);
     float ceilingY = sector->ceilingy;
     float floorY = sector->floory;
 
@@ -601,157 +435,41 @@ void OpenGLRender_DrawFloorOrCeiling(DukeMap* map, Sector* sector, s16 sectorInd
     if (floor)
     {
         glTranslatef(0.0f, floorY, 0.0f);
-        BeginPolygon( vec3New(floorNormal[0], floorNormal[1], floorNormal[2] ), SetPicnum_GetUVoffset(sector->floorpicnum), BrightnessOffsetToColor(sector->floorshade));
+        float color = BrightnessOffsetToColor(sector->floorshade);
+        RectF uv = SetPicnum_GetUVoffset(sector->floorpicnum);
+        glNormal3f(floorNormal[0], floorNormal[1], floorNormal[2]);
+        glColor3f(color, color, color);
     }
     else
     {
         glTranslatef(0.0f, ceilingY, 0.0f);
-        BeginPolygon(vec3New(ceilingNormal[0], ceilingNormal[1], ceilingNormal[2]), SetPicnum_GetUVoffset(sector->ceilingpicnum), BrightnessOffsetToColor(sector->ceilingshade));
+        float color = BrightnessOffsetToColor(sector->ceilingshade);
+        RectF uv = SetPicnum_GetUVoffset(sector->ceilingpicnum);
+        glNormal3f(ceilingNormal[0], ceilingNormal[1], ceilingNormal[2]);
+        glColor3f(color, color, color);
     }
-    switch(activeFloorDrawMode)
+
+    if (!floor)
     {
-        case FloorDraw_Count:
-            // Continue to rendering
-            break;
-        case FloorDraw_Buffer:
-            // Continue to rendering
-            break;
-        case FloorDraw_Render:
-            // Continue to rendering
-            break;
-        case FloorDraw_BufferRender:
-        {
-            // Draw from buffer and return
-
-            // Floor and ceiling have the same
-            // vertices but they are in the buffer
-            // in floor order: counter-clockwise
-            if (!floor)
-            {
-                // Cull the ceiling faces the other way around
-                glCullFace(GL_FRONT);
-            }
-
-            // Pointers to floor buffer
-            ActivateFloorBuffer();
-
-            // Get the location of the first vertex
-            GLint first = floorStartIndices[sectorIndex];
-
-            // Get the location of last vertex: default to last
-            GLint last = floorBufferSizeVertices;
-            if (sectorIndex < bufferedSectorAmount-1)
-            {
-                // This was not the last sector, take the first of the next one
-                last = floorStartIndices[sectorIndex + 1];
-            }
-            GLsizei count = last - first;
-            glDrawArrays(GL_TRIANGLES, first, count);
-
-
-            // Reset face culling
-            if (!floor)
-            {
-                glCullFace(GL_BACK);
-            }
-            glPopMatrix();
-
-            return;
-        }
-        break;
+        // Cull the ceiling faces the other way around
+        glCullFace(GL_FRONT);
     }
+        Tesselator_BufferIndices indices = floorStartIndices[sectorIndex];
 
-    if (useGlutessForFloorsAndCeilings)
-    {
-        if (UseVertexBufferForTesselation)
+        GLsizei count = indices.indexCount;
+        //Log_InfoF("Draw %d count vertices\n", count);
+        // Set element pointers to floor buffer
+        ActivateFloorBuffer(0);
+        glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_SHORT, &floorIndexBuffer[indices.indexIndex]);
+
+        // Reset face culling
+        if (!floor)
         {
-            ActivateVertexBuffer();
+            glCullFace(GL_BACK);
         }
-        // Set normal to glutess
-        if (floor)
-        {
-            gluTessNormal(tesselator, floorNormal[0], floorNormal[1], floorNormal[2]); // All points on XZ plane
-        }
-        else
-        {
-            gluTessNormal(tesselator, ceilingNormal[0], ceilingNormal[1], ceilingNormal[2]); // All points on XZ plane
-        }
-
-        //Log_InfoF("Tesselating sector:  extra %d\n", sector->extra);
-
-            tesselationBufferIndexDoubles = 0; // Start from beginning
-            gluTessBeginPolygon(tesselator, sector);
-
-            gluTessBeginContour(tesselator);
-            // This is where the current contour started
-            int contourStartPoint = sector->wallptr + sector->wallnum -1;
-
-            Wall* startWall = Map_GetWall(map, contourStartPoint);
-            int contourEndPoint = startWall->point2;
-            /* Because Mapster saves points in clockwise order, but we render
-            in counter-clockwise, we need to save the point2 of this vertex
-            that is the last point of this contour
-
-            Square sector:
-            0 > 1 > 2 > 3 > 0
-
-            Square sector with a square island:
-            0 > 1 > 2 > 3 > 0   : Outer wall
-            4 > 5 > 6 > 7 > 4   : Island
-
-            Our rendering order is
-            7, 6, 5, 4, 3, 2, 1, 0
-
-            When starting from point 7, the value of point2 is 4
-            Store that to contourEndPoint
-            When we come to point 4, we know that the contour is complete
-            and a new one should begin.
-            If the first point of new contour is > sector's wallptr there is still more
-            islands or the outside wall.
-            If the contourEndPoint is greater than sector's wallptr, we know that the sector is complete and
-            this was the last contour.
-            */
-            //Log_InfoF("Tesselating sector %d start %d/%d\n", sector->lotag, startingWall, sector->wallnum);
-
-            // Keep track of global wall index
-            int pointIndex = contourStartPoint;
-            for (s16 wi = sector->wallnum-1; wi >= 0; wi--)
-            {
-                Wall* w = Map_GetWallInSectorPtr(map, sector, wi);
-
-                // Tesselation
-                // NOTE DANGER Must be counter clockwise
-                //Log_InfoF("Tesselation vertex sent %d:: %.2f, %.2f\n", wi, w->glutVertices[0], w->glutVertices[2]);
-                // TODO Send normal too, but maybe not with every vertex?
-                tesselationBuffer[tesselationBufferIndexDoubles + 0] = w->x;
-                tesselationBuffer[tesselationBufferIndexDoubles + 1] = 0;
-                tesselationBuffer[tesselationBufferIndexDoubles + 2] = w->z;
-
-                gluTessVertex(tesselator,
-                              &tesselationBuffer[tesselationBufferIndexDoubles], &tesselationBuffer[tesselationBufferIndexDoubles]);
-
-                tesselationBufferIndexDoubles = (tesselationBufferIndexDoubles + 3) % TESSELATION_BUFFER_SIZE_DOUBLES;
-
-                if (pointIndex == contourEndPoint)
-                {
-                    gluTessEndContour(tesselator);
-                    if (wi > 0 && contourEndPoint > sector->wallptr)
-                    {
-                        gluTessBeginContour(tesselator);
-                        Wall* nextWall = Map_GetWallInSectorPtr(map, sector, (wi - 1));
-                        contourEndPoint = nextWall->point2;
-                    }
-
-                }
-                pointIndex--;
-            }
-            // Tesselation code starts drawing vertices after glutTessEndPolygon
-            // flush the vertices before that
-            mgdl_CacheFlushRange(tesselationBuffer, TESSELATION_BUFFER_SIZE_BYTES);
-            gluTessEndPolygon(tesselator);
-
-        EndPolygon();
-    }
+    glPopMatrix();
+}
+    /*
     else  // No GLUTESS in use, only convex sectors without islands :(
     {
         if (floor)
@@ -811,8 +529,7 @@ void OpenGLRender_DrawFloorOrCeiling(DukeMap* map, Sector* sector, s16 sectorInd
         EndPolygon();
     }
     glPopMatrix();
-}
-
+    */
 
 void OpenGLRender_DrawSprite(vec3 position, float width, float height, float spriteAngle, float playerAngle, SpriteAlignment alignment, SpritePivot pivot, s16 picnum, s8 brightnessOffset)
 {
@@ -870,17 +587,14 @@ void OpenGLRender_DrawSprite(vec3 position, float width, float height, float spr
 
     ActivateVertexBuffer();
 
-	BeginPolygon(spriteForward, SetPicnum_GetUVoffset(picnum), BrightnessOffsetToColor(brightnessOffset));
+	BeginVertexBufferPolygon(spriteForward, SetPicnum_GetUVoffset(picnum), BrightnessOffsetToColor(brightnessOffset));
 
 	BufferVertex(bottomLeft.x, bottomLeft.y, bottomLeft.z, 0.0f, 0.0f);
 	BufferVertex(bottomRight.x, bottomRight.y, bottomRight.z, 1.0f, 0.0f);
 	BufferVertex(topRight.x, topRight.y, topRight.z, 1.0f, 1.0f);
-
-	BufferVertex(topRight.x, topRight.y, topRight.z, 1.0f, 1.0f);
 	BufferVertex(topLeft.x, topLeft.y, topLeft.z, 0.0f, 1.0f);
-	BufferVertex(bottomLeft.x, bottomLeft.y, bottomLeft.z, 0.0f, 0.0f);
 
-    EndPolygon();
+    EndVertexBufferPolygon();
 }
 
 void OpenGLRender_AnimateSprites()
@@ -916,59 +630,156 @@ void SetDark(bool newDark)
 }
 
 
-void OpenGLRender_StartCountingFloorBufferSize(s16 sectorAmount)
+void OpenGLRender_StartCountingFloorBufferSize(s16 sectorAmount, s16 wallAmount)
 {
+    // Reserve all memory
     if (floorStartIndices == nullptr)
     {
-        floorStartIndices = (u16*)mgdl_AllocateGraphicsMemory(sectorAmount * sizeof(u16));
+        floorStartIndices = (Tesselator_BufferIndices*)mgdl_AllocateGraphicsMemory(sectorAmount * sizeof(Tesselator_BufferIndices));
     }
     else if (sectorAmount > bufferedSectorAmount)
     {
-        floorStartIndices = (u16*)realloc(floorStartIndices, sectorAmount * sizeof(u16));
-
+        floorStartIndices = (Tesselator_BufferIndices*)realloc(floorStartIndices, sectorAmount * sizeof(Tesselator_BufferIndices));
     }
     bufferedSectorAmount = sectorAmount;
-    activeFloorDrawMode = FloorDraw_Count;
-    floorBufferVertexIndex = 0;
-    floorCounter = 0;
-    floorStartIndices[floorCounter] = floorBufferVertexIndex;
+
+    if (floorBuffer == nullptr)
+    {
+        floorBuffer = (GLfloat*)mgdl_AllocateGraphicsMemory(wallAmount * FLOOR_BUFFER_VERTEX_SIZE * sizeof(GLfloat));
+    }
+    else if (wallAmount > floorBufferSizeVertices)
+    {
+        floorBuffer = (GLfloat*)realloc(floorBuffer, wallAmount * FLOOR_BUFFER_VERTEX_SIZE * sizeof(GLfloat));
+    }
+
+    static const int wallsToIndicesMultiplier = 8;
+    if (floorIndexBuffer == nullptr)
+    {
+        // DANGER Try to allocate enough : multiply wall amount by some number
+        floorIndexBuffer = (GLushort*)mgdl_AllocateGraphicsMemory(wallAmount * wallsToIndicesMultiplier * sizeof(GLushort));
+    }
+    else if (wallAmount > floorBufferSizeVertices)
+    {
+        floorIndexBuffer = (GLushort*)realloc(floorIndexBuffer, wallAmount * wallsToIndicesMultiplier * sizeof(GLushort));
+    }
+    floorIndexBufferSize = wallAmount * wallsToIndicesMultiplier;
+    floorBufferSizeVertices = wallAmount;
+
+    // Start tesselator and send buffer adresses
+
+    Tesselator_Init();
+    Tesselator_SetBuffers(floorBuffer, floorBufferSizeVertices, floorIndexBuffer, floorIndexBufferSize);
+}
+
+void OpenGLRender_TesselateFloor(DukeMap* map, u16 sectorIndex)
+{
+    Sector* sector = Map_GetSector(map, sectorIndex);
+    // Set translation offset, normal and color for the whole polygon
+    RectF uvOffset;
+    Tesselator_BufferIndices indicesBefore;
+    uvOffset = SetPicnum_GetUVoffset(sector->floorpicnum);
+    indicesBefore = Tesselator_BeginPolygon(floorNormal, uvOffset);
+
+        Tesselator_BeginContour();
+        // This is where the current contour started
+        int contourStartPoint = sector->wallptr + sector->wallnum -1;
+
+        Wall* startWall = Map_GetWall(map, contourStartPoint);
+        int contourEndPoint = startWall->point2;
+        /* Because Mapster saves points in clockwise order, but we render
+        in counter-clockwise, we need to save the point2 of this vertex
+        that is the last point of this contour
+
+        Square sector:
+        0 > 1 > 2 > 3 > 0
+
+        Square sector with a square island:
+        0 > 1 > 2 > 3 > 0   : Outer wall
+        4 > 5 > 6 > 7 > 4   : Island
+
+        Our rendering order is
+        7, 6, 5, 4, 3, 2, 1, 0
+
+        When starting from point 7, the value of point2 is 4
+        Store that to contourEndPoint
+        When we come to point 4, we know that the contour is complete
+        and a new one should begin.
+        If the first point of new contour is > sector's wallptr there is still more
+        islands or the outside wall.
+        If the contourEndPoint is greater than sector's wallptr, we know that the sector is complete and
+        this was the last contour.
+        */
+        //Log_InfoF("Tesselating sector %d start %d/%d\n", sector->lotag, startingWall, sector->wallnum);
+
+        // Keep track of global wall index
+        int pointIndex = contourStartPoint;
+        GLfloat vertex[3];
+        vec2 calculatedUV;
+        GLfloat uv[2];
+        for (s16 wi = sector->wallnum-1; wi >= 0; wi--)
+        {
+            Wall* w = Map_GetWallInSectorPtr(map, sector, wi);
+
+            vertex[0] = w->x;
+            vertex[1] = 0.0f;
+            vertex[2] = w->z;
+            calculatedUV = CalculateFloorOrCeilingUV(sector, w->x, w->z);
+            uv[0] = calculatedUV.x;
+            uv[1] = calculatedUV.y;
+
+            Tesselator_AddVertexToPoly(vertex, uv);
+
+            if (pointIndex == contourEndPoint)
+            {
+                Tesselator_EndContour();
+                if (wi > 0 && contourEndPoint > sector->wallptr)
+                {
+                    Tesselator_BeginContour();
+                    Wall* nextWall = Map_GetWallInSectorPtr(map, sector, (wi - 1));
+                    contourEndPoint = nextWall->point2;
+                }
+
+            }
+            pointIndex--;
+        }
+        Tesselator_BufferIndices indicesAfter = Tesselator_EndPolygon();
+
+    floorStartIndices[sectorIndex].indexIndex = indicesBefore.indexIndex;
+    u16 count = (indicesAfter.indexIndex - indicesBefore.indexIndex);
+    floorStartIndices[sectorIndex].indexCount = count;
+    Log_InfoF("Sector %d: before %d After %d Count: %d\n", sectorIndex, indicesBefore.indexIndex, indicesAfter.indexIndex, count);
+    // Set indices in our buffers
 }
 
 void OpenGLRender_StopCountingFloorBufferSize()
 {
+    Tesselator_BufferIndices lastIndices = floorStartIndices[bufferedSectorAmount-1];
     // Allocate the needed amount of memory
-    if (floorBuffer == nullptr)
+    u16 lastIndex = lastIndices.indexIndex + lastIndices.indexCount;
+    if (lastIndex < floorIndexBufferSize)
     {
-        floorBuffer = (GLfloat*)mgdl_AllocateGraphicsMemory(floorBufferVertexIndex * FLOOR_BUFFER_VERTEX_SIZE * sizeof(GLfloat));
+        floorIndexBuffer = (GLushort*)realloc(floorIndexBuffer, lastIndex * sizeof(GLushort));
+        floorIndexBufferSize = lastIndex;
     }
-    else if (floorBufferVertexIndex > floorBufferSizeVertices)
+    Log_InfoF("Tesselator created %d indices in total\n", floorIndexBufferSize);
+    Tesselator_Deinit();
+
+    Log_Info("Vertex buffer:\n");
+    for (int v = 0; v < floorBufferSizeVertices; v++)
     {
-        floorBuffer = (GLfloat*)realloc(floorBuffer, floorBufferVertexIndex * FLOOR_BUFFER_VERTEX_SIZE * sizeof(GLfloat));
+        int i = v * FLOOR_BUFFER_VERTEX_SIZE;
+        Log_InfoF("V %d: (%.1f, %.1f, %.1f)\n", v, floorBuffer[i+0], floorBuffer[i+1], floorBuffer[i+2]);
     }
-    floorBufferSizeVertices = floorBufferVertexIndex;
-
-    activeFloorDrawMode = FloorDraw_Render;
+    Log_Info("Index buffer to triangles:\n");
+    for (int v = 0; v < floorIndexBufferSize; v += 3)
+    {
+        Log_InfoF("F %d: (%d, %d, %d)\n", v/3, floorIndexBuffer[v+0], floorIndexBuffer[v+1], floorIndexBuffer[v+2]);
+        Log_InfoF("       %d, %d, %d )\n",v+0, v+1, v+2);
+    }
 }
-
-void OpenGLRender_StartFillingFloorBuffer(s16 sectorAmount)
-{
-    mgdl_assert_printf(sectorAmount == bufferedSectorAmount, "Sector amount differs from counter amound %d != %d", sectorAmount, bufferedSectorAmount);
-
-    activeFloorDrawMode = FloorDraw_Buffer;
-    // Reset index for buffering
-    floorBufferVertexIndex = 0;
-}
-void OpenGLRender_StopFillingFloorBuffer()
-{
-    activeFloorDrawMode = FloorDraw_Render;
-}
-
 void OpenGLRender_StartDrawingFloorsFromBuffer()
 {
-    activeFloorDrawMode = FloorDraw_BufferRender;
+    mgdl_CacheFlushRange(floorBuffer, floorBufferSizeVertices * FLOOR_BUFFER_VERTEX_SIZE * sizeof(GLfloat));
+    mgdl_CacheFlushRange(floorIndexBuffer, floorIndexBufferSize * sizeof(GLushort));
 }
 
-void OpenGLRender_StopDrawingFloorsFromBuffer()
-{
-    activeFloorDrawMode = FloorDraw_Render;
-}
