@@ -11,7 +11,8 @@ extern "C" {
     enum MapPlayResult
     {
         MapPlayLoop,
-        MapPlayEndMap
+        MapPlayEndMap,
+        MapPlayReturnToMain
     };
     typedef enum MapPlayResult MapPlayResult;
 

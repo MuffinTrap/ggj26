@@ -12,6 +12,10 @@ struct Sprite;
 
 #define RENDERER_PICNUM_DEFAULT 0
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * @brief Init the renderer
  */
@@ -62,6 +66,16 @@ void OpenGLRender_StartCountingFloorBufferSize(s16 sectorAmount, s16 wallAmount)
 void OpenGLRender_TesselateFloor(DukeMap* map, u16 sectorIndex);
 void OpenGLRender_StopCountingFloorBufferSize();
 
+/**
+ * @brief Exports all geometry to obj file
+ */
+void OpenGLRender_WriteToObj(DukeMap* map, const char* filename, RenderSettingsOpenGL* settings);
+
+void OpenGLRender_StartObjExport(DukeMap* map, const char* filename, RenderSettingsOpenGL* settings);
+void OpenGLRender_StartFillingWallBuffer(DukeMap* map);
+void OpenGLRender_BufferWalls(DukeMap* map);
+
+
 
 /**
  * @brief Sets up rendering state to draw floors and ceilings from a buffer
@@ -80,3 +94,7 @@ void OpenGLRender_SetColor4f(Color4f color);
 void OpenGLRender_DrawDot(vec2 point, float size, DefaultColor color);
 
 void SetDark(bool newDark);
+
+#ifdef __cplusplus
+}
+#endif

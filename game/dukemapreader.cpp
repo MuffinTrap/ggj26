@@ -17,6 +17,7 @@ DukeMap* ReadMapFromFile(const char* mapfilename)
     }
     DukeMap* mapPtr = (DukeMap*)malloc(sizeof(DukeMap));
     DukeMap m;
+    m.mapfile = mapfilename;
     m.version = ReadInt32();
     s32 start_x = ReadInt32();
     s32 start_y = ReadInt32() / HeightToWidth;

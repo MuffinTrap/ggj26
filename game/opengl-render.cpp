@@ -7,6 +7,7 @@
 #include "build-render.h"
 #include "dukemath.h"
 #include "tesselator.h"
+#include "obj-export.h"
 
 // Used to set normals when drawing floors and ceilings
 static GLfloat floorNormal[3];
@@ -20,6 +21,17 @@ static u16 floorBufferSizeVertices = 0;
 
 static GLushort* floorIndexBuffer = nullptr; // All indices of all floors
 static u32 floorIndexBufferSize = 0;
+
+// Store wall vertices of each wall to buffer
+// This buffer needs to hold all the walls
+static GLfloat* wallBuffer = nullptr; // All vertices of all walls: 3 position
+static const u16 WALL_BUFFER_VERTEX_SIZE = 3; ///< How many floats per vertex
+static u16 wallBufferSizeVertices = 0;
+static u32 wallBufferVertexIndex = 0;
+
+static GLushort* wallIndexBuffer = nullptr; // All indices of all walls
+static u32 wallIndexBufferSize = 0;
+static u32 wallIndexBufferIndex = 0;
 
 static Tesselator_BufferIndices* floorStartIndices = nullptr; // Buffer end indices of each floor in vertex and index buffers: NOTE First floor starts at indices (0,0)
 static s16 bufferedSectorAmount = 0; // How many floors are in the buffers
@@ -57,7 +69,6 @@ static int vertexBufferIndexVertices = 0;
 static GLushort vertexIndexBuffer[VERTEX_INDEX_BUFFER_SIZE_INDICES];
 
 // What uv limits are active
-static RectF uvs;
 static RectF polygonUVLimits;
 static RectF zeroOffset;
 
@@ -749,6 +760,9 @@ void OpenGLRender_TesselateFloor(DukeMap* map, u16 sectorIndex)
     floorStartIndices[sectorIndex].indexCount = count;
     Log_InfoF("Sector %d: before %d After %d Count: %d\n", sectorIndex, indicesBefore.indexIndex, indicesAfter.indexIndex, count);
     // Set indices in our buffers
+    floorStartIndices[sectorIndex].vertexIndex = indicesBefore.vertexIndex;
+    u16 vertexCount = (indicesAfter.vertexIndex - indicesBefore.vertexIndex);
+    floorStartIndices[sectorIndex].vertexCount = vertexCount;
 }
 
 void OpenGLRender_StopCountingFloorBufferSize()
@@ -764,14 +778,14 @@ void OpenGLRender_StopCountingFloorBufferSize()
     Log_InfoF("Tesselator created %d indices in total\n", floorIndexBufferSize);
     Tesselator_Deinit();
 
-    Log_Info("Vertex buffer:\n");
-    for (int v = 0; v < floorBufferSizeVertices; v++)
+    Log_Info("Floor Vertex buffer:\n");
+    for (u32 v = 0; v < floorBufferSizeVertices; v++)
     {
         int i = v * FLOOR_BUFFER_VERTEX_SIZE;
         Log_InfoF("V %d: (%.1f, %.1f, %.1f)\n", v, floorBuffer[i+0], floorBuffer[i+1], floorBuffer[i+2]);
     }
-    Log_Info("Index buffer to triangles:\n");
-    for (int v = 0; v < floorIndexBufferSize; v += 3)
+    Log_Info("Floor Index buffer to triangles:\n");
+    for (u32 v = 0; v < floorIndexBufferSize; v += 3)
     {
         Log_InfoF("F %d: (%d, %d, %d)\n", v/3, floorIndexBuffer[v+0], floorIndexBuffer[v+1], floorIndexBuffer[v+2]);
         Log_InfoF("       %d, %d, %d )\n",v+0, v+1, v+2);
@@ -781,5 +795,194 @@ void OpenGLRender_StartDrawingFloorsFromBuffer()
 {
     mgdl_CacheFlushRange(floorBuffer, floorBufferSizeVertices * FLOOR_BUFFER_VERTEX_SIZE * sizeof(GLfloat));
     mgdl_CacheFlushRange(floorIndexBuffer, floorIndexBufferSize * sizeof(GLushort));
+}
+
+// //////////////////////////////
+// OBJ EXPORT FUNCTIONS NOTE TODO DANGER TEST WARNING BUG
+// //////////////////////////////
+
+void OpenGLRender_StartObjExport(DukeMap* map, const char* filename, RenderSettingsOpenGL* settings)
+{
+    ObjExport_Start(filename, map->mapfile, map->sectorAmount, settings->scale);
+}
+void OpenGLRender_StartFillingWallBuffer(DukeMap* map)
+{
+    u32 drawnWalls = 0;
+    for (int si = 0; si < map->sectorAmount; si++)
+    {
+        Sector* sector = Map_GetSector(map, si);
+        for(int wi = 0; wi < sector->wallnum; wi++)
+        {
+            Wall* w = Map_GetWallInSectorPtr(map, sector, wi);
+            if (w->nextsector >= 0)
+            {
+                // Create wall that goes down or up to adjacent sector: Note! both sectors dont need to do this. Only lower one
+                Sector* neighbor = Map_GetSector(map, w->nextsector);
+                int n_floorY = neighbor->floory;
+                int n_ceilingY = neighbor->ceilingy;
+
+                // if this floor height is less than adjacent: Greate wall in between: goes up
+                if (sector->floory < n_floorY)
+                {
+                    drawnWalls += 1;
+                }
+
+                // Ceiling:
+                // If this ceiling is higher than adjacent: Greate wall in between: goes down
+                if (sector->ceilingy > n_ceilingY)
+                {
+                    drawnWalls += 1;
+                }
+            }
+            else
+            {
+                drawnWalls += 1;
+            }
+        }
+    }
+    // These are not drawn, just written to obj and newer on Wii
+    // Each wall has at least 4 vertices,
+    // some have 12 : floor bit, wall, ceiling bit
+    wallBufferSizeVertices = drawnWalls * 4;
+    wallBuffer = (GLfloat*)mgdl_AllocateGraphicsMemory(wallBufferSizeVertices * WALL_BUFFER_VERTEX_SIZE * sizeof(GLfloat));
+
+    wallIndexBufferSize = drawnWalls * 6;
+    wallIndexBuffer = (GLushort*)mgdl_AllocateGraphicsMemory(wallIndexBufferSize * sizeof(GLushort));
+
+    wallIndexBufferIndex = 0;
+    wallBufferVertexIndex = 0;
+}
+
+void BufferWallVertex(float x, float y, float z)
+{
+    int v = wallBufferVertexIndex * WALL_BUFFER_VERTEX_SIZE;
+    wallBuffer[v + 0] = x;
+    wallBuffer[v + 1] = y;
+    wallBuffer[v + 2] = z;
+    wallBufferVertexIndex += 1;
+
+}
+void BufferQuad(vec2 start, vec2 end, const vec2 normalXZ, float floorY, float ceilingY, u16 quad)
+{
+
+    BufferWallVertex(start.x, floorY, start.y);
+    BufferWallVertex(end.x, floorY, end.y);
+    BufferWallVertex(end.x, ceilingY, end.y);
+    BufferWallVertex(start.x, ceilingY, start.y);
+
+    wallIndexBuffer[wallIndexBufferIndex+ 0] = quad * 4 + 0;
+    wallIndexBuffer[wallIndexBufferIndex+ 1] = quad * 4 + 1;
+    wallIndexBuffer[wallIndexBufferIndex+ 2] = quad * 4 + 2;
+
+    wallIndexBuffer[wallIndexBufferIndex+ 3] = quad * 4 + 2;
+    wallIndexBuffer[wallIndexBufferIndex+ 4] = quad * 4 + 3;
+    wallIndexBuffer[wallIndexBufferIndex+ 5] = quad * 4 + 0;
+    wallIndexBufferIndex += 6;
+}
+void OpenGLRender_BufferWalls(DukeMap* map)
+{
+    u16 quadCounter = 0;
+    for (int si = 0; si < map->sectorAmount; si++)
+    {
+        Sector* sector = Map_GetSector(map, si);
+        for(int wi = 0; wi < sector->wallnum; wi++)
+        {
+            Wall* w = Map_GetWallInSectorPtr(map, sector, wi);
+            vec2 start = vec2New(w->x, w->z);
+            Wall* wend = Map_GetWallEnd(map, w);
+            vec2 end =  vec2New(wend->x, wend->z);
+            vec2 normalXZ = Map_GetWallNormal(map, w);
+            if (w->nextsector >= 0)
+            {
+                // Create wall that goes down or up to adjacent sector: Note! both sectors dont need to do this. Only lower one
+                Sector* neighbor = Map_GetSector(map, w->nextsector);
+                int n_floorY = neighbor->floory;
+                int n_ceilingY = neighbor->ceilingy;
+
+                // if this floor height is less than adjacent: Greate wall in between: goes up
+                if (sector->floory < n_floorY)
+                {
+                    BufferQuad(start, end, normalXZ, sector->floory, n_floorY, quadCounter);
+                    quadCounter += 1;
+                }
+
+                // Ceiling:
+                // If this ceiling is higher than adjacent: Greate wall in between: goes down
+                if (sector->ceilingy > n_ceilingY)
+                {
+                    BufferQuad(start, end, normalXZ, n_ceilingY, sector->ceilingy, quadCounter);
+                    quadCounter += 1;
+                }
+            }
+            else
+            {
+                // TODO Masked walls
+                // Draw the wall
+                BufferQuad(start, end, normalXZ, sector->floory, sector->ceilingy, quadCounter);
+                quadCounter += 1;
+            }
+        }
+    }
+}
+
+void OpenGLRender_WriteToObj(DukeMap* map, const char* filename, RenderSettingsOpenGL* settings)
+{
+    OpenGLRender_StartObjExport(map, filename, settings);
+    OpenGLRender_StartFillingWallBuffer(map);
+    OpenGLRender_BufferWalls(map);
+
+    // VERTICES
+    // This will be buffer 0
+    u16 wallBufferIndex = 0;
+    s32 noYOffset = 0;
+    ObjExport_WriteVertices(wallBuffer, wallBufferSizeVertices, WALL_BUFFER_VERTEX_SIZE,
+                            noYOffset,
+                            wallBufferIndex, mgdl_BufferPrintf("%s", "Wall buffer"));
+
+    // Buffers 1 2, 3 4, 5 6 : Two buffers per sector. First is floor, second is ceiling
+    // Write all floors in one big buffer
+    u16 firstFloorBuffer = 1;
+    u16 firstCeilingBuffer = 2;
+    for (int si = 0; si < map->sectorAmount; si++)
+    {
+        Sector* sector = Map_GetSector(map, si);
+        Tesselator_BufferIndices indices = floorStartIndices[si];
+
+        ObjExport_WriteVertices(&floorBuffer[indices.vertexIndex * FLOOR_BUFFER_VERTEX_SIZE], indices.vertexCount, FLOOR_BUFFER_VERTEX_SIZE,
+                                sector->floory, firstFloorBuffer,
+                                mgdl_BufferPrintf("%s", "Floor buffer"));
+    }
+    for (int si = 0; si < map->sectorAmount; si++)
+    {
+        Sector* sector = Map_GetSector(map, si);
+        Tesselator_BufferIndices indices = floorStartIndices[si];
+
+        ObjExport_WriteVertices(&floorBuffer[indices.vertexIndex * FLOOR_BUFFER_VERTEX_SIZE], indices.vertexCount, FLOOR_BUFFER_VERTEX_SIZE,
+                                sector->ceilingy, firstCeilingBuffer,
+                                mgdl_BufferPrintf("%s", "Ceiling buffer"));
+    }
+
+//        ObjExport_WriteVertices(&floorBuffer[indices.vertexIndex * FLOOR_BUFFER_VERTEX_SIZE], indices.vertexCount, FLOOR_BUFFER_VERTEX_SIZE, sector->ceilingy, mgdl_BufferPrintf("Sector %d ceiling", si));
+    // FACES
+    u16 wallVertexBuffer = 0;
+    ObjExport_WriteFaces(wallIndexBuffer, wallIndexBufferSize, wallVertexBuffer, Wind_CCW, mgdl_BufferPrintf("%s", "Wall faces"));
+    for (int si = 0; si < map->sectorAmount; si++)
+    {
+        Tesselator_BufferIndices indices = floorStartIndices[si];
+        // These faces refer to earlier written floor and ceiling buffers
+        ObjExport_WriteFaces(&floorIndexBuffer[indices.indexIndex], indices.indexCount,
+                             firstFloorBuffer, Wind_CCW,
+                             mgdl_BufferPrintf("Sector %d floor : refers to vb %d", si, firstFloorBuffer));
+    }
+
+    for (int si = 0; si < map->sectorAmount; si++)
+    {
+        Tesselator_BufferIndices indices = floorStartIndices[si];
+        ObjExport_WriteFaces(&floorIndexBuffer[indices.indexIndex], indices.indexCount,
+                             firstCeilingBuffer, Wind_CW,
+                             mgdl_BufferPrintf("Sector %d ceiling : refers to vb %d", si, firstCeilingBuffer));
+    }
+
+    ObjExport_Stop();
 }
 

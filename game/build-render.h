@@ -37,6 +37,7 @@ struct RenderSettings2D
     bool drawSprites; ///< Draw Sprites
     bool drawTreasure; ///< Draws treasure sprite regardless of other sprites
     bool drawWallNumbers;
+    bool drawPortalDrawLimits; // Shows where portal limits are on the screen
 
     float gridSize; // Grid in OpenGL units
 };
@@ -56,6 +57,11 @@ struct RenderSettingsOpenGL
 
 };
 typedef struct RenderSettingsOpenGL RenderSettingsOpenGL;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 /**
  * @brief Loads a given map and prepares to draw it. Can be called multiple times
@@ -86,3 +92,10 @@ void BuildRender_DrawSectorRequests(RenderSettingsOpenGL* settings3D);
 SectorRender* BuildRender_GetDrawnSectorNumbers();
 s16 BuildRender_GetDrawnSectorAmount();
 bool BuildRender_WasSectorDrawn(s16 sectornumber);
+
+
+void BuildRender_ExportCurrentMapToObj(DukeMap* map, const char* filename, RenderSettingsOpenGL* settings);
+
+#ifdef __cplusplus
+}
+#endif

@@ -232,6 +232,8 @@ Tesselator_BufferIndices Tesselator_BeginPolygon(GLfloat normal[3], RectF uvLimi
     Tesselator_BufferIndices indices;
     indices.indexCount = 0;
     indices.indexIndex = indexBufferIndex;
+    indices.vertexCount = 0;
+    indices.vertexIndex = vertexBufferVertexIndex;
     return indices;
 }
 void Tesselator_BeginContour()
@@ -283,6 +285,7 @@ Tesselator_BufferIndices Tesselator_EndPolygon()
     gluTessEndPolygon(tesselator);
     Tesselator_BufferIndices indices;
     indices.indexIndex = indexBufferIndex;
+    indices.vertexIndex = vertexBufferVertexIndex;
     // Log_InfoF("Tesselator end polygon to vertex %d, index %d\n", vertexBufferVertexIndex, indexBufferIndex);
     return indices;
 }

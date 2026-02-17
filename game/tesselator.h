@@ -9,6 +9,10 @@
     {
         u16 indexIndex;
         u16 indexCount;
+
+        // Needed for obj export
+        u16 vertexIndex;
+        u16 vertexCount;
     };
     typedef struct Tesselator_BufferIndices Tesselator_BufferIndices;
 

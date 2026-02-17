@@ -167,7 +167,7 @@ static void DrawRequestsDebug()
     glPopMatrix();
 }
 
-static void DrawDebugMenu()
+static MapPlayResult DrawDebugMenu()
 {
     mgdl_InitOrthoProjection();
     glViewport(0, 0, mgdl_GetScreenWidth(), mgdl_GetScreenHeight());
@@ -235,6 +235,7 @@ static void DrawDebugMenu()
         Menu_Toggle(debugMenu, "Sprites", &render2D.drawSprites);
         Menu_Toggle(debugMenu, "Wall #", &render2D.drawWallNumbers);
         Menu_Toggle(debugMenu, "Sector #", &render2D.drawSectorNumbers);
+        Menu_Toggle(debugMenu, "Portal limits", &render2D.drawPortalDrawLimits);
 
         /*
         if (render2D.movePlayer == false)
@@ -308,15 +309,27 @@ static void DrawDebugMenu()
         clearColor.green = fogCOlor[1];
         clearColor.blue = fogCOlor[2];
         clearColor.alpha = 1;
+        if (Menu_Button(debugMenu, "EXPORT OBJ"))
+        {
+            BuildRender_ExportCurrentMapToObj(activeMap, "map_out.obj", &renderGL);
+        }
+        if (Menu_Button(debugMenu, "Back to mainmenu"))
+        {
+            return MapPlayReturnToMain;
 
+        }
+
+        /*
         int amount = 32;
         for(int i = amount; i >= 0; i--)
         {
             Menu_Text(debugMenu, Log_GetLastLine(i));
         }
+        */
     }
 
     Menu_DrawCursor(debugMenu);
+    return MapPlayLoop;
 }
 
 static void LoadMapFile(const char* filename)
@@ -351,7 +364,7 @@ void MapPlay_Init()
 
     // Load Maps
     allMapsArray = (DukeMap**)mgdl_AllocateGeneralMemory(sizeof(DukeMap**) * MAX_MAP_AMOUNT);
-    LoadMapFile("assets/Maps/islandtest.map");
+    LoadMapFile("assets/Maps/cube.map");
     LoadMapFile("assets/Maps/muffin_arena.map");
     LoadMapFile("assets/Maps/laatikko.map");
     LoadMapFile("assets/Maps/GGJ26ModernWateringCanNoIslands.map");
@@ -699,15 +712,25 @@ MapPlayResult MapPlay_Frame()
         }
         glDisable(GL_ALPHA_TEST);
 
-        DrawRequestsDebug();
+        if (render2D.drawPortalDrawLimits)
+        {
+            DrawRequestsDebug();
+        }
 
         if (drawTopdown)
         {
             DrawMinimap();
         }
         
-        DrawDebugMenu();
+        MapPlayResult menuresult = DrawDebugMenu();
 
-    return MapPlayLoop;
+    if (menuresult != MapPlayLoop)
+    {
+        return menuresult;
+    }
+    else
+    {
+        return MapPlayLoop;
+    }
 }
 

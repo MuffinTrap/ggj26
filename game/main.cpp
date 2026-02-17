@@ -106,6 +106,10 @@ void frame()
             {
                 currentState = Game_MainMenu;
             }
+            else if (r == MapPlayReturnToMain)
+            {
+                currentState = Game_MainMenu;
+            }
         }
             break;
 

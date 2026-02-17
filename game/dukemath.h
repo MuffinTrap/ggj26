@@ -8,6 +8,9 @@ extern const vec3 WORLD_FORWARD;
 
 struct RenderSettingsOpenGL;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 /**
  * @brief Returns the Y of the cross product of 2 2D XZ vectors. used for line point check
  */
@@ -31,3 +34,7 @@ float Math_DukeAngleToRad(s16 angleInt);
 
 vec3 Vec3DukePosToOpenGL(vec3 dukepos, RenderSettingsOpenGL* settings3D);
 vec2 Vec2DukePosToOpenGL(vec2 dukepos, RenderSettingsOpenGL* settings3D);
+
+#ifdef __cplusplus
+}
+#endif

@@ -102,6 +102,11 @@ void BuildRender_Init(DukeMap* map, RenderSettingsOpenGL* settings3D)
     OpenGLRender_StopCountingFloorBufferSize();
 }
 
+void BuildRender_ExportCurrentMapToObj(DukeMap* map, const char* filename, RenderSettingsOpenGL* settings)
+{
+    OpenGLRender_WriteToObj(map, filename, settings);
+}
+
 void BuildRender_DrawTempSprites(DukeMap* map, Player* player, RenderSettingsOpenGL* settings)
 {
     glColor3f(1.0f, 1.0f, 1.0f);

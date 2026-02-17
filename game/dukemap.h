@@ -79,6 +79,7 @@ typedef struct Sector Sector;
 
 struct DukeMap
 {
+    const char* mapfile;
     s32 version;
     vec3 startPosition;
     s16 startAngle;
