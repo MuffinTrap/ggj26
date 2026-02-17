@@ -62,7 +62,7 @@ extern "C" {
 #endif
 
 void Gameplay_Init();
-void Gameplay_StartMap(DukeMap* map);
+void Gameplay_StartMap(DukeMap* map, int playerAmount);
 void Gameplay_Update(Player* player, DukeMap* map);
 void Gameplay_UpdateBullets(Player* players, int playerAmount, DukeMap* map);
 bool Gameplay_SphereToSphereCollision(vec3 pos1, float radius1, vec3 pos2, float radius2);

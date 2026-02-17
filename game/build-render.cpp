@@ -26,7 +26,7 @@ static SectorRender* head;
 static SectorRender* tail;
 
 #define MAX_SECTOR_DRAW_TIMES 4
-static int* sectorDrawTimes = nullptr; // NOTE How many times each should be drawn. Additional times come from requests
+static u8* sectorDrawTimes = nullptr; // NOTE How many times each should be drawn. Additional times come from requests
 
 static int lastSectorAmount = 0; // How many sectors were in the last map loaded
 
@@ -52,17 +52,14 @@ void BuildRender_Init(DukeMap* map, RenderSettingsOpenGL* settings3D)
     }
 
     // init again if more is needed than last time
-    if (sectorDrawTimes != nullptr)
-    {
-        if (lastSectorAmount < map->sectorAmount)
-        {
-           mgdl_FreeGeneralMemory(sectorDrawTimes);
-           sectorDrawTimes= nullptr;
-        }
-    }
     if (sectorDrawTimes == nullptr)
     {
-        sectorDrawTimes = (int*)mgdl_AllocateGeneralMemory(sizeof(int) * map->sectorAmount);
+        sectorDrawTimes = (u8*)mgdl_AllocateGraphicsMemory(sizeof(u8) * map->sectorAmount);
+
+    }
+    else if (lastSectorAmount < map->sectorAmount)
+    {
+        sectorDrawTimes = (u8*)realloc(sectorDrawTimes, sizeof(u8) * map->sectorAmount);
     }
 
     lastSectorAmount = map->sectorAmount;

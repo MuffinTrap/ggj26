@@ -69,7 +69,7 @@ void init()
 
     Color4f c = Palette_GetColor4f(Palette_GetDefault(), 0);
     mgdl_glClearColor4f(&c);
-    Log_SaveLines(256);
+    //Log_SaveLines(256);
 
 
 }
@@ -79,7 +79,7 @@ void frame()
 {
     if (musicStarted == false)
     {
-        //Audio_PlaySound(music);
+        Audio_PlaySound(music);
         musicStarted = true;
     }
     // NOTE Use the mgdl_glClear to assure depth buffer working correctly on Wii

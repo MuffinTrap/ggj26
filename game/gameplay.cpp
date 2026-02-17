@@ -13,6 +13,26 @@ Sound* sfxHitPlayer;
 Sound* sfxHitPlayerWithMask;
 Sound* sfxPickupMask;
 
+DSprite* GetTempSpriteByPicnum(s16 picnum, int skip)
+{
+	int skipCounter = skip;
+	for (int i = 0; i < TEMP_SPRITE_AMOUNT; ++i)
+	{
+		if (tempSprites[i].picnum == picnum)
+		{
+			if (skipCounter == 0)
+			{
+				return &tempSprites[i];
+			}
+			else
+			{
+				skipCounter--;
+			}
+		}
+	}
+	return nullptr;
+}
+
 void Gameplay_Init()
 {
 	for (int i = 0; i < TEMP_SPRITE_AMOUNT; ++i)
@@ -76,7 +96,7 @@ void Gameplay_Init()
 	sfxPickupMask = mgdl_LoadSoundWav("assets/getMask.wav");
 }
 
-void Gameplay_StartMap(DukeMap* map)
+void Gameplay_StartMap(DukeMap* map, int playerAmount)
 {
 	winnerPlayerIndex = -1;
 
@@ -90,17 +110,27 @@ void Gameplay_StartMap(DukeMap* map)
 		treasure.radius = 100.0f;
 	}
 
-	DSprite* p1Spawn = Map_FindSprite(map, SPAWN_LOTAG, 0);
-	if (p1Spawn) p1Spawn->cstat = Flag_Set(p1Spawn->cstat, 1 << CSTAT_SPRITE_INVISIBLE);
-
-	DSprite* p2Spawn = Map_FindSprite(map, SPAWN_LOTAG, 1);
-	if (p2Spawn) p2Spawn->cstat = Flag_Set(p2Spawn->cstat, 1 << CSTAT_SPRITE_INVISIBLE);
-
-	DSprite* p3Spawn = Map_FindSprite(map, SPAWN_LOTAG, 2);
-	if (p3Spawn) p3Spawn->cstat = Flag_Set(p3Spawn->cstat, 1 << CSTAT_SPRITE_INVISIBLE);
-
-	DSprite* p4Spawn = Map_FindSprite(map, SPAWN_LOTAG, 3);
-	if (p4Spawn) p4Spawn->cstat = Flag_Set(p4Spawn->cstat, 1 << CSTAT_SPRITE_INVISIBLE);
+	// Make spawn sprites invisible and put players on the
+	// same sector as the spawn
+	for (int i = 0; i < 4; i++)
+	{
+		DSprite* spawnPos = Map_FindSprite(map, SPAWN_LOTAG, i);
+		if (spawnPos)
+		{
+			spawnPos->cstat = Flag_Set(spawnPos->cstat, 1 << CSTAT_SPRITE_INVISIBLE);
+			if (i < playerAmount)
+			{
+				// If player is active, set their start position and make them visible
+				DSprite* player = GetTempSpriteByPicnum(PICNUM_PLAYER, i);
+				if (player)
+				{
+					player->sectnum = spawnPos->sectnum;
+					player->cstat = Flag_Unset(player->cstat, 1 << CSTAT_SPRITE_INVISIBLE);
+					player->owner = i;
+				}
+			}
+		}
+	}
 
 	for (int i = 0; i < MAX_BULLET_AMOUNT; ++i)
 	{
@@ -120,8 +150,6 @@ void Gameplay_Update(Player* player, DukeMap* map)
 	// Update player model
 	int index = MAX_BULLET_AMOUNT + 1 + player->playerNumber;
 	tempSprites[index].position = player->position;
-	tempSprites[index].owner = player->playerNumber;
-	tempSprites[index].cstat = Flag_Unset(tempSprites[index].cstat, 1 << CSTAT_SPRITE_INVISIBLE);
 
 	if (Player_IsStunned(player))
 	{

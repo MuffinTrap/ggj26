@@ -70,6 +70,9 @@ static Texture* ceilingDark;
 static Texture* exitTexture;
 static Texture* tileTexture;
 
+
+static bool DEBUG_MENU_ENABLED = false;
+
 static void InitRenderSettings3D()
 {
     dukeUnitsPerMetre = 1024.0f;// NOTE CHECKED
@@ -102,9 +105,9 @@ static void InitRenderSettings3D()
 static void InitRenderSettings2D()
 {
     debugMenu = Menu_CreateWindowed(DefaultFont_GetDefaultFont(), 1.0f, 1.5f, 256,mgdl_GetScreenHeight(), "Map menu");
-    drawTopdown = true;
+    drawTopdown = false;
     drawOpenGL = true;
-    showMenu = true;
+    showMenu = false;
 
     render2D.mapOffset = vec2New(0,0);
     render2D.mapZoom = 1.0f;
@@ -309,10 +312,12 @@ static MapPlayResult DrawDebugMenu()
         clearColor.green = fogCOlor[1];
         clearColor.blue = fogCOlor[2];
         clearColor.alpha = 1;
+#ifndef GEKKO
         if (Menu_Button(debugMenu, "EXPORT OBJ"))
         {
             BuildRender_ExportCurrentMapToObj(activeMap, "map_out.obj", &renderGL);
         }
+#endif
         if (Menu_Button(debugMenu, "Back to mainmenu"))
         {
             return MapPlayReturnToMain;
@@ -364,8 +369,8 @@ void MapPlay_Init()
 
     // Load Maps
     allMapsArray = (DukeMap**)mgdl_AllocateGeneralMemory(sizeof(DukeMap**) * MAX_MAP_AMOUNT);
-    LoadMapFile("assets/Maps/cube.map");
     LoadMapFile("assets/Maps/muffin_arena.map");
+    LoadMapFile("assets/Maps/cube.map");
     LoadMapFile("assets/Maps/laatikko.map");
     LoadMapFile("assets/Maps/GGJ26ModernWateringCanNoIslands.map");
 
@@ -421,7 +426,7 @@ void MapPlay_ResetPlayers()
 DukeMap* MapPlay_LoadMap(const char* mapfile)
 {
     DukeMap* map = ReadMapFromFile(mapfile);
-    Map_FindIslandSectors(map);
+    //Map_FindIslandSectors(map);
     return map;
 }
 
@@ -439,7 +444,7 @@ void MapPlay_StartMap(int mapIndex, int playerAmount)
     BuildRender_Init(activeMap, &renderGL);
     MapPlay_ResetPlayers();
     Map_InitPlayers(activeMap, players, activePlayerAmount);
-    Gameplay_StartMap(activeMap);
+    Gameplay_StartMap(activeMap, playerAmount);
 
     editorCameraPos= players[0].position;
 }
@@ -722,15 +727,12 @@ MapPlayResult MapPlay_Frame()
             DrawMinimap();
         }
         
-        MapPlayResult menuresult = DrawDebugMenu();
+        MapPlayResult result = MapPlayLoop;
+        if (DEBUG_MENU_ENABLED)
+        {
+            result = DrawDebugMenu();
+        }
 
-    if (menuresult != MapPlayLoop)
-    {
-        return menuresult;
-    }
-    else
-    {
-        return MapPlayLoop;
-    }
+        return result;
 }
 

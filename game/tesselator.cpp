@@ -42,7 +42,7 @@ static int CombineBufferIndexDoubles = 0;
  */
 static void BufferVertex(const float x, const float y, const float z, const float u, const float v)
 {
-    Log_InfoF("Buffer vertex got C(%.2f %.2f, %.2f), TX(%.2f, %.2f)\n", x, y, z, u, v);
+    // Log_InfoF("Buffer vertex got C(%.2f %.2f, %.2f), TX(%.2f, %.2f)\n", x, y, z, u, v);
     static const float tolerance = 0.9f; // Duke units are integers, so this can be quite large
     static const float uvTolerance = 0.001f; // This is way smaller because values usually are under 10
     // Is this vertex already in the buffer?
@@ -64,7 +64,7 @@ static void BufferVertex(const float x, const float y, const float z, const floa
             float dtx = vec2Length( vec2Subtract(exTx, TX));
             if (dtx < uvTolerance)
             {
-                Log_InfoF("Found at index %d\n", i);
+                //Log_InfoF("Found at index %d\n", i);
                 found = true;
                 index = i;
                 break;
@@ -86,7 +86,7 @@ static void BufferVertex(const float x, const float y, const float z, const floa
     }
     else
     {
-        Log_InfoF("New vertex to index %d\n", vertexBufferVertexIndex);
+        //Log_InfoF("New vertex to index %d\n", vertexBufferVertexIndex);
         mgdl_assert_print(vertexBufferSize > vertexBufferVertexIndex, "Tesselator ran out of space in vertex buffer");
         GLfloat* vertex = &vertexBuffer[vertexBufferVertexIndex * VERTEX_BUFFER_VERTEX_SIZE];
         vertex[0] = x;

@@ -22,7 +22,7 @@ void MainMenu_Init()
 
     betaText = mgdl_LoadTexture("assets/betamaze_36x36.png", Nearest);
 
-    menuFont =  Font_LoadSelective(betaText, 36, 36, 7, " \"(),.0123456789:;ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+    menuFont =  Font_LoadSelective(betaText, 36, 36, 7, " \"(),.0123456789:;ABCDEFGHIJKLMNOPQRSTUVWXYZ[");
     mainMenu = Menu_Create(menuFont, 2, 1.0f);
     mapMenu = Menu_Create(menuFont, 2, 1.2f);
     // TODO set colors etc
@@ -50,7 +50,8 @@ MainMenuResult MainMenu_Frame()
     // Draw player amount to the side
     mainMenu->drawx = mgdl_GetScreenWidth() - 36 * 3;
 
-    Menu_TextF(mainMenu, "J\nA\nN\n_\n_\n%d", playerAmount);
+    // NOTE '[' is empty cell in the font image
+    Menu_TextF(mainMenu, "J\nA\nN\n[\n[\n%d", playerAmount);
 
     mainMenu->drawx = olddx;
     mainMenu->drawy = olddy;
@@ -78,6 +79,7 @@ MainMenuResult MainMenu_Frame()
         return MainMenuStartGame;
     }
 
+    /*
     Menu_Start(mapMenu, mgdl_GetScreenWidth()/2 + 36, mgdl_GetScreenHeight(), 36 * 2 * 4);
 
     if (Menu_Button(mapMenu, "M 1"))
@@ -92,6 +94,7 @@ MainMenuResult MainMenu_Frame()
     {
         mapIndex = 2;
     }
+    */
 
     mainMenu->font = DefaultFont_GetDefaultFont();
     Menu_DrawCursor(mainMenu);

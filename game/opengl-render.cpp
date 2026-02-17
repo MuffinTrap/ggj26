@@ -758,7 +758,7 @@ void OpenGLRender_TesselateFloor(DukeMap* map, u16 sectorIndex)
     floorStartIndices[sectorIndex].indexIndex = indicesBefore.indexIndex;
     u16 count = (indicesAfter.indexIndex - indicesBefore.indexIndex);
     floorStartIndices[sectorIndex].indexCount = count;
-    Log_InfoF("Sector %d: before %d After %d Count: %d\n", sectorIndex, indicesBefore.indexIndex, indicesAfter.indexIndex, count);
+    //Log_InfoF("Sector %d: before %d After %d Count: %d\n", sectorIndex, indicesBefore.indexIndex, indicesAfter.indexIndex, count);
     // Set indices in our buffers
     floorStartIndices[sectorIndex].vertexIndex = indicesBefore.vertexIndex;
     u16 vertexCount = (indicesAfter.vertexIndex - indicesBefore.vertexIndex);
@@ -775,9 +775,10 @@ void OpenGLRender_StopCountingFloorBufferSize()
         floorIndexBuffer = (GLushort*)realloc(floorIndexBuffer, lastIndex * sizeof(GLushort));
         floorIndexBufferSize = lastIndex;
     }
-    Log_InfoF("Tesselator created %d indices in total\n", floorIndexBufferSize);
+    //Log_InfoF("Tesselator created %d indices in total\n", floorIndexBufferSize);
     Tesselator_Deinit();
 
+    /*
     Log_Info("Floor Vertex buffer:\n");
     for (u32 v = 0; v < floorBufferSizeVertices; v++)
     {
@@ -790,6 +791,7 @@ void OpenGLRender_StopCountingFloorBufferSize()
         Log_InfoF("F %d: (%d, %d, %d)\n", v/3, floorIndexBuffer[v+0], floorIndexBuffer[v+1], floorIndexBuffer[v+2]);
         Log_InfoF("       %d, %d, %d )\n",v+0, v+1, v+2);
     }
+    */
 }
 void OpenGLRender_StartDrawingFloorsFromBuffer()
 {
