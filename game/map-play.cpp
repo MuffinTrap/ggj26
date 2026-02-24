@@ -53,24 +53,6 @@ static float fovYAdjustForBuild = 0.0f; // How the fovy degrees used in culling 
 static Texture* maskTexture;
 static Texture* crosshairTexture;
 
-static Sprite* bulletTexture;
-static Sprite* treasureTexture;
-static Sprite* playerTexture;
-static Sprite* playerWithMaskTexture;
-static Sprite* playerShockTexture;
-static Texture* playerShootTexture;
-static Texture* playerShootWithMaskTexture;
-
-static Texture* wall;
-static Texture* wallDark;
-static Texture* floorTexture;
-static Texture* floorDark;
-static Texture* ceiling;
-static Texture* ceilingDark;
-static Texture* exitTexture;
-static Texture* tileTexture;
-
-
 static bool DEBUG_MENU_ENABLED = false;
 
 static void InitRenderSettings3D()
@@ -82,7 +64,7 @@ static void InitRenderSettings3D()
     glCamera->nearZ = 0.1f;
     glCamera->fovY = 77.7f;
     glCamera->projection = CameraNone;
-    Camera_SetMode(glCamera, CameraDirection);
+    Camera_SetMode(glCamera, CameraRotation);
 
     editorCamera = Camera_CreateDefault();
     editorCamera->nearZ = 0.001f;
@@ -379,7 +361,7 @@ void MapPlay_Init()
     crosshairTexture = mgdl_LoadTexture("assets/crosshair.png", Linear);
     // Load map textures and sprites
 
-    OpenGLRender_RegisterTexture(RENDERER_PICNUM_DEFAULT, tileTexture = mgdl_LoadTexture("assets/tile_vent_tunnel.png", Linear));
+    OpenGLRender_RegisterTexture(RENDERER_PICNUM_DEFAULT, mgdl_LoadTexture("assets/tile_vent_tunnel.png", Linear));
 
     OpenGLRender_RegisterSprite(PICNUM_BULLET, mgdl_LoadSprite("assets/bullet_spritesheet.png", 64, 64));
     OpenGLRender_RegisterSprite(PICNUM_TREASURE, mgdl_LoadSprite("assets/treasure_mask_spritesheet.png", 128, 128));
@@ -566,7 +548,6 @@ MapPlayResult MapPlay_Frame()
         {
             Gameplay_Update(&players[pi], activeMap);
             Gameplay_UpdateBullets(players, activePlayerAmount, activeMap);
-            Player_UpdateMove(&players[pi], mgdl_GetController(pi), &render2D, &renderGL, activeMap, activePlayerAmount);
         }
 
         if (Gameplay_GetWinner() >= 0)
@@ -664,6 +645,9 @@ MapPlayResult MapPlay_Frame()
 
                     // Sets GL_MODELVIEW
                     Camera_Apply(glCamera);
+
+                    // Player shooting depends on the camera matrices, so it has to be done after
+                    Player_UpdateMove(&players[pi], mgdl_GetController(pi), &render2D, &renderGL, activeMap, activePlayerAmount);
                 }
                 renderGL.aspectRatio = (float)viewPort.w / (float)viewPort.h;
 
@@ -701,7 +685,7 @@ MapPlayResult MapPlay_Frame()
             glAlphaFunc(GL_GREATER, 0.3f);
 
             // Draw crosshair
-#ifdef MGDL_PLATFORM_WII
+#if defined(MGDL_PLATFORM_WII)
             vec2 cursorPosition = WiiController_GetCursorPosition(mgdl_GetController(pi));
             vec2 relativeScreenPosition = vec2New((cursorPosition.x - viewPort.x), (cursorPosition.y - viewPort.y));
             if (IsPointInsideRect(viewPort, cursorPosition))

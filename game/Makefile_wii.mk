@@ -101,22 +101,26 @@ export OFILES	:=	$(addsuffix .o,$(BINFILES)) \
 LIBOGC_INC	:=	$(DEVKITPRO)/libogc/include
 PORTLIBS_PPC_INC	:=	$(PORTLIBS_PATH)/ppc/include
 PORTLIBS_WII_INC	:=	$(PORTLIBS_PATH)/wii/include
+MGDL_INC		:=	$(DEVKITPRO)/../libmgdl/include
 export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 					$(foreach dir,$(LIBDIRS),-I$(dir)) \
 					-I$(CURDIR)/$(BUILD) \
 					-I$(LIBOGC_INC) \
 					-I$(PORTLIBS_PPC_INC) \
-					-I$(PORTLIBS_WII_INC)
+					-I$(PORTLIBS_WII_INC) \
+					-I$(MGDL_INC)
 #---------------------------------------------------------------------------------
 # build a list of library paths
 #---------------------------------------------------------------------------------
 LIBOGC_LIB	:=	$(DEVKITPRO)/libogc/lib/wii
 PORTLIBS_PPC_LIB	:=	$(DEVKITPRO)/portlibs/ppc/lib
 PORTLIBS_WII_LIB	:=	$(DEVKITPRO)/portlibs/wii/lib
+MGDL_LIB		:=	$(DEVKITPRO)/../libmgdl/lib
 export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib) \
 					-L$(LIBOGC_LIB) \
 					-L$(PORTLIBS_PPC_LIB) \
-					-L$(PORTLIBS_WII_LIB)
+					-L$(PORTLIBS_WII_LIB) \
+					-L$(MGDL_LIB)
 
 export OUTPUT	:=	$(CURDIR)/$(TARGET)
 

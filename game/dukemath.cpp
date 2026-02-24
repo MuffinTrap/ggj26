@@ -1,5 +1,6 @@
 #include "dukemath.h"
 #include <mgdl/mgdl-types.h>
+#include <mgdl/mgdl-opengl.h>
 
 #include "build-render.h"
 
@@ -104,4 +105,23 @@ vec3 Vec3DukePosToOpenGL(vec3 dukepos, RenderSettingsOpenGL* settings3D)
 vec2 Vec2DukePosToOpenGL(vec2 dukepos, RenderSettingsOpenGL* settings3D)
 {
 	return vec2Multiply(dukepos, settings3D->scale);
+}
+
+vec3 CalculateCursorWorldPos(vec2 cursorPosition, Rect screenRect, RenderSettingsOpenGL* settings3D)
+{
+	// OpenGL book page 152
+	GLint viewport[4];
+	GLdouble mvmatrix[16], projmatrix[16];
+	GLdouble wx, wy, wz;
+	glGetIntegerv(GL_VIEWPORT, viewport);
+	glGetDoublev(GL_MODELVIEW_MATRIX, mvmatrix);
+	glGetDoublev(GL_PROJECTION_MATRIX, projmatrix);
+	//realy = viewport[3] - cursorPosition.y -1; // Our cursorposition is already flipped?
+	gluUnProject((GLdouble)cursorPosition.x, (GLdouble)cursorPosition.y, settings3D->near,
+				mvmatrix, projmatrix, viewport,
+				&wx, &wy, &wz);
+
+
+	// Log_InfoF("Cursor in world %.2f, %.2f, %.2f\n", wx, wy, wz);
+	return vec3New(wx, wy, wz);
 }

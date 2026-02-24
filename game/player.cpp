@@ -112,9 +112,18 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 				// Data for bullet initialization
 				player->shotOrigin = player->position;
 
-				// Add cursor position to shooting direction
-				// 0,0 is the center of the screen
-				// x right & y up is positive
+
+				// Initial direction, without cursor addon
+				vec3 bulletDir = vec3New(player->direction.x, 0.0f, player->direction.y);
+
+#if defined(MGDL_PLATFORM_WII)
+				// Calculate the cursor position on the near plane
+				// and calculate direction in the world
+
+				// Near plane of camera
+				/*
+				float top = settingsGL->near * tan( Deg2Rad(settingsGL->FOVyDegrees/2.0f));
+				float right = top * settingsGL->aspectRatio;
 
 				vec2 relativeScreenPosition = vec2New((cursorPosition.x - screenRect.x) / screenRect.w, (cursorPosition.y - screenRect.y) / screenRect.h);
 
@@ -123,17 +132,18 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 				relativeScreenPosition.y -= 0.5f;
 				Log_InfoF("CURSOR X: %.2f Y: %.2f\n", relativeScreenPosition.x, relativeScreenPosition.y);
 
-				// Initial direction, without cursor addon
-				vec3 bulletDir = vec3New(player->direction.x, 0.0f, player->direction.y);
+				vec3 nearPlanePosition = vec3New(relativeScreenPosition.x * right, relativeScreenPosition.y * top, -settingsGL->near);
+				// From camera (0,0,0) to nearplane is just normalized position on near plane
+				vec3 toNearPlane = vec3Normalize(nearPlanePosition);
 
-#ifdef MGDL_PLATFORM_WII
-				// Horizontal addon
-				vec3 bulletRight = vec3CrossProduct(WORLD_UP, vec3Normalize(bulletDir));
-				bulletRight = vec3Multiply(bulletRight, -relativeScreenPosition.x * 2.0f);
-				bulletDir = vec3Add(bulletDir, bulletRight);
+				bulletDir = Vec3XYZRotateY(toNearPlane, player->angleRad);
+				*/
 
-				// Vertical addon
-				bulletDir.y -= relativeScreenPosition.y * 20.0f;
+				//Log_InfoF("CURSOR X: %.2f Y: %.2f\n", cursorPosition.x, cursorPosition.y);
+				vec3 cursorWorld = CalculateCursorWorldPos(cursorPosition, screenRect, settingsGL);
+				vec3 playerGLpos = Vec3DukePosToOpenGL(player->position, settingsGL);
+				bulletDir = vec3Normalize( vec3Subtract(cursorWorld, playerGLpos));
+				//Log_InfoF("Bullet dir %.2f, %.2f, %.2f\n", bulletDir.x, bulletDir.y, bulletDir.z);
 #endif
 				// Final direction
 				player->shotDirection = bulletDir;
