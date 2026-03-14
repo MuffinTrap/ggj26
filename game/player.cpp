@@ -14,23 +14,19 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 		return;
 	}
 
-	float turnSpeed = Deg2Rad(player->turnSpeedDegrees);
-	float moveSpeed = player->moveSpeed;
-	float moveSpeed3D = moveSpeed;
-	float verticalSpeed = player->verticalSpeed;
-	float verticalSpeed3D = verticalSpeed;
 	float dt = mgdl_GetDeltaTime();
 
+	float turnInput = 0.0f;
 	// Use right joystick for turning on Windows
-#if defined (MGDL_PLATFORM_WINDOWS) || defined (MGDL_PLATFORM_LINUX)
-	float turn = WiiController_GetRoll(controller);
-	if (abs(turn) < CONTROLLER_DEADZONE) turn = 0.0f;
+#if defined (MGDL_PLATFORM_WINDOWS) || defined (MGDL_PLATFORM_LINUX)|| defined (MGDL_PLATFORM_MAC)
+	turnInput = WiiController_GetRoll(controller);
+	// NOTE Roll is in radians
+	if (abs(turnInput) < CONTROLLER_DEADZONE * M_PI) turnInput = 0.0f;
 
-	// Use dpad for turning on Wii
 #else
-	float turn = 0.0f;
-	if (WiiController_ButtonHeld(controller, ButtonRight)) turn = 1.0f;
-	else if (WiiController_ButtonHeld(controller, ButtonLeft)) turn = -1.0f;
+	// Use dpad for turning on Wii
+	if (WiiController_ButtonHeld(controller, ButtonRight)) turnInput = 1.0f;
+	else if (WiiController_ButtonHeld(controller, ButtonLeft)) turnInput = -1.0f;
 #endif
 	
 	// NOTE turning left around Y is positive
@@ -38,40 +34,83 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 	// Left is 90
 	// right is -90
 	// So when joystick is turned right: it is positive : decrease rotation
-	player->angleRad -= turn * turnSpeed * dt;
+	if (turnInput == 0.0f)
+	{
+		player->turnSpeedDegrees = 0.0f; // Stop turning
+	}
+	else
+	{
+		player->turnSpeedDegrees -= turnInput * player->turnAcceleration * dt;
+		if (player->turnSpeedDegrees > player->maxTurnSpeedDegrees)
+		{
+			player->turnSpeedDegrees = player->maxTurnSpeedDegrees;
+		}
+		else if (player->turnSpeedDegrees < -player->maxTurnSpeedDegrees)
+		{
+			player->turnSpeedDegrees = -player->maxTurnSpeedDegrees;
+		}
+	}
+	player->angleRad += Deg2Rad(player->turnSpeedDegrees) * dt;
+
+	// Moving forward and backward
+	vec2 forward = vec2New(WORLD_FORWARD.x, WORLD_FORWARD.z);
+	player->direction = Vec2XZRotateY(forward, player->angleRad);
+	vec2 strafeDirection = Vec2XZRotateY(forward, player->angleRad - Deg2Rad(90.0f));
+
+	float forwardInput = 0.0f;
+	float strafeInput = 0.0f;
 
 	vec2 jdir = WiiController_GetNunchukJoystickDirection(controller);
 	if (abs(jdir.x) < CONTROLLER_DEADZONE) jdir.x = 0.0f;
 	if (abs(jdir.y) < CONTROLLER_DEADZONE) jdir.y = 0.0f;
 
-	vec2 forward = vec2New(WORLD_FORWARD.x, WORLD_FORWARD.z);
-	player->direction = Vec2XZRotateY(forward, player->angleRad);
-	vec2 strafeDirection = Vec2XZRotateY(forward, player->angleRad - Deg2Rad(90.0f));
-
 	// NOTE  Joystick dir -Y is forward, +Y is backwards
-	vec2 moveXZ = vec2Multiply(player->direction, -jdir.y * moveSpeed3D * dt);
-	vec2 strafe = vec2Multiply(strafeDirection, jdir.x * moveSpeed3D * dt);
+	forwardInput = -jdir.y;
+	strafeInput = jdir.x;
+
+	if (forwardInput == 0.0f && strafeInput == 0.0f)
+	{
+		player->moveVelocity.x = 0.0f;
+		player->moveVelocity.y = 0.0f;
+	}
+	else
+	{
+		vec2 moveXZ = vec2Multiply(player->direction, forwardInput * player->moveAcceleration);
+		vec2 strafe = vec2Multiply(strafeDirection, strafeInput * player->moveAcceleration);
+
+		player->moveVelocity = vec2Add(player->moveVelocity, vec2Multiply(moveXZ, dt));
+		player->moveVelocity = vec2Add(player->moveVelocity, vec2Multiply(strafe, dt));
+		if (vec2Length(player->moveVelocity) > player->maxMoveSpeed)
+		{
+			player->moveVelocity = vec2Multiply( vec2Normalize(player->moveVelocity), player->maxMoveSpeed);
+		}
+	}
 
 	// Store old
 	player->prevPosition = player->position;
 
 	// Apply move
-	player->position.x += moveXZ.x + strafe.x;
-	player->position.z += moveXZ.y + strafe.y;
+	player->position.x += player->moveVelocity.x * dt;
+	player->position.z += player->moveVelocity.y * dt;
 
-	// Jetback controls?
-	if (WiiController_ButtonHeld(controller, Button1))
-	{
-		player->position.y += verticalSpeed3D * dt;
-	}
-	else
+
+	if (player->targetHeight < player->position.y)
 	{
 		player->position.y -= player->fallingSpeed * dt;
+		if (player->targetHeight > player->position.y)
+		{
+			player->position.y = player->targetHeight;
+		}
 	}
-	if (WiiController_ButtonHeld(controller, Button2))
+	else if (player->targetHeight > player->position.y)
 	{
-		player->position.y -= verticalSpeed3D* dt;
+		player->position.y += player->verticalSpeed * dt;
+		if (player->position.y > player->targetHeight )
+		{
+			player->position.y = player->targetHeight;
+		}
 	}
+
 
 	// Test if collides with a wall of this sector that is not a portal
         // Get the sector info from map
@@ -83,14 +122,40 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 
 	vec2 pointOut;
 	s16 sectorOut;
-	MoveResult result = Map_MovePointInMap(map, point, endpoint, player->sectorNumber, &pointOut, &sectorOut);
+	MoveResult result = Map_MovePointInMap(map, point, endpoint, player->sectorNumber, player->radius, &pointOut, &sectorOut);
+	if (result == MoveResult::Move_Cancel)
+	{
+		player->position = player->prevPosition;
+	}
+	else
+	{
+		if (sectorOut != player->sectorNumber)
+		{
+			// new sector!
+			// check if player can climb
+			float newFloor = Map_GetSectorFloorHeight(map, sectorOut);
+			// If the new floor is lower than third of height
+			if (newFloor < player->position.y + player->standingHeight/3.0f)
+			{
+				// Keep player on floor and under the ceiling
+				player->targetHeight = newFloor + player->standingHeight;
+				player->sectorNumber = sectorOut;
+				player->position = vec3New(pointOut.x, player->position.y, pointOut.y);;
+			}
+			else
+			{
+				// Cannot climb
+				player->position = player->prevPosition;
+			}
+			// player->position.y = minF(player->position.y, Map_GetSectorCeilingHeight(map, player->sectorNumber));
+		}
+		else
+		{
+			// Moving inside same sector
+			player->position = vec3New(pointOut.x, player->position.y, pointOut.y);;
+		}
+	}
 
-	player->position = vec3New(pointOut.x, player->position.y, pointOut.y);;
-	player->sectorNumber = sectorOut;
-
-	// Keep player on floor and under the ceiling
-	player->position.y = maxF(player->position.y, Map_GetSectorFloorHeight(map, player->sectorNumber) + player->standingHeight);
-	player->position.y = minF(player->position.y, Map_GetSectorCeilingHeight(map, player->sectorNumber));
 
 	// Shooting, when trigger is pressed, cursor is within viewport and shoot timer is ok
 	vec2 cursorPosition = WiiController_GetCursorPosition(controller);
@@ -119,26 +184,6 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 #if defined(MGDL_PLATFORM_WII)
 				// Calculate the cursor position on the near plane
 				// and calculate direction in the world
-
-				// Near plane of camera
-				/*
-				float top = settingsGL->near * tan( Deg2Rad(settingsGL->FOVyDegrees/2.0f));
-				float right = top * settingsGL->aspectRatio;
-
-				vec2 relativeScreenPosition = vec2New((cursorPosition.x - screenRect.x) / screenRect.w, (cursorPosition.y - screenRect.y) / screenRect.h);
-
-				//vec2 relativeScreenPosition = vec2New(screenPosition.x / mgdl_GetScreenWidth(), screenPosition.y / mgdl_GetScreenHeight());
-				relativeScreenPosition.x -= 0.5f;
-				relativeScreenPosition.y -= 0.5f;
-				Log_InfoF("CURSOR X: %.2f Y: %.2f\n", relativeScreenPosition.x, relativeScreenPosition.y);
-
-				vec3 nearPlanePosition = vec3New(relativeScreenPosition.x * right, relativeScreenPosition.y * top, -settingsGL->near);
-				// From camera (0,0,0) to nearplane is just normalized position on near plane
-				vec3 toNearPlane = vec3Normalize(nearPlanePosition);
-
-				bulletDir = Vec3XYZRotateY(toNearPlane, player->angleRad);
-				*/
-
 				//Log_InfoF("CURSOR X: %.2f Y: %.2f\n", cursorPosition.x, cursorPosition.y);
 				vec3 cursorWorld = CalculateCursorWorldPos(cursorPosition, screenRect, settingsGL);
 				vec3 playerGLpos = Vec3DukePosToOpenGL(player->position, settingsGL);

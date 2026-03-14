@@ -25,15 +25,19 @@ struct Player
     float angleRad;
     float pitchRad; // looking up and down
 
-    float turnSpeedDegrees;
+    float turnSpeedDegrees; ///< Current turnspeed
+    float maxTurnSpeedDegrees;
+    float turnAcceleration; ///< In degrees per second
     // These are in dukes
-    float moveSpeed;
+    vec2 moveVelocity;
+    float moveAcceleration; ///< In dukes per second
+    float maxMoveSpeed;
     float verticalSpeed;
     float fallingSpeed;
+    float targetHeight; ///< What height the player is trying to reach
     float standingHeight; ///< How much above ground when standing
-    float kneelingHeight; ///< How much above ground when kneeling/crouching
 
-    float radius;
+    float radius; ///< How far from wall the player is pushed
 
     // Shooting
     float shootTimer;

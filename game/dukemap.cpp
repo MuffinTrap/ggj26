@@ -47,6 +47,7 @@ void Map_InitPlayers(DukeMap* map, Player* players, int playerAmount)
             players[pi].angleRad = Math_DukeAngleToRad(startingPos->ang);
             players[pi].sectorNumber = startingPos->sectnum;
             players[pi].position.y = Map_GetSectorFloorHeight(map, players[pi].sectorNumber);
+            players[pi].targetHeight = players[pi].position.y + players[pi].standingHeight;
         }
         else
         {
@@ -63,6 +64,8 @@ void Map_InitPlayer(DukeMap* map, Player* player)
     player->angleRad = Math_DukeAngleToRad(map->startAngle - 512);
     player->sectorNumber = map->startingSector;
     player->position.y = Map_GetSectorFloorHeight(map, map->startingSector);
+    player->targetHeight = player->position.y + player->standingHeight;
+    Log_InfoF("Found starting position for player 0\n");
 }
 
 void Map_FindIslandSectors(DukeMap* map)
@@ -283,7 +286,23 @@ bool Map_IsPointInsideWall(DukeMap* map, vec2 point, Wall* wall)
     vec2 wallVector = vec2Subtract(end, start);
     float crossY = Vec2XZCrossToY(wallVector, vec2Subtract(point, start));
     // DANGER Again, this code works differently TM
-    return crossY < 0.0f;
+    return crossY < 0;
+}
+
+float Map_GetPointDistanceToWall(DukeMap* map, vec2 point, Wall* wall)
+{
+    // Find closest point on the wall line
+    Wall* wend = Map_GetWallEnd(map, wall);
+    vec2 start = vec2New(wall->x, wall->z);
+    vec2 end = vec2New(wend->x, wend->z);
+
+    vec2 wallVector = vec2Subtract(end, start);
+    vec2 normal  = vec2Normalize(Vec2XZCrossWithY(wallVector));
+
+    vec2 startToPoint = vec2Subtract(point, start);
+    // Distance is startToPoint projected onto normal
+    float dot = normal.x * startToPoint.x + normal.y * startToPoint.y;
+    return dot;
 }
 
 s32 Map_GetSectorFloorHeight(DukeMap* map, s16 sectorNumber)
@@ -344,7 +363,7 @@ DSprite* Map_GetSprite(DukeMap* map, s16 spriteIndex)
     return &map->sprites[spriteIndex];
 }
 
-MoveResult Map_MovePointInMap(DukeMap* map, vec2 start, vec2 end, s16 sectorNumber, vec2* positionOut, s16* sectorOut)
+MoveResult Map_MovePointInMap(DukeMap* map, vec2 start, vec2 end, s16 sectorNumber, s16 radius, vec2* positionOut, s16* sectorOut)
 {
 
     // Keep testing until player is back inside again
@@ -362,6 +381,30 @@ MoveResult Map_MovePointInMap(DukeMap* map, vec2 start, vec2 end, s16 sectorNumb
          *					player->positionOpenGL.z = ceilingY - player->standingHeight - 1;
         }
         */
+        // Push player away from walls
+        Sector* sector = Map_GetSector(map, sectorNumber);
+        for (s16 wi = 0; wi < sector->wallnum; wi++)
+        {
+            Wall* w = Map_GetWallInSector(map, sectorNumber, wi);
+            if (w->nextsector < 0)
+            {
+                float distance = Map_GetPointDistanceToWall(map, end, w);
+                if (distance < radius)
+                {
+                    // check that player is in front of this wall, because this distance can be
+                    // from the neighbor of portal
+                    // Point from player towards wall
+
+                    vec2 normal = Map_GetWallNormal(map, w);
+                    vec2 inside = vec2Add(end, vec2Multiply(normal, -radius));
+                    vec2 pointOut;
+                    if (Map_FindIntersectionWithWall(map, end, inside, w, &pointOut))
+                    {
+                        end = vec2Add(end, vec2Multiply(normal, (radius-distance)));
+                    }
+                }
+            }
+        }
         *positionOut = end;
         *sectorOut = sectorNumber;
         return Move_Ok;
@@ -378,9 +421,9 @@ MoveResult Map_MovePointInMap(DukeMap* map, vec2 start, vec2 end, s16 sectorNumb
             if (Map_FindIntersectionWithWall(map, start, end, w, &cross))
             {
                 // Yes
-                // Is it a portal?
                 if (w->nextsector >= 0)
                 {
+                    // Hit portal
                     s16 newSector = w->nextsector;
                     bool insideNewSector =  Map_IsPointInsideSectorOG(map, end, newSector);
                     if (insideNewSector)
@@ -396,15 +439,17 @@ MoveResult Map_MovePointInMap(DukeMap* map, vec2 start, vec2 end, s16 sectorNumb
                         Wall* otherSide = Map_GetWall(map, w->nextwall);
                         vec2 normal = Map_GetWallNormal(map, otherSide);
                         cross = vec2Add(cross, normal);
-                        return Map_MovePointInMap(map, cross, end, newSector, positionOut, sectorOut);
+                        return Map_MovePointInMap(map, cross, end, newSector, radius, positionOut, sectorOut);
                     }
                 }
                 else
                 {
+                    // Hit wall
+
                     vec2 normal = Map_GetWallNormal(map, w);
                     Wall* w2 = Map_GetWallEnd(map, w);
                     // Push player back from wall
-                    vec2 hitEnd = vec2Add(cross, normal);
+                    vec2 hitEnd = vec2Add(cross, vec2Multiply(normal, radius));
                     // Slide player along the wall
                     vec2 wstart = vec2New(w->x, w->z);
                     vec2 wend = vec2New(w2->x, w2->z);
@@ -419,38 +464,42 @@ MoveResult Map_MovePointInMap(DukeMap* map, vec2 start, vec2 end, s16 sectorNumb
                     }
                     else
                     {
-                        return Map_MovePointInMap(map, hitEnd, slideEnd, sectorNumber, positionOut, sectorOut);
+                        return Map_MovePointInMap(map, hitEnd, slideEnd, sectorNumber, radius, positionOut, sectorOut);
                     }
                 }
             }
         }
+        // DANGER Player has escaped: return to original position
+        bool stillInsideSector = Map_IsPointInsideSectorOG(map, start, sectorNumber);
+        if (stillInsideSector)
         {
-            // DANGER Player has escaped: return to original position
-            bool stillInsideSector = Map_IsPointInsideSectorOG(map, start, sectorNumber);
-            if (stillInsideSector)
+            *positionOut = start;
+            *sectorOut = sectorNumber;
+            return Move_Cancel;
+        }
+        else
+        {
+            s16 playerSector = Map_FindPlayerSector(map, start);
+            if (playerSector < 0)
             {
-                *positionOut = start;
+                // Outside map
+                // Put in center of sector
+                *positionOut = vec2Add(sector->minXZPoint, vec2Multiply(sector->sizeXZ, 0.5f));
                 *sectorOut = sectorNumber;
                 return Move_Cancel;
             }
             else
             {
-                s16 playerSector = Map_FindPlayerSector(map, start);
-                if (playerSector < 0)
-                {
-                    // Put in center of sector
-                    *positionOut = vec2Add(sector->minXZPoint, vec2Multiply(sector->sizeXZ, 0.5f));
-                    *sectorOut = sectorNumber;
-                    return Move_Cancel;
-                }
-                else
-                {
-                    *positionOut = start;
-                    *sectorOut = playerSector;
-                    return Move_Cancel;
-                }
+                // Inside map
+                *positionOut = start;
+                *sectorOut = sectorNumber;
+                return Move_Ok;
             }
+
         }
+        *positionOut = start;
+        *sectorOut = sectorNumber;
+        return Move_Cancel;
     }
 }
 
@@ -473,6 +522,6 @@ s16 Map_FindPlayerSector(DukeMap* map, vec2 playerPosition)
         {
             return si;
         }
-        return -1;
     }
+    return -1;
 }

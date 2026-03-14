@@ -243,7 +243,7 @@ void Gameplay_UpdateBullets(Player* players, int playerAmount, DukeMap* map)
 
 			vec2 pointOut;
 			s16 sectorOut;
-			MoveResult result = Map_MovePointInMap(map, point, endpoint, bullets[i].sectorNumber, &pointOut, &sectorOut);
+			MoveResult result = Map_MovePointInMap(map, point, endpoint, bullets[i].sectorNumber, 1, &pointOut, &sectorOut);
 			bullets[i].position = vec3New(pointOut.x, movementEnd.y, pointOut.y);;
 			bullets[i].sectorNumber = sectorOut;
 			//Log_InfoF("BULLET UPDATE SECTOR: %i X: %.2f Y: %.2f Z: %.2f TIME: %.2f \n", bullets[i].sectorNumber, bullets[i].position.x, bullets[i].position.y, bullets[i].position.z, bullets[i].timeAlive);

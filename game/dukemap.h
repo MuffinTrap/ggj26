@@ -171,9 +171,10 @@ DSprite* Map_FindSprite(DukeMap* map, s16 lotag, s16 hitag);
 bool Map_IsPointInsideSectorOG(DukeMap* map, vec2 point, int sectorNumber);
 bool Map_IsPointInsideSectorRay(DukeMap* map, vec2 point, int sectorNumber);
 bool Map_IsPointInsideWall(DukeMap* map, vec2 point, Wall* wall);
+float Map_GetPointDistanceToWall(DukeMap* map, vec2 point, Wall* wall);
 bool Map_FindIntersectionWithWall(DukeMap* map, vec2 moveStart, vec2 moveEnd, Wall* wall, vec2* pointOUT);
 
-MoveResult Map_MovePointInMap(DukeMap* map, vec2 start, vec2 end, s16 sector, vec2* positionOut, s16* sectorOut);
+MoveResult Map_MovePointInMap(DukeMap* map, vec2 start, vec2 end, s16 sector, s16 radius, vec2* positionOut, s16* sectorOut);
 
 /**
 * @brief Looks for player recursively from neighbouring sectors, starting from startingSector

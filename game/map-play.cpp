@@ -386,12 +386,19 @@ void MapPlay_ResetPlayers()
     for (int pi = 0; pi < MAX_PLAYERS; pi++)
     {
         players[pi].playerNumber = pi;
-        players[pi].moveSpeed = 2048.0f; // NOTE Set
-        players[pi].verticalSpeed = 1400.0f;
-        players[pi].fallingSpeed = 32000.0f;
+
+        players[pi].moveVelocity = vec2New(0,0);
+        players[pi].moveAcceleration = 16000.0f;
+        players[pi].maxMoveSpeed = 2048.0f; // NOTE Set
+
+        players[pi].verticalSpeed = 8000.0f; // How fast player climps stairs
+        players[pi].fallingSpeed = 8000.0f;
         players[pi].standingHeight = 512.0f + 256; // NOTE Set
-        players[pi].kneelingHeight = 256.0f;
-        players[pi].turnSpeedDegrees = 150.0f; // NOTE set
+
+        players[pi].turnSpeedDegrees = 0.0f;
+        players[pi].turnAcceleration = 360.0f;
+        players[pi].maxTurnSpeedDegrees = 150.0f; // NOTE set
+
         players[pi].position.y += players[pi].standingHeight;
         players[pi].radius = 340.0f;
         players[pi].pitchRad = 0.0f;
@@ -433,9 +440,10 @@ void MapPlay_StartMap(int mapIndex, int playerAmount)
 
 Rect MapPlay_GetPlayerScreenRect(int playerIndex, int amountPlayers)
 {
-    int W = mgdl_GetScreenWidth();
-    int H = mgdl_GetScreenHeight();
-    Rect r = Rect_Create(0, 0, W, H);
+    Viewport port = mgdl_GetViewport();
+    int W = port.width;
+    int H = port.height;
+    Rect r = Rect_Create(port.left, port.bottom, W, H);
 
     if (amountPlayers == 1)
     {
@@ -450,7 +458,7 @@ Rect MapPlay_GetPlayerScreenRect(int playerIndex, int amountPlayers)
         // [ 1 ]
         // [ 2 ]
         // XY is bottom left
-        r = Rect_Create(0,  H/2 - (H/2)*playerIndex, W, H/2);
+        r = Rect_Create(port.left,  port.bottom + (H/2)*playerIndex, W, H/2);
 
     }
     else if (amountPlayers >= 3)
@@ -460,9 +468,9 @@ Rect MapPlay_GetPlayerScreenRect(int playerIndex, int amountPlayers)
         // [3] [4]
         // X = index % 2
         // Y = index/2 % 2
-        int x = playerIndex % 2;  // 0-> 0 1-> 1  2-0 3 ->1
-        int y = (playerIndex/2) % 2; // 0 -> 0, 1->0  2-> 1 3-> 1
-        r = Rect_Create(W/2 * x, H/2 - (H/2)*y, W/2, H/2);
+        int x = playerIndex % 2;  // 0->0, 1->1, 2->0, 3->1
+        int y = (playerIndex/2) % 2; // 0 -> 0, 1->0, 2-> 1, 3-> 1
+        r = Rect_Create(port.left + W/2 * x, port.bottom + (H/2)*y, W/2, H/2);
     }
     return r;
 }
@@ -476,8 +484,8 @@ static void DebugCollisions()
 
 static void MoveEditorCamera(WiiController* controller)
 {
-    float turnSpeed = players[0].turnSpeedDegrees;
-    float moveSpeed = players[0].moveSpeed;
+    float turnSpeed = players[0].maxTurnSpeedDegrees;
+    float moveSpeed = players[0].maxMoveSpeed;
     float moveSpeed3D = moveSpeed;
     float verticalSpeed = players[0].verticalSpeed * 8;
     float verticalSpeed3D = verticalSpeed;
