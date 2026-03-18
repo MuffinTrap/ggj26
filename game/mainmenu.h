@@ -15,6 +15,7 @@ extern "C" {
 
 void MainMenu_Init();
 MainMenuResult MainMenu_Frame();
+MainMenuResult MainMenu_MapOverScreen(float* timer);
 int MainMenu_GetSelectedPlayerAmount();
 int MainMenu_GetSelectedMapIndex();
 

@@ -12,6 +12,9 @@
 static GameState currentState;
 static Sound* music;
 bool musicStarted = false;
+static float MapOverTimer = 5.0f;
+static float MapPreviewTimer = 0.0f;
+static float MapPreviewDuration = 60.0f;
 
 // Debug Menu
 void init()
@@ -93,10 +96,23 @@ void frame()
             if (r == MainMenuStartGame)
             {
                 //Audio_StopSound(music);
-                currentState = Game_MapPlay;
+                MapPreviewTimer = 0.0f;
+                currentState = Game_MapLobby;
                 MapPlay_StartMap(MainMenu_GetSelectedMapIndex(), MainMenu_GetSelectedPlayerAmount());
             }
         }
+            break;
+        case Game_MapLobby:
+        {
+            MapPreviewTimer += mgdl_GetDeltaTime();
+            MapPlayResult r = MapPlay_DrawMapPreview(MapPreviewTimer/MapPreviewDuration);
+            if (r == MapPlayEndMap || MapPreviewTimer > MapPreviewDuration)
+            {
+                currentState = Game_MapPlay;
+            }
+        }
+
+
             break;
         case Game_MapPlay:
         {
@@ -104,7 +120,8 @@ void frame()
             // TODO end
             if (r == MapPlayEndMap)
             {
-                currentState = Game_MainMenu;
+                MapOverTimer = 5.0f;
+                currentState = Game_MapOver;
             }
             else if (r == MapPlayReturnToMain)
             {
@@ -113,11 +130,11 @@ void frame()
         }
             break;
 
-        case Game_MapLobby:
-            // NOP
-            break;
         case Game_MapOver:
-           // TODO
+        {
+            // Show who won.
+            MainMenuResult r = MainMenu_MapOverScreen(&MapOverTimer);
+        }
             break;
     }
 }

@@ -528,8 +528,6 @@ void BuildRender_DrawTopDown(Player* players, DukeMap* map, RenderSettingsOpenGL
 
         Color4f* whiteColor = Color_GetDefaultColor(Color_White);
         Color4f* greenColor = Color_GetDefaultColor(Color_Green);
-        Color4f portalColor = Color_Create4f(0.5f, 0.1f, 0.1f, 1.0f);
-        Color4f wallColor = Color_Create4f(0.75f, 0.75f, 0.75f, 1.0f);
 
     // The whole map zoom
     // Put the origo on the center of the screen
@@ -556,42 +554,72 @@ void BuildRender_DrawTopDown(Player* players, DukeMap* map, RenderSettingsOpenGL
                 // Keep player at center of screen
                 glTranslatef(-firstPlayerPos2.x, -firstPlayerPos2.y, 0);
             }
+            else if (settings2D->centerMapToCollisionPoint)
+            {
+                // Keep player at center of screen
+                glTranslatef(-settings2D->collisionPoint.x, -settings2D->collisionPoint.y, 0);
+            }
 
             glBegin(GL_LINES);
 
             // Draw Grid in grey under everything else
-            glColor3f(0.2f, 0.2f, 0.2f);
+            OpenGLRender_SetColor4f(settings2D->gridColor);
             if (settings2D->gridSize > 0)
             {
                 float antiscale = 1.0f / settings3D->scale;
                 float gz = floorf(settings2D->gridSize) * antiscale;
                 float dx = (-10 * gz);
                 float dy = (-10 * gz);
-                for(int x = 0; x < 20; x++)
+                if (settings2D->gridLineLength >= 0.9999999f)
                 {
-                    OpenGLRender_Line2(dx + gz * x, dy,
-                                       dx + gz * x, dy + gz * 20);
+                    for(int x = 0; x < 20; x++)
+                    {
+                        OpenGLRender_Line2(dx + gz * x, dy,
+                                        dx + gz * x, dy + gz * 20);
+                    }
+                    for (int y = 0; y < 20; y++)
+                    {
+                        OpenGLRender_Line2(dx, dy + gz * y,
+                                            dx + gz * 20, dy + gz * y);
+                    }
                 }
-                for (int y = 0; y < 20; y++)
+                else
                 {
-                    OpenGLRender_Line2(dx, dy + gz * y,
-                                        dx + gz * 20, dy + gz * y);
+                    float length = settings2D->gridLineLength/2.0f * gz;
+                    for(int x = 0; x < 20; x++)
+                    {
+                        for (int y = 0; y < 20; y++)
+                        {
+                            vec2 node = vec2New(dx + gz * x, dy + gz *y);
+                            OpenGLRender_Line2(node.x, node.y,
+                                               node.x, node.y-length );
+                            OpenGLRender_Line2(node.x, node.y,
+                                               node.x, node.y+length );
+                            OpenGLRender_Line2(node.x, node.y,
+                                               node.x - length, node.y);
+                            OpenGLRender_Line2(node.x, node.y,
+                                               node.x + length, node.y);
+                        }
+                    }
 
                 }
             }
             glLineWidth(4.0f);
 
-            // Draw origo
-            OpenGLRender_SetColor(Color_White);
-            OpenGLRender_Line2(0, -10, 0 ,10);
-            OpenGLRender_Line2(-10, 0, 10, 0);
+            if (settings2D->drawOrigoAndAxii)
+            {
+                // Draw origo
+                OpenGLRender_SetColor(Color_White);
+                OpenGLRender_Line2(0, -10, 0 ,10);
+                OpenGLRender_Line2(-10, 0, 10, 0);
 
-            // Draw WORLD_FORWARD and WORLD_RIGHT
-            int axisLength = 1024;
-            OpenGLRender_SetColor(Color_Red);
-            OpenGLRender_Line2(0, 0, WORLD_RIGHT.x * axisLength, WORLD_RIGHT.z * axisLength);
-            OpenGLRender_SetColor(Color_Blue);
-            OpenGLRender_Line2(0, 0, WORLD_FORWARD.x * axisLength, WORLD_FORWARD.z * axisLength);
+                // Draw WORLD_FORWARD and WORLD_RIGHT
+                int axisLength = 1024;
+                OpenGLRender_SetColor(Color_Red);
+                OpenGLRender_Line2(0, 0, WORLD_RIGHT.x * axisLength, WORLD_RIGHT.z * axisLength);
+                OpenGLRender_SetColor(Color_Blue);
+                OpenGLRender_Line2(0, 0, WORLD_FORWARD.x * axisLength, WORLD_FORWARD.z * axisLength);
+            }
 
             // DRAW WALLS
             ////////////////////////////
@@ -636,19 +664,17 @@ void BuildRender_DrawTopDown(Player* players, DukeMap* map, RenderSettingsOpenGL
                             OpenGLRender_SetColor(Color_Black);
                         }
                     }
-                    else
-                    {
                         if (w->nextsector < 0)
                         {
-                            OpenGLRender_SetColor4f(wallColor);
+                            OpenGLRender_SetColor4f(settings2D->wallColor);
+                            OpenGLRender_Line2(start.x, start.y, end.x, end.y);
                         }
-                        else
+                        else if (settings2D->drawPortals)
                         {
-                            OpenGLRender_SetColor4f(portalColor);
+                            OpenGLRender_SetColor4f(settings2D->portalColor);
+                            OpenGLRender_Line2(start.x, start.y, end.x, end.y);
                         }
-                    }
 
-                    OpenGLRender_Line2(start.x, start.y, end.x, end.y);
                     if (settings2D->drawNormals)
                     {
                         vec2 m = Map_GetWallMiddle(map, w);
@@ -770,11 +796,11 @@ void BuildRender_DrawTopDown(Player* players, DukeMap* map, RenderSettingsOpenGL
 
                         if (w->nextsector < 0)
                         {
-                            Font_Printf(df, &wallColor, tx, ty, numberSize, "%d", mapWi);
+                            Font_Printf(df, &settings2D->wallColor, tx, ty, numberSize, "%d", mapWi);
                         }
                         else
                         {
-                            Font_Printf(df, &portalColor, tx, ty, numberSize, "%d", mapWi);
+                            Font_Printf(df, &settings2D->portalColor, tx, ty, numberSize, "%d", mapWi);
                         }
                         if (settings2D->drawOneWall == wi && settings2D->drawOneSector == si)
                         {
@@ -850,8 +876,13 @@ void BuildRender_DrawTopDown(Player* players, DukeMap* map, RenderSettingsOpenGL
                 glVertex2f(end.x, end.y);
                 glVertex2f(sideRight.x, sideRight.y);
             }
-            else
+            else if (pi < settings2D->drawCollisionPointAmount)
             {
+
+                if (settings2D->centerMapToCollisionPoint)
+                {
+                    playerPos2 = vec2Zero();
+                }
                 OpenGLRender_DrawDot(playerPos2, dotSize,pc );
                 OpenGLRender_SetColor(Color_Black);
 

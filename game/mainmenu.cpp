@@ -1,4 +1,5 @@
 #include "mainmenu.h"
+#include "map-play.h"
 #include <mgdl.h>
 #include <mgdl/mgdl-main.h>
 
@@ -111,4 +112,46 @@ int MainMenu_GetSelectedPlayerAmount()
 int MainMenu_GetSelectedMapIndex()
 {
     return mapIndex;
+}
+
+
+MainMenuResult MainMenu_MapOverScreen(float* timer)
+{
+    mgdl_glClearColor4f(&orange);
+    mgdl_InitOrthoProjection();
+    glViewport(0, 0, mgdl_GetScreenWidth(), mgdl_GetScreenHeight());
+    mgdl_glSetTransparency(true);
+    int fontsize = 32;
+
+    mainMenu->font = menuFont;
+    Menu_Start(mainMenu, fontsize, mgdl_GetScreenHeight()-8, fontsize * 2 * 6);
+
+    //mainMenu->text = grey;
+
+    int winner = MapPlay_GetWinner();
+
+    if (winner == 0)
+    {
+        Menu_Text(mainMenu, "0 \n  ");
+    }
+    else if (winner == 0)
+    {
+        Menu_Text(mainMenu, "00\n  ");
+    }
+    else if (winner == 0)
+    {
+        Menu_Text(mainMenu, "00\n0 ");
+    }
+    else if (winner == 0)
+    {
+        Menu_Text(mainMenu, "00\n00");
+    }
+    // TODO end after timer
+    *timer -= mgdl_GetDeltaTime();
+    if (*timer < 0)
+    {
+        return MainMenuStartGame;
+    }
+    return MainMenuLoop;
+
 }

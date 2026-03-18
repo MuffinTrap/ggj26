@@ -29,8 +29,10 @@ struct RenderSettings2D
     bool movePlayer;
     bool rotateMap;
     bool centerMapToPlayer;
+    bool centerMapToCollisionPoint;
 
     int drawPlayersAmount; ///< How many players to draw
+    int drawCollisionPointAmount;
     bool drawSectorNumbers; ///< Draw sector numbers in green if they are rendered
     bool drawPortals; ///< Draw portal walls
     bool drawNormals; ///< Draw wall normals
@@ -38,6 +40,12 @@ struct RenderSettings2D
     bool drawTreasure; ///< Draws treasure sprite regardless of other sprites
     bool drawWallNumbers;
     bool drawPortalDrawLimits; // Shows where portal limits are on the screen
+    bool drawOrigoAndAxii;
+
+    Color4f wallColor;
+    Color4f portalColor;
+    Color4f gridColor;
+    float gridLineLength; ///< 1 means connect nodes, 0 means draw very small crosses at nodes
 
     float gridSize; // Grid in OpenGL units
 };

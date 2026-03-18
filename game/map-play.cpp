@@ -53,7 +53,7 @@ static float fovYAdjustForBuild = 0.0f; // How the fovy degrees used in culling 
 static Texture* maskTexture;
 static Texture* crosshairTexture;
 
-static bool DEBUG_MENU_ENABLED = false;
+static bool DEBUG_MENU_ENABLED = true;
 
 static void InitRenderSettings3D()
 {
@@ -100,16 +100,51 @@ static void InitRenderSettings2D()
     render2D.movePlayer = true;
     render2D.drawOneWall = -1;
     render2D.drawOneSector = -1;
+    render2D.drawPortals = true;
     render2D.rotateMap= true;
     render2D.centerMapToPlayer= true;
+    render2D.centerMapToCollisionPoint= false;
     render2D.drawPlayersAmount = 1;
     render2D.drawWallNumbers = true;
     render2D.drawSectorNumbers = true;
+
+        render2D.portalColor = Color_Create4f(0.5f, 0.1f, 0.1f, 1.0f);
+        render2D.wallColor = Color_Create4f(0.75f, 0.75f, 0.75f, 1.0f);
     mapZoom = 0.9f;
     ZoomOut = false;
 }
+RenderSettings2D mapPreviewSettings;
+static void InitMapPreviewSettings()
+{
+    mapPreviewSettings.mapOffset = vec2New(0,0);
+    mapPreviewSettings.mapZoom = 50.0f;
+    mapPreviewSettings.scaleXZ = 1.0f;
+    mapPreviewSettings.collisionPoint = vec2New(0, 0);
+    mapPreviewSettings.collisionLength = 100.0f;
+    mapPreviewSettings.collisionAngleDeg = 180.0f;
+    mapPreviewSettings.movePlayer = false;
+    mapPreviewSettings.drawOneWall = -1;
+    mapPreviewSettings.drawOneSector = -1;
+    mapPreviewSettings.drawSprites = true;
+    mapPreviewSettings.rotateMap= false;
+    mapPreviewSettings.centerMapToPlayer= false;
+    mapPreviewSettings.centerMapToCollisionPoint= true;
+    mapPreviewSettings.drawPlayersAmount = activePlayerAmount;
+    mapPreviewSettings.drawCollisionPointAmount = 0;
+    mapPreviewSettings.drawWallNumbers = false;
+    mapPreviewSettings.drawSectorNumbers = false;
+    mapPreviewSettings.drawPortals = false;
+    mapPreviewSettings.drawOrigoAndAxii = false;
+    mapPreviewSettings.gridSize = 4.0f;
+    mapPreviewSettings.portalColor = Color_Create4f(0.5f, 0.1f, 0.1f, 0.0f);
+    mapPreviewSettings.wallColor = Color_Create4f(1, 1, 1, 1.0f);
+    mapPreviewSettings.gridColor = Color_Create4f(0.1f, 0.1f, 0.1f, 1.0f);
+    mapPreviewSettings.gridLineLength = 0.25f;
+}
 
-static void DrawMinimap()
+
+
+static void DrawMinimap(RenderSettings2D* settings2D)
 {
     // Reset viewPort
     Rect viewPort = MapPlay_GetPlayerScreenRect(0, 1);
@@ -129,11 +164,8 @@ static void DrawMinimap()
         glLoadIdentity();
         // NOTE: This is from the OpenGL red book. The purpose is to have the vertices
         // in the middle of the screen pixels
-        if (drawTopdown)
-        {
-            glTranslatef(0.375f, 0.375f, 0.0f);
-            BuildRender_DrawTopDown(&players[0], activeMap, &renderGL, &render2D);
-        }
+        glTranslatef(0.375f, 0.375f, 0.0f);
+        BuildRender_DrawTopDown(players, activeMap, &renderGL, settings2D);
     glPopMatrix();
 }
 
@@ -152,14 +184,67 @@ static void DrawRequestsDebug()
     glPopMatrix();
 }
 
-static MapPlayResult DrawDebugMenu()
+static void DrawRender2DSettingsMenu(RenderSettings2D* settings)
+{
+    Menu_Slider(debugMenu, "Zoom", 0.1f, 128.0f, &mapZoom);
+    Menu_Toggle(debugMenu, "Zoom Out", &ZoomOut);
+    if (ZoomOut)
+    {
+        settings->mapZoom = 1.0f/mapZoom;
+    }
+    else
+    {
+        settings->mapZoom = mapZoom;
+    }
+
+
+    Menu_Toggle(debugMenu, "Rotate on Player", &settings->rotateMap);
+    Menu_Toggle(debugMenu, "Center on Player", &settings->centerMapToPlayer);
+
+    Menu_Toggle(debugMenu, "Sprites", &settings->drawSprites);
+    Menu_Toggle(debugMenu, "Wall #", &settings->drawWallNumbers);
+    Menu_Toggle(debugMenu, "Sector #", &settings->drawSectorNumbers);
+    Menu_Toggle(debugMenu, "Portal limits", &settings->drawPortalDrawLimits);
+
+    Menu_Toggle(debugMenu, "Move player", &settings->movePlayer);
+        Menu_TextF(debugMenu, "Draw sect: %d", settings->drawOneSector);
+        Menu_Slider(debugMenu, "Collision L", 1.0f, 1024.0f, &settings->collisionLength);
+        Menu_Slider(debugMenu, "Collision A", 0, 360.0f, &settings->collisionAngleDeg);
+
+        Menu_TextF(debugMenu, "Collision point: (%.1f %.1f) Dir: %.0f", settings->collisionPoint.x, settings->collisionPoint.y, settings->collisionAngleDeg);
+        Menu_TextF(debugMenu, "Sector: %s %d", settings->collisionInsideSector >= 0 ? "Inside" : "Outside", settings->collisionInsideSector);
+        if (Menu_Button(debugMenu, "Draw Wall -"))
+        {
+            settings->drawOneWall--;
+        }
+        if (Menu_Button(debugMenu, "Draw Wall +"))
+        {
+            settings->drawOneWall++;
+        }
+        Menu_TextF(debugMenu, "Draw wall: %d", settings->drawOneWall);
+        if (Menu_Button(debugMenu, "Draw Sector -"))
+        {
+            settings->drawOneSector--;
+        }
+        if (Menu_Button(debugMenu, "Draw Sector +"))
+        {
+            settings->drawOneSector++;
+        }
+
+    Menu_Slider(debugMenu, "X", -100.f, 400.0f, &settings->mapOffset.x);
+    Menu_Slider(debugMenu, "Y", -100.f, 400.0f, &settings->mapOffset.y);
+    Menu_Slider(debugMenu, "grid unit", -1.0f, 10.0f, &settings->gridSize);
+
+}
+
+static MapPlayResult DrawDebugMenu(RenderSettings2D* settings2D)
 {
     mgdl_InitOrthoProjection();
     glViewport(0, 0, mgdl_GetScreenWidth(), mgdl_GetScreenHeight());
 
     if (showMenu) { debugMenu->windowHeight = mgdl_GetScreenHeight()-8;} else { debugMenu->windowHeight = 64;}
 
-    Menu_Start(debugMenu, 8, showMenu ?mgdl_GetScreenHeight()-8 : 64, 256);
+    Menu_Start(debugMenu, 8, mgdl_GetScreenHeight()-8 , 256);
 
     Menu_Toggle(debugMenu, showMenu ? "Hide" : "Show", &showMenu);
 
@@ -200,67 +285,13 @@ static MapPlayResult DrawDebugMenu()
                        editorCamera->rotations.y,
                        editorCamera->rotations.z);
         }
+        DrawRender2DSettingsMenu(settings2D);
 
         Menu_Toggle(debugMenu, "Map", &drawTopdown);
-        Menu_Slider(debugMenu, "Zoom", 0.1f, 128.0f, &mapZoom);
-        Menu_Toggle(debugMenu, "Zoom Out", &ZoomOut);
-        if (ZoomOut)
-        {
-            render2D.mapZoom = 1.0f/mapZoom;
-        }
-        else
-        {
-            render2D.mapZoom = mapZoom;
-        }
-
-
-        Menu_Toggle(debugMenu, "Rotate on Player", &render2D.rotateMap);
-        Menu_Toggle(debugMenu, "Center on Player", &render2D.centerMapToPlayer);
-
-        Menu_Toggle(debugMenu, "Sprites", &render2D.drawSprites);
-        Menu_Toggle(debugMenu, "Wall #", &render2D.drawWallNumbers);
-        Menu_Toggle(debugMenu, "Sector #", &render2D.drawSectorNumbers);
-        Menu_Toggle(debugMenu, "Portal limits", &render2D.drawPortalDrawLimits);
-
-        /*
-        if (render2D.movePlayer == false)
-        {
-            Menu_TextF(debugMenu, "Draw sect: %d", render2D.drawOneSector);
-            Menu_Toggle(debugMenu, "Move player", &render2D.movePlayer);
-            Menu_Slider(debugMenu, "Collision L", 1.0f, 1024.0f, &render2D.collisionLength);
-            Menu_Slider(debugMenu, "Collision A", 0, 360.0f, &render2D.collisionAngleDeg);
-
-            Menu_TextF(debugMenu, "Collision point: (%.1f %.1f) Dir: %.0f", render2D.collisionPoint.x, render2D.collisionPoint.y, render2D.collisionAngleDeg);
-            Menu_TextF(debugMenu, "Sector: %s %d", render2D.collisionInsideSector >= 0 ? "Inside" : "Outside", render2D.collisionInsideSector);
-             if (Menu_Button(debugMenu, "Draw Wall -"))
-             {
-             render2D.drawOneWall--;
-            }
-            if (Menu_Button(debugMenu, "Draw Wall +"))
-            {
-            render2D.drawOneWall++;
-            }
-            Menu_TextF(debugMenu, "Draw wall: %d", render2D.drawOneWall);
-            if (Menu_Button(debugMenu, "Draw Sector -"))
-            {
-            render2D.drawOneSector--;
-            }
-            if (Menu_Button(debugMenu, "Draw Sector +"))
-            {
-            render2D.drawOneSector++;
-            }
-        }
-        */
-
-        /*
-        Menu_Slider(debugMenu, "X", -100.f, 400.0f, &render2D.mapOffset.x);
-        Menu_Slider(debugMenu, "Y", -100.f, 400.0f, &render2D.mapOffset.y);
-        Menu_Slider(debugMenu, "grid unit", -1.0f, 10.0f, &render2D.gridSize);
 
         Menu_Toggle(debugMenu, "OpenGL", &drawOpenGL);
 
         Menu_Slider(debugMenu, "Player Height", 0, 3 * dukeUnitsPerMetre, &players[0].standingHeight);
-        */
 
         //Menu_Slider(debugMenu, "Sprite width", 64, 1024, &renderGL.spriteDefaultWidth);
         //Menu_Slider(debugMenu, "Sprite height", 64, 8024, &renderGL.spriteDefaultHeight);
@@ -294,25 +325,18 @@ static MapPlayResult DrawDebugMenu()
         clearColor.green = fogCOlor[1];
         clearColor.blue = fogCOlor[2];
         clearColor.alpha = 1;
-#ifndef GEKKO
+
+        #ifndef GEKKO
         if (Menu_Button(debugMenu, "EXPORT OBJ"))
         {
             BuildRender_ExportCurrentMapToObj(activeMap, "map_out.obj", &renderGL);
         }
-#endif
+        #endif
         if (Menu_Button(debugMenu, "Back to mainmenu"))
         {
             return MapPlayReturnToMain;
 
         }
-
-        /*
-        int amount = 32;
-        for(int i = amount; i >= 0; i--)
-        {
-            Menu_Text(debugMenu, Log_GetLastLine(i));
-        }
-        */
     }
 
     Menu_DrawCursor(debugMenu);
@@ -334,6 +358,7 @@ void MapPlay_Init()
 {
     InitRenderSettings2D();
     InitRenderSettings3D();
+    InitMapPreviewSettings();
 
     clearColor.red = 0;
     clearColor.green = 0;
@@ -421,6 +446,7 @@ DukeMap* MapPlay_LoadMap(const char* mapfile)
 
 void MapPlay_StartMap(int mapIndex, int playerAmount)
 {
+    mapPreviewSettings.drawPlayersAmount = playerAmount;
     activePlayerAmount = playerAmount;
     if (mapIndex >= 0 && mapIndex < loadedMapAmount)
     {
@@ -716,15 +742,53 @@ MapPlayResult MapPlay_Frame()
 
         if (drawTopdown)
         {
-            DrawMinimap();
+            DrawMinimap(&render2D);
         }
         
         MapPlayResult result = MapPlayLoop;
         if (DEBUG_MENU_ENABLED)
         {
-            result = DrawDebugMenu();
+            result = DrawDebugMenu(&render2D);
         }
 
         return result;
 }
 
+int MapPlay_GetWinner()
+{
+    return Gameplay_GetWinner();
+}
+
+MapPlayResult MapPlay_DrawMapPreview(float timerProgress)
+{
+    // Visit each player and mask
+    float timePerTransition = 1.0f/(mapPreviewSettings.drawPlayersAmount + 1);
+    int playerIndex = floor(timerProgress / timePerTransition);
+    float delta = (timerProgress - playerIndex * timePerTransition)/timePerTransition;
+
+    vec2 start = vec2New(players[playerIndex].position.x, players[playerIndex].position.z);
+    vec2 end = start;
+    if (playerIndex+1 < mapPreviewSettings.drawPlayersAmount)
+    {
+        end =vec2New(players[playerIndex+1].position.x, players[playerIndex+1].position.z);
+    }
+    mapPreviewSettings.collisionPoint = vec2Add(start, vec2Multiply(vec2Subtract(end, start), delta));
+
+    // Zoom out when delta is 0.5f
+    float oldZoom = mapPreviewSettings.mapZoom;
+                                           // When delta is 0 or 1, becomes 0.5
+                                           // 0.5f - 0.5f negates extra zoom
+    float zoomOut = oldZoom + (abs(0.5f - delta)) * 40.0f;
+    mapPreviewSettings.mapZoom = zoomOut;
+
+    DrawMinimap(&mapPreviewSettings);
+    DrawDebugMenu(&mapPreviewSettings);
+
+    mapPreviewSettings.mapZoom = oldZoom;
+
+    Menu_TextF(debugMenu, "Delta %.2f", delta);
+    Menu_TextF(debugMenu, "PI %d", playerIndex);
+
+    return MapPlayLoop;
+
+}

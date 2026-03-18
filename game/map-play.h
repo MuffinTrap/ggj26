@@ -26,6 +26,9 @@ extern "C" {
     void MapPlay_ReloadActiveMap();
     DukeMap* MapPlay_LoadMap(const char* mapfile);
 
+    MapPlayResult MapPlay_DrawMapPreview(float timerPercentage);
+    int MapPlay_GetWinner();
+
 
 #ifdef __cplusplus
 }
