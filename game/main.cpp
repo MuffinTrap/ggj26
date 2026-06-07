@@ -14,7 +14,7 @@ static Sound* music;
 bool musicStarted = false;
 static float MapOverTimer = 5.0f;
 static float MapPreviewTimer = 0.0f;
-static float MapPreviewDuration = 60.0f;
+static float MapPreviewDuration = 10.0f;
 
 // Debug Menu
 void init()

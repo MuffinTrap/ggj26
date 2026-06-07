@@ -6,6 +6,7 @@
 #include "build-render.h"
 #include "dukemath.h"
 #include "mgdl/mgdl-alloc.h"
+#include <mgdl/mgdl-draw2d.h>
 
 #define MAX_MAP_AMOUNT 4
 static int loadedMapAmount =0;
@@ -53,7 +54,7 @@ static float fovYAdjustForBuild = 0.0f; // How the fovy degrees used in culling 
 static Texture* maskTexture;
 static Texture* crosshairTexture;
 
-static bool DEBUG_MENU_ENABLED = true;
+static bool DEBUG_MENU_ENABLED = false;
 
 static void InitRenderSettings3D()
 {
@@ -147,7 +148,7 @@ static void InitMapPreviewSettings()
 static void DrawMinimap(RenderSettings2D* settings2D)
 {
     // Reset viewPort
-    Rect viewPort = MapPlay_GetPlayerScreenRect(0, 1);
+    RectF viewPort = MapPlay_GetPlayerScreenRect(0, 1);
     glViewport(viewPort.x, viewPort.y, viewPort.w, viewPort.h);
 
 
@@ -464,12 +465,12 @@ void MapPlay_StartMap(int mapIndex, int playerAmount)
     editorCameraPos= players[0].position;
 }
 
-Rect MapPlay_GetPlayerScreenRect(int playerIndex, int amountPlayers)
+RectF MapPlay_GetPlayerScreenRect(int playerIndex, int amountPlayers)
 {
     Viewport port = mgdl_GetViewport();
     int W = port.width;
     int H = port.height;
-    Rect r = Rect_Create(port.left, port.bottom, W, H);
+    RectF r = RectF_Create(port.left, port.bottom, W, H);
 
     if (amountPlayers == 1)
     {
@@ -484,7 +485,7 @@ Rect MapPlay_GetPlayerScreenRect(int playerIndex, int amountPlayers)
         // [ 1 ]
         // [ 2 ]
         // XY is bottom left
-        r = Rect_Create(port.left,  port.bottom + (H/2)*playerIndex, W, H/2);
+        r = RectF_Create(port.left,  port.bottom + (H/2)*playerIndex, W, H/2);
 
     }
     else if (amountPlayers >= 3)
@@ -496,7 +497,7 @@ Rect MapPlay_GetPlayerScreenRect(int playerIndex, int amountPlayers)
         // Y = index/2 % 2
         int x = playerIndex % 2;  // 0->0, 1->1, 2->0, 3->1
         int y = (playerIndex/2) % 2; // 0 -> 0, 1->0, 2-> 1, 3-> 1
-        r = Rect_Create(port.left + W/2 * x, port.bottom + (H/2)*y, W/2, H/2);
+        r = RectF_Create(port.left + W/2 * x, port.bottom + (H/2)*y, W/2, H/2);
     }
     return r;
 }
@@ -633,7 +634,7 @@ MapPlayResult MapPlay_Frame()
 
                 // NOTE this eventuall calls gluLookAt: which wants the eye position
 
-                Rect viewPort = MapPlay_GetPlayerScreenRect(pi, activePlayerAmount);
+                RectF viewPort = MapPlay_GetPlayerScreenRect(pi, activePlayerAmount);
 
 
                 // NOTE Must set GL_PROJECTION first then GL_MODELVIEW
@@ -701,7 +702,7 @@ MapPlayResult MapPlay_Frame()
 #       endif
         for (int pi = 0; pi < activePlayerAmount; pi++)
         {
-            Rect viewPort = MapPlay_GetPlayerScreenRect(pi, activePlayerAmount);
+            RectF viewPort = MapPlay_GetPlayerScreenRect(pi, activePlayerAmount);
             glViewport(viewPort.x, viewPort.y, viewPort.w, viewPort.h);
 
             glMatrixMode(GL_PROJECTION);

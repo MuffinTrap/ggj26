@@ -58,4 +58,4 @@ const float CONTROLLER_DEADZONE = 0.4f;
 
 void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings2D* settings2D, RenderSettingsOpenGL* settingsGL, DukeMap* map, int amountPlayers);
 bool Player_IsStunned(Player* player);
-bool IsPointInsideRect(Rect rect, vec2 point);
+bool IsPointInsideRect(RectF rect, vec2 point);

@@ -35,7 +35,7 @@ float Math_DukeAngleToRad(s16 angleInt);
 vec3 Vec3DukePosToOpenGL(vec3 dukepos, RenderSettingsOpenGL* settings3D);
 vec2 Vec2DukePosToOpenGL(vec2 dukepos, RenderSettingsOpenGL* settings3D);
 
-vec3 CalculateCursorWorldPos(vec2 cursorPosition, Rect screenRect, RenderSettingsOpenGL* settings3D);
+vec3 CalculateCursorWorldPos(vec2 cursorPosition, RectF screenRect, RenderSettingsOpenGL* settings3D);
 
 #ifdef __cplusplus
 }

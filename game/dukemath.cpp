@@ -107,7 +107,7 @@ vec2 Vec2DukePosToOpenGL(vec2 dukepos, RenderSettingsOpenGL* settings3D)
 	return vec2Multiply(dukepos, settings3D->scale);
 }
 
-vec3 CalculateCursorWorldPos(vec2 cursorPosition, Rect screenRect, RenderSettingsOpenGL* settings3D)
+vec3 CalculateCursorWorldPos(vec2 cursorPosition, RectF screenRect, RenderSettingsOpenGL* settings3D)
 {
 	// OpenGL book page 152
 	GLint viewport[4];

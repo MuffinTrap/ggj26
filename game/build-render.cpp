@@ -112,9 +112,13 @@ void BuildRender_DrawTempSprites(DukeMap* map, Player* player, RenderSettingsOpe
     for (int i = 0; i < TEMP_SPRITE_AMOUNT; i++)
     {
         DSprite* sprite = &tempSprites[i];
+        /*
         if (BuildRender_WasSectorDrawn(sprite->sectnum)
-            && !Flag_IsSet(sprite->cstat, 1 << CSTAT_SPRITE_INVISIBLE)
+            &&
             && (player->playerNumber != sprite->owner || sprite->owner > 3))
+        {
+        */
+        if (!Flag_IsSet(sprite->cstat, 1 << CSTAT_SPRITE_INVISIBLE))
         {
             // The size comes from the size of the texture somehow
             float scaleAspect = (float)sprite->xrepeat / (float)sprite->yrepeat;

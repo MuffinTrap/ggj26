@@ -21,7 +21,7 @@ extern "C" {
 
     MapPlayResult MapPlay_Frame();
     void MapPlay_StartMap(int mapIndex, int playerAmount);
-    Rect MapPlay_GetPlayerScreenRect(int playerIndex, int amountPlayers);
+    RectF MapPlay_GetPlayerScreenRect(int playerIndex, int amountPlayers);
 
     void MapPlay_ReloadActiveMap();
     DukeMap* MapPlay_LoadMap(const char* mapfile);

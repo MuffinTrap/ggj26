@@ -159,7 +159,7 @@ void Player_UpdateMove(Player* player, WiiController* controller, RenderSettings
 
 	// Shooting, when trigger is pressed, cursor is within viewport and shoot timer is ok
 	vec2 cursorPosition = WiiController_GetCursorPosition(controller);
-	Rect screenRect = MapPlay_GetPlayerScreenRect(player->playerNumber, amountPlayers);
+	RectF screenRect = MapPlay_GetPlayerScreenRect(player->playerNumber, amountPlayers);
 #ifdef MGDL_PLATFORM_WII
 	if (IsPointInsideRect(screenRect, cursorPosition))
 	{
@@ -205,7 +205,7 @@ bool Player_IsStunned(Player* player)
 	return (player->stunTimer > mgdl_GetElapsedSeconds());
 }
 
-bool IsPointInsideRect(Rect rect, vec2 point)
+bool IsPointInsideRect(RectF rect, vec2 point)
 {
 	return point.x >= rect.x && point.x <= rect.x + rect.w && point.y >= rect.y && point.y <= rect.y + rect.h;
 }
